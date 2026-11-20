@@ -1,0 +1,24 @@
+schema: spec-driven
+artifact_store: files
+stack: "Polyglot. Frontend: TypeScript + Vue 3.4 + Vite 5 (Pinia, vue-router 4, Tailwind 3, Leaflet, axios, vite-plugin-pwa). Backend: Python 3.12 + FastAPI + SQLAlchemy 2 + Alembic + PostgreSQL 16 (psycopg3) + MinIO/S3 (boto3). Package managers: pnpm (frontend), pip + requirements.txt (backend)."
+context: |
+  Go Eats: delivery-marketplace PWA. Roles: customer, merchant, courier, admin, accountant (src/views/<role>/).
+  Frontend at repo root: src/{views,components,stores,services,utils}. State in Pinia (src/stores/useGoEatsStore.js); mockData.js still present (migration from mocks to API in progress). Mixed JS/TS.
+  Backend at backend/app by domain: domains/{auth,catalog,delivery,merchants,orders,payments,reports,users,zones}, core/{config,database,rbac,security}, shared/{audit,geo,push,storage}. Entry: app.main:app.
+  Alembic configured but no versions/ dir; alembic.ini points at sqlite while docker-compose uses Postgres.
+  Deployment: docker-compose (postgres, minio, api :8000, web :5173 -> Caddy :80).
+  Design doc: arquitectura_tech_stack_y_rf_go_eats.md (Spanish). No CI, no CLAUDE.md/AGENTS.md in project.
+strict_tdd: true    # user decision: ON; no runner exists yet, so the first change must add vitest (frontend) + pytest (backend)
+security_review: true
+testing:
+  full: none
+  focused: none
+  lint: none
+  typecheck: "pnpm exec vue-tsc -b"   # verified: vue-tsc 5.9.3 runs
+  build: "pnpm build"                 # vue-tsc -b && vite build (not executed)
+  dev: "pnpm dev"
+  install: "pnpm install --frozen-lockfile"
+  backend_install: "pip install -r backend/requirements.txt"
+  backend_run: "cd backend && gunicorn app.main:app -k uvicorn.workers.UvicornWorker"   # unverified
+  stack_up: "docker compose up --build"
+experts: []
