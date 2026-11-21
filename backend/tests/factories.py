@@ -4,7 +4,7 @@ from app.core.security import create_access_token
 from app.domains.catalog.models import Product
 from app.domains.delivery.models import Courier
 from app.domains.merchants.models import Merchant
-from app.domains.users.models import User
+from app.domains.users.models import DataConsent, User
 from app.domains.zones.models import Zone
 
 DEFAULT_PASSWORD = "Passw0rd!"
@@ -19,6 +19,7 @@ def make_user(
     full_name: str = "Test User",
     phone: str = "",
     is_active: bool = True,
+    consent: bool = True,
 ) -> User:
     user = User(
         full_name=full_name,
@@ -31,7 +32,19 @@ def make_user(
     db.add(user)
     db.commit()
     db.refresh(user)
+    if consent:
+        # Mirrors register and the seed: every real user starts with accepted consent (PR9 gate).
+        make_consent(db, user, True)
     return user
+
+
+def make_consent(db: Session, user: User, accepted: bool, accepted_at=None) -> DataConsent:
+    record = DataConsent(user_id=user.id, policy_version="Ley81-2019-v1.0", accepted=accepted)
+    if accepted_at is not None:
+        record.accepted_at = accepted_at
+    db.add(record)
+    db.commit()
+    return record
 
 
 def make_zone(

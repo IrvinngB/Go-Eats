@@ -2,7 +2,12 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from app.domains.users.models import ArcoRequest, User
 from app.domains.users.repository import UserRepository
-from app.domains.users.schemas import ArcoRequestCreate, ArcoRequestResolve, UserUpdate
+from app.domains.users.schemas import (
+    ArcoRequestCreate,
+    ArcoRequestResolve,
+    ConsentRead,
+    UserUpdate,
+)
 from app.shared.audit import record_audit_event
 
 
@@ -22,6 +27,27 @@ class UserService:
         updated = self.repo.update(user, full_name=payload.full_name, phone=payload.phone)
         record_audit_event(self.db, updated.full_name, "Actualizó datos de perfil", "acceso")
         return updated
+
+    def get_consent(self, user_id: int) -> ConsentRead:
+        record = self.repo.latest_consent(user_id)
+        if record is None:
+            return ConsentRead(accepted=False)
+        return ConsentRead(
+            accepted=record.accepted,
+            policy_version=record.policy_version,
+            accepted_at=record.accepted_at,
+        )
+
+    def set_consent(self, user_id: int, accepted: bool) -> ConsentRead:
+        user = self.get_profile(user_id)
+        self.repo.append_consent(user_id, accepted)
+        record_audit_event(
+            self.db,
+            user.full_name,
+            "Otorgó consentimiento Ley 81" if accepted else "Revocó consentimiento Ley 81",
+            "arco",
+        )
+        return self.get_consent(user_id)
 
     def submit_arco(self, user_id: int, payload: ArcoRequestCreate) -> ArcoRequest:
         user = self.get_profile(user_id)

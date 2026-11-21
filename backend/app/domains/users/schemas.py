@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from app.core.rbac import UserRole
 
@@ -28,8 +29,21 @@ class UserRead(BaseModel):
     created_at: datetime
 
 
+ArcoType = Literal["Acceso", "Rectificación", "Cancelación", "Oposición"]
+
+
+class ConsentRead(BaseModel):
+    accepted: bool
+    policy_version: str | None = None
+    accepted_at: datetime | None = None
+
+
+class ConsentUpdate(BaseModel):
+    accepted: bool
+
+
 class ArcoRequestCreate(BaseModel):
-    request_type: str = Field(..., description="Acceso | Rectificación | Cancelación | Oposición")
+    request_type: ArcoType
     detail: str = Field(..., min_length=5, max_length=1000)
 
 

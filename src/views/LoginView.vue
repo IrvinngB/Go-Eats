@@ -94,7 +94,7 @@ async function entrar() {
           <label v-if="modoRegistro" class="flex items-start gap-2.5 rounded-lg bg-blue-50/60 border border-blue-100 p-3.5 cursor-pointer">
             <input v-model="aceptaPolitica" type="checkbox" class="mt-0.5 w-4 h-4 accent-[#00B19D]" />
             <span class="text-xs text-slatebody leading-relaxed">
-              He leído y acepto la <button class="text-brand-dark font-medium underline underline-offset-2" type="button">política de protección de datos personales</button> en cumplimiento de la <strong class="text-ink">Ley 81 de 2019</strong> de Panamá. Autorizo el tratamiento de mis datos para gestionar pedidos y entregas.
+              Acepto el tratamiento de mis datos personales en cumplimiento de la <strong class="text-ink">Ley 81 de 2019</strong> de Panamá, para gestionar pedidos y entregas. Podré revisar y revocar este consentimiento desde mi perfil.
             </span>
           </label>
 

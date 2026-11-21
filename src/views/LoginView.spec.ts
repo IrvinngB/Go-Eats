@@ -98,6 +98,16 @@ describe('LoginView', () => {
   })
 })
 
+describe('LoginView privacy policy control (PR9)', () => {
+  it('the register consent text has no inert button and still names Ley 81', async () => {
+    const { wrapper } = await setup()
+    await wrapper.findAll('button').find((b) => b.text() === 'Regístrate')!.trigger('click')
+    const label = wrapper.find('label:has(input[type="checkbox"])')
+    expect(label.findAll('button')).toHaveLength(0)
+    expect(label.text()).toContain('Ley 81 de 2019')
+  })
+})
+
 describe('store autenticarUsuario payloads', () => {
   beforeEach(() => {
     post.mockReset()

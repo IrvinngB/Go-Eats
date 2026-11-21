@@ -76,8 +76,9 @@ Every PR gate: `cd backend && .venv/bin/pytest`, `pnpm test`, `pnpm exec vue-tsc
 - [x] 8.2 RED store specs failed write restores snapshot + toast, success path, cart cleared on success only; GREEN helper for all writes; fix F5 auto-dismiss; no `.catch(()=>{})`.
 
 ## PR9: Consent/ARCO
-- [ ] 9.1 RED `test_consent.py` (latest by id, revoke -> 403 `consent_required` on both POSTs, re-grant, ARCO own list, Literal 422); GREEN `require_active_consent`, endpoints.
-- [ ] 9.2 RED ProfileView spec; GREEN consent checkbox, ARCO history, rollback.
+- [x] 9.1 RED `test_consent.py` (latest by id, revoke -> 403 `consent_required` on both POSTs, re-grant, ARCO own list, Literal 422); GREEN `require_active_consent`, endpoints.
+- [x] 9.2 RED ProfileView spec; GREEN consent checkbox, ARCO history, rollback.
+- [x] 9.3 (extra, PR8 risk) RED store spec: `crearPedido` retry-safe (POST /orders once across a failed payment and its retry); GREEN remembered order code, cleared on success/cart change/cancel/logout.
 
 ## PR10: Guards, flag, Docker, e2e
 - [ ] 10.1 RED `guards.spec.ts` (anon redirect, wrong role, `//evil.com`/`https:` rejected, login-page redirect); GREEN `guards.ts`, `main.ts` install, `setSessionExpiredHandler`.

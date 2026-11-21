@@ -22,7 +22,7 @@ async function setup(promo = false, autenticado = true) {
   store.catalogo = {
     c9: [{ id: 'p1', nombre: 'Plato', precio: promo ? 4 : 5, precioRegular: 5, descripcion: '', categoria: 'x', disponible: true }],
   }
-  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/login', name: 'login', component: StoreDetailView }, { path: '/tiendas/:id', component: StoreDetailView }, { path: '/tiendas', component: StoreDetailView }, { path: '/pedidos', component: StoreDetailView }] })
+  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/login', name: 'login', component: StoreDetailView }, { path: '/tiendas/:id', component: StoreDetailView }, { path: '/tiendas', component: StoreDetailView }, { path: '/pedidos', component: StoreDetailView }, { path: '/perfil', name: 'profile', component: StoreDetailView }] })
   await router.push('/tiendas/c9')
   await router.isReady()
   const w = mount(StoreDetailView, { global: { plugins: [pinia, router] } })
@@ -115,5 +115,54 @@ describe('StoreDetailView payment flow', () => {
     expect(router.currentRoute.value.name).toBe('login')
     expect(router.currentRoute.value.query.redirect).toBe('/tiendas/c9')
     expect(store.carrito).toHaveLength(1)
+  })
+})
+
+describe('StoreDetailView consent_required', () => {
+  async function toCheckout(w: Awaited<ReturnType<typeof setup>>['w'], metodo: string) {
+    await openCheckout(w)
+    await w.find('input.input').setValue('Calle 45')
+    await w.find(`input[value="${metodo}"]`).setValue(true)
+    await w.findAll('button').find((b) => b.text() === 'Realizar pedido')!.trigger('click')
+    await flushPromises()
+  }
+
+  function blocked(store: { consentimientoRequerido: boolean }) {
+    return async () => {
+      store.consentimientoRequerido = true
+      return null
+    }
+  }
+
+  it('cash: the drawer shows the specific message and a link to Perfil that navigates there', async () => {
+    const { w, store, router } = await setup()
+    vi.spyOn(store, 'crearPedido').mockImplementation(blocked(store))
+    await toCheckout(w, 'contr_entrega')
+    const box = w.find('[data-test="consent-required"]')
+    expect(box.text()).toContain('Debes aceptar el tratamiento de tus datos')
+    await box.find('button').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.name).toBe('profile')
+  })
+
+  it('electronic: the modal explains the consent block instead of the generic payment error', async () => {
+    const { w, store, router } = await setup()
+    vi.spyOn(store, 'crearPedido').mockImplementation(blocked(store))
+    await toCheckout(w, 'electronico')
+    await w.findAll('.modal-panel button').find((b) => b.text() === 'Pagar (simulado)')!.trigger('click')
+    await flushPromises()
+    const box = w.find('.modal-panel [data-test="consent-required"]')
+    expect(box.text()).toContain('Debes aceptar el tratamiento de tus datos')
+    expect(w.find('.modal-panel').text()).not.toContain('No pudimos procesar el pago')
+    await box.find('button').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.name).toBe('profile')
+  })
+
+  it('no consent message while the flag is off', async () => {
+    const { w, store } = await setup()
+    vi.spyOn(store, 'crearPedido').mockResolvedValue(null)
+    await toCheckout(w, 'contr_entrega')
+    expect(w.find('[data-test="consent-required"]').exists()).toBe(false)
   })
 })

@@ -1,13 +1,19 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useGoEatsStore } from '../../stores/useGoEatsStore'
 
 const store = useGoEatsStore()
 
-const form = ref({ ...store.usuario })
+// The consent flag is not part of the editable form: it is read and written through its own endpoint.
+const form = ref({ nombre: store.usuario.nombre, email: store.usuario.email, telefono: store.usuario.telefono })
+const consentimiento = computed(() => store.usuario.consentimientoLey81)
+const consentCargaFallida = ref(false)
+const guardandoConsent = ref(false)
 const tipoARCO = ref('Acceso')
 const detalleARCO = ref('')
 const enviado = ref(false)
+
+const ESTADO_ARCO = { pendiente: 'Pendiente', respondida: 'Respondida' }
 
 const tiposARCO = [
   { id: 'Acceso', desc: 'Conocer qué datos tuyos tenemos registrados.' },
@@ -16,13 +22,27 @@ const tiposARCO = [
   { id: 'Oposición', desc: 'Rechazar el uso de tus datos para fines específicos.' },
 ]
 
+onMounted(async () => {
+  const [consent] = await Promise.all([store.cargarConsentimiento(), store.cargarMisSolicitudesARCO()])
+  consentCargaFallida.value = !consent.ok
+})
+
 function guardarPerfil() {
   store.guardarPerfil({ ...form.value })
 }
 
+async function cambiarConsentimiento(event) {
+  const input = event.target
+  guardandoConsent.value = true
+  const r = await store.cambiarConsentimiento(input.checked)
+  guardandoConsent.value = false
+  // The native checkbox already flipped: on failure the store rolled back, so mirror it in the DOM.
+  if (!r.ok) input.checked = consentimiento.value === true
+}
+
 async function enviarARCO() {
-  if (!detalleARCO.value.trim()) {
-    store.notificar('Describe tu solicitud para continuar.')
+  if (detalleARCO.value.trim().length < 5) {
+    store.notificar('Describe tu solicitud con al menos 5 caracteres para continuar.')
     return
   }
   const r = await store.enviarSolicitudARCO(tipoARCO.value, detalleARCO.value)
@@ -72,11 +92,24 @@ async function enviarARCO() {
             En Go Eats tratamos tus datos personales conforme a la Ley 81 de Protección de Datos Personales de la República de Panamá.
           </p>
           <label class="flex items-start gap-3 mt-4 rounded-lg border border-line p-4 cursor-pointer hover:border-brand/40 transition-colors">
-            <input v-model="form.consentimientoLey81" type="checkbox" class="mt-0.5 w-4 h-4 accent-[#00B19D]" @change="guardarPerfil" />
+            <input
+              data-test="consent-toggle"
+              type="checkbox"
+              class="mt-0.5 w-4 h-4 accent-[#00B19D]"
+              :checked="consentimiento === true"
+              :disabled="consentimiento === null || guardandoConsent"
+              @change="cambiarConsentimiento"
+            />
             <span class="text-sm text-slatebody leading-relaxed">
               <strong class="text-ink">Consentimiento informado.</strong> Autorizo a Comercios Unidos del Istmo, S.A. a tratar mis datos personales (nombre, contacto, direcciones y historial de pedidos) con la finalidad de gestionar pedidos, entregas y atención al cliente. Puedo revocar este consentimiento en cualquier momento.
             </span>
           </label>
+          <p v-if="consentCargaFallida" data-test="consent-load-error" class="mt-3 text-sm text-coral">
+            No pudimos cargar el estado de tu consentimiento. Recarga la página para intentarlo de nuevo.
+          </p>
+          <p v-if="consentimiento === false" data-test="consent-revoked" class="mt-3 text-sm rounded-lg border border-amber-200 bg-amber-50 text-amber-800 p-3 leading-relaxed">
+            Revocaste tu consentimiento. No podrás hacer nuevos pedidos ni pagos mientras esté revocado, pero tu cuenta, tus pedidos anteriores y tus datos se conservan. Vuelve a marcar la casilla para hacer pedidos de nuevo.
+          </p>
         </div>
       </div>
     </section>
@@ -89,6 +122,8 @@ async function enviarARCO() {
       <div class="mt-4 grid gap-2 sm:grid-cols-2">
         <button
           v-for="t in tiposARCO" :key="t.id"
+          data-test="arco-type"
+          :data-type="t.id"
           class="text-left rounded-lg border p-3 transition-all"
           :class="tipoARCO === t.id ? 'border-brand bg-brand-light ring-1 ring-brand' : 'border-line hover:border-brand/40'"
           @click="tipoARCO = t.id"
@@ -99,20 +134,22 @@ async function enviarARCO() {
       </div>
 
       <textarea v-model="detalleARCO" rows="3" class="input mt-4" placeholder="Describe tu solicitud con detalle..." />
-      <button class="btn-primary mt-3" @click="enviarARCO">Enviar solicitud</button>
+      <button data-test="arco-submit" class="btn-primary mt-3" @click="enviarARCO">Enviar solicitud</button>
       <p v-if="enviado" class="text-sm text-emerald-600 mt-3">Tu solicitud fue enviada. Puedes hacer seguimiento desde aquí.</p>
 
-      <!-- Historial -->
-      <div v-if="store.solicitudesARCO.filter((s) => s.usuario === store.usuario.nombre).length" class="mt-6 pt-5 border-t border-line">
+      <!-- Historial (solo las solicitudes propias, la más reciente primero) -->
+      <div v-if="store.misSolicitudesARCO.length" class="mt-6 pt-5 border-t border-line">
         <h3 class="text-xs font-semibold uppercase tracking-wide text-slatebody/70 mb-3">Mis solicitudes</h3>
         <ul class="space-y-2">
-          <li v-for="s in store.solicitudesARCO.filter((x) => x.usuario === store.usuario.nombre)" :key="s.id" class="flex items-start justify-between gap-3 text-sm rounded-lg bg-canvas p-3">
+          <li v-for="s in store.misSolicitudesARCO" :key="s.id" data-test="arco-item" class="flex items-start justify-between gap-3 text-sm rounded-lg bg-canvas p-3">
             <div>
               <span class="font-medium text-ink">{{ s.tipo }}</span>
               <span class="block text-xs text-slatebody mt-0.5">{{ s.detalle }}</span>
+              <span v-if="s.respuesta" class="block text-xs text-ink mt-1">Respuesta: {{ s.respuesta }}</span>
+              <span class="block text-[11px] text-slatebody/70 mt-1">{{ s.fecha }}</span>
             </div>
             <span class="text-[11px] font-semibold shrink-0" :class="s.estado === 'respondida' ? 'text-emerald-600' : 'text-amber-600'">
-              {{ s.estado === 'respondida' ? 'Respondida' : 'Pendiente' }}
+              {{ ESTADO_ARCO[s.estado] || s.estado }}
             </span>
           </li>
         </ul>

@@ -6,6 +6,8 @@ from app.domains.users.schemas import (
     ArcoRequestCreate,
     ArcoRequestRead,
     ArcoRequestResolve,
+    ConsentRead,
+    ConsentUpdate,
     UserRead,
     UserUpdate,
 )
@@ -29,6 +31,31 @@ def update_my_profile(
     db: Session = Depends(get_db),
 ) -> UserRead:
     return UserService(db).update_profile(current_user.user_id, payload)
+
+
+@router.get("/me/consent", response_model=ConsentRead)
+def get_my_consent(
+    current_user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ConsentRead:
+    return UserService(db).get_consent(current_user.user_id)
+
+
+@router.put("/me/consent", response_model=ConsentRead)
+def set_my_consent(
+    payload: ConsentUpdate,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ConsentRead:
+    return UserService(db).set_consent(current_user.user_id, payload.accepted)
+
+
+@router.get("/me/arco", response_model=list[ArcoRequestRead])
+def list_my_arco_requests(
+    current_user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[ArcoRequestRead]:
+    return UserService(db).list_arco(current_user.user_id)
 
 
 @router.post("/me/arco", response_model=ArcoRequestRead, status_code=201)

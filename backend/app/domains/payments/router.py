@@ -5,6 +5,7 @@ from app.core.database import get_db
 from app.core.rbac import CurrentUser, UserRole, require_roles
 from app.domains.payments.schemas import PaymentCreate, PaymentRead, PaymentStatusUpdate
 from app.domains.payments.service import PaymentService
+from app.domains.users.dependencies import require_active_consent
 
 router = APIRouter(prefix="/payments", tags=["payments"])
 
@@ -23,6 +24,7 @@ def list_payments(
 def process_payment(
     payload: PaymentCreate,
     current_user: CurrentUser = Depends(require_roles(UserRole.CUSTOMER)),
+    _consent: CurrentUser = Depends(require_active_consent),
     db: Session = Depends(get_db),
 ) -> PaymentRead:
     return PaymentService(db).process_payment(current_user, payload)

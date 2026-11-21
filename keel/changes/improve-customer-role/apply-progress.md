@@ -294,3 +294,42 @@ backend pytest 319 passed (untouched); `pnpm test` 406 passed (35 files; router/
 - No mobile viewport; real 401 mid-session not exercised (PR10).
 
 ### Remaining: PR9, PR10 (and V.1/V.2/V.3)
+
+
+## PR9 (tasks 9.1-9.3) - DONE, not committed
+Branch: feat/customer-pr9-consent-arco.
+
+### Files
+Backend: NEW `users/dependencies.py` (`require_active_consent`: customer role only; latest `DataConsent` by highest id; accepted passes; revoked or missing -> 403 `consent_required`; other roles pass through so role errors and admin behaviour are unchanged), MOD `users/{schemas,repository,service,router}.py` (`ConsentRead/ConsentUpdate`, `ArcoType` Literal of the 4 values, `GET/PUT /users/me/consent`, `GET /users/me/arco` own only newest first; PUT appends a row at `settings.privacy_policy_version` and writes an audit event; admin `GET /users/arco` untouched), MOD `orders/router.py` and `payments/router.py` (gate declared AFTER the role dependency, POST only). Tests: NEW `tests/test_consent.py` (28 cases), MOD `tests/factories.py` (`make_user(consent=True)` default + `make_consent`, mirrors register and the seed so the 319 earlier tests keep exercising the happy path).
+Frontend: MOD store (`usuario.consentimientoLey81` starts `null` and login/restore no longer set true; `cargarConsentimiento`, `cambiarConsentimiento` via `escribir`; `misSolicitudesARCO` + `cargarMisSolicitudesARCO`; `enviarSolicitudARCO` now targets the own list and swaps in the server row; `guardarPerfil` never overwrites the consent flag; `consentimientoRequerido` flag; `pedidoPendientePago` for 9.3), ProfileView.vue (real toggle, revoked explanation, load-error state, own ARCO history with status and admin response, detail >= 5 chars client check), StoreDetailView.vue (consent_required box with "Ir a mi perfil para aceptar" in the drawer and in the payment modal), LoginView.vue. Tests: NEW `useGoEatsStore.consent.spec.ts` (19), NEW `ProfileView.spec.ts` (11), MOD `StoreDetailView.spec.ts` (+3), `LoginView.spec.ts` (+1), `useGoEatsStore.writes.spec.ts` (1 case updated).
+
+### Decisions / deviations
+- Existing DBs: NO backfill. Spec and clarification Q3 say "no record = not accepted" and require nothing else, so I did not invent a silent consent. Consequence: on an existing Postgres volume any customer created before the gate and without a `data_consents` row (registration and the seed always created one, so only hand-made or pre-consent rows) gets 403 `consent_required` on POST /orders and /payments until they tick the box in Perfil. Seeded and registered users are unaffected. Not verified against the project volume.
+- LoginView policy button: REMOVED (simplest honest option; no legal text invented). The register checkbox text was reworded from "He leido y acepto la politica" to "Acepto el tratamiento de mis datos ... Ley 81 de 2019 ... Podre revisar y revocar este consentimiento desde mi perfil", since there is no policy document to have read. Spec allows "open or remove".
+- Store `usuario.consentimientoLey81` is `null` (unknown) until Perfil loads the server state; nothing outside `cargarConsentimiento/cambiarConsentimiento` sets it true (rg verified: only the logged-out reset and tests).
+- PR8 contract change (legit): `enviarSolicitudARCO` writes to `misSolicitudesARCO`, not `solicitudesARCO` (the latter stays the admin-wide list). One PR8 case in `useGoEatsStore.writes.spec.ts` updated accordingly. No other PR4-PR8 spec changed.
+- Orders POST still allows admin (`require_roles(CUSTOMER, ADMIN)` from earlier PRs, design table says 403): not touched here; the gate does not apply to admin.
+- 9.3 retry-safety: `crearPedido` remembers `{codigo, firma}` after POST /orders succeeds; the signature covers merchant, zone, address, notes, method and every cart line. Same signature on the next call -> POST /orders skipped, only POST /payments for that code. Memory cleared on success (`vaciarCarrito`), on `vaciarCarrito` (cancel/empty), on logout, and implicitly when any cart line or delivery datum changes (signature mismatch -> new order). The abandoned unpaid order of a changed cart stays `pendiente` on the server (no cancel endpoint for customers); known limitation.
+- A consent_required on the payment POST after the order was created keeps the memory, so after re-accepting in Perfil the retry only pays.
+
+### TDD evidence
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|---|
+| 9.1 | tests/test_consent.py | integration | 319 green | 18 of 28 failed: `405 Method Not Allowed` on PUT/GET consent and `/me/arco`, `assert 201 == 403` (revoked order and payment not blocked), `201 == 422` for unknown ARCO types | 347 pass | latest by id vs newer timestamp, no record, append/history [T,F,T], same-second flips, other user untouched, login adds no consent, order+payment x (revoked, missing), re-grant, reads still 200 while revoked, nothing deleted, merchant 403 not masked, admin ok, anon 401, ARCO own-only/newest-first/responded, 4 valid types + 4 invalid, short detail, forged user_id ignored, admin list admin-only | factories default consent |
+| 9.3 | useGoEatsStore.consent.spec.ts | store | 406 green | named first: "POST /orders is called once across a failed payment and its retry": `expected length 1 but got 2`; 14 of 19 failed in total | 19 pass (425 total) | retry, success clears, cart qty change, empty+re-add, changed address, logout, consent_required on order and on payment, flag cleared on re-grant, consent load/toggle/rollback, own ARCO | none |
+| 9.2 | ProfileView.spec.ts, StoreDetailView.spec.ts, LoginView.spec.ts | component | 425 green | ProfileView 11 of 11 failed (`/users/me/consent` never requested, empty DOMWrapper for the toggle); StoreDetailView 2 of 3 failed (no consent box); LoginView: `expected length 0 but got 1` (proved by stashing the view change) | all pass (440 total) | accepted/revoked/off/on/failure rollback/load failure; ARCO list order+labels+response, 4 types, submit, short detail, failed submit; cash drawer and electronic modal + navigation to profile; no box when flag off | none |
+
+### Real verification (throwaway sqlite scratchpad/pr9.db seeded via init_db; uvicorn :8791; vite :5231 with VITE_API_URL; Playwright scratchpad/pr9.mjs; real login carlos@ejemplo.pa; goeats.db never created)
+Through the UI: Perfil showed the toggle ON; unchecking sent `PUT {accepted:false}` and showed the revoked note; "Realizar pedido" sent POST /orders -> 403, the drawer showed the specific box + red toast, no order was created; the "Ir a mi perfil para aceptar" link went to /perfil; re-checking sent `PUT {accepted:true}`; back in the store the cart was kept and the same checkout created PED-1100 and POST /payments PED-1100 (body only `{order_code, method}`). ARCO: picked Oposicion, wrote a detail, history showed it first as Pendiente, same after reload; API own list `[11 Oposicion, 1 Acceso]`. A second customer (registered via API) got `[]` from GET /users/me/arco. Consent history in the scratch DB (read-only sqlite3): Carlos has rows 1(accepted) 26(revoked) 27(accepted), later 5 after my curl round-trip: appended, never deleted. Curl while revoked: POST /payments 403 `consent_required`, GET /orders/PED-1100 200. Zero pageerrors. Screenshots Read: scratchpad/pr9-2-profile-revoked.png, pr9-3-checkout-blocked.png, pr9-6-arco.png. Servers stopped by PID, ports 8791/5231 free. No panel degraded (only visual note: the error toast overlaps the drawer's "Realizar pedido" bottom edge, pre-existing toast position).
+
+### Gates
+backend pytest 347 passed; `pnpm test` 440 passed (37 files; router/App/App.sync/LandingView and PR4-PR8 suites green); vue-tsc clean; `pnpm build` ok; `pnpm test:e2e` 19 passed; tsbuildinfo restored.
+
+### Not verified
+- Project PostgreSQL / docker volume; users of an existing DB without consent rows (behaviour by pytest "missing consent" only).
+- Retry-safe `crearPedido` only by store spec (the browser cannot make the payment fail without the DEV flag; the order-then-payment path was exercised with the happy case).
+- Electronic-payment modal consent box by component test only (browser run used cash).
+- No mobile viewport; admin resolving an ARCO request and the customer seeing `respondida` in the UI only by pytest (API) and component test.
+
+### Remaining: PR10 (and V.1/V.2/V.3)
+

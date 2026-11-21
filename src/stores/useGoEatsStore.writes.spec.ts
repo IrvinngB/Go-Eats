@@ -256,17 +256,17 @@ describe('other writes roll back', () => {
 
   it('enviarSolicitudARCO removes the optimistic request on failure and confirms only on success', async () => {
     const store = seeded()
-    store.solicitudesARCO = []
+    store.misSolicitudesARCO = [] // PR9: a customer's own requests live in their own list
     post.mockRejectedValueOnce(http(403, { detail: 'consent_required' }))
     const bad = await store.enviarSolicitudARCO('Acceso', 'detalle')
     expect(bad.ok).toBe(false)
     expect(bad.error.code).toBe('consent_required')
-    expect(store.solicitudesARCO).toHaveLength(0)
+    expect(store.misSolicitudesARCO).toHaveLength(0)
     expect(store.notificacion.texto).toBe('Debes aceptar el tratamiento de tus datos para continuar.')
     post.mockResolvedValueOnce({ data: {} })
     const ok = await store.enviarSolicitudARCO('Acceso', 'detalle')
     expect(ok.ok).toBe(true)
-    expect(store.solicitudesARCO).toHaveLength(1)
+    expect(store.misSolicitudesARCO).toHaveLength(1)
     expect(store.notificacion.texto).toBe('Tu solicitud fue enviada. El administrador la responderá pronto.')
   })
 
