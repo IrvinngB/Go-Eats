@@ -36,10 +36,10 @@ Every PR gate: `cd backend && .venv/bin/pytest`, `pnpm test`, `pnpm exec vue-tsc
 - [x] 1.5 GREEN: `test_smoke.py::test_login_with_factory_user`, `test_no_goeats_db_created`.
 
 ## PR2: Migration + link (additive only; no status rewrite, no `rechazado`)
-- [ ] 2.1 RED `test_migrations.py::test_adds_columns_links_idempotent` (legacy DDL, run twice, 8 links by email, views' statuses untouched); GREEN: create `core/migrations.py` (advisory lock 724001 on PG, inspect add-column, `CREATE UNIQUE INDEX IF NOT EXISTS`, duplicate-column catch, backfill map, INFO counts).
-- [ ] 2.2 Add `merchants.owner_user_id`, `couriers.user_id` (nullable, unique, indexed, same index names) to models; define shared `ENTITY_LINKS`.
-- [ ] 2.3 Wire `create_all` -> `run_startup_migrations` -> `seed` in `main.lifespan` and `init_db.init()`; seed sets links on fresh DB (test `test_fresh_seed_links_entities`, `test_fresh_schema_noop`).
-- [ ] 2.4 Verify seeded users have consent rows (seed.py:83) and record result in PR description.
+- [x] 2.1 RED `test_migrations.py::test_adds_columns_links_idempotent` (legacy DDL, run twice, 8 links by email, views' statuses untouched); GREEN: create `core/migrations.py` (advisory lock 724001 on PG, inspect add-column, `CREATE UNIQUE INDEX IF NOT EXISTS`, duplicate-column catch, backfill map, INFO counts).
+- [x] 2.2 Add `merchants.owner_user_id`, `couriers.user_id` (nullable, unique, indexed, same index names) to models; define shared `ENTITY_LINKS`.
+- [x] 2.3 Wire `create_all` -> `run_startup_migrations` -> `seed` in `main.lifespan` and `init_db.init()`; seed sets links on fresh DB (test `test_fresh_seed_links_entities`, `test_fresh_schema_noop`).
+- [x] 2.4 Verify seeded users have consent rows (seed.py:83) and record result in PR description.
 
 ## PR3: Auth hardening
 - [ ] 3.1 RED `test_auth.py::test_login_ignores_role_flag_off`, `test_login_honors_role_flag_on`; GREEN: add `dev_role_override`, `dev_simulate_failure` to `config.py` (1/true/yes), gate login role.

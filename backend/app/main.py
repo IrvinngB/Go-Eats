@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import Base, SessionLocal, engine
+from app.core.migrations import run_startup_migrations
 from app.domains.auth.router import router as auth_router
 from app.domains.catalog.router import router as catalog_router
 from app.domains.delivery.router import router as delivery_router
@@ -19,6 +20,7 @@ from app.seed import seed_initial_data
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     Base.metadata.create_all(bind=engine)
+    run_startup_migrations(engine)
     with SessionLocal() as db:
         seed_initial_data(db)
     yield

@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Float, Integer, String
+from sqlalchemy import Boolean, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database import Base
 
@@ -15,4 +15,7 @@ class Courier(Base):
     is_available: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     affiliation_status: Mapped[str] = mapped_column(
         String(30), default="activo", index=True, nullable=False
+    )
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"), unique=True, index=True, nullable=True
     )

@@ -11,6 +11,15 @@ from app.domains.payments.models import Payment, PaymentStatusHistory, Receipt
 from app.domains.users.models import ArcoRequest, DataConsent, User
 from app.domains.zones.models import Zone
 from app.shared.audit import AuditLog, AuthEvent
+from app.shared.entity_links import ENTITY_LINKS
+
+
+def _linked_user_id(db: Session, links: dict[str, str], code: str) -> int | None:
+    """User id linked to an entity code via the shared email mapping, else None."""
+    for email, linked_code in links.items():
+        if linked_code == code:
+            return db.scalar(select(User.id).where(User.email == email))
+    return None
 
 
 def seed_initial_data(db: Session) -> None:
@@ -124,6 +133,7 @@ def seed_initial_data(db: Session) -> None:
                     closes_at=closes,
                     description=desc,
                     icon=icon,
+                    owner_user_id=_linked_user_id(db, ENTITY_LINKS["merchants"], code),
                 )
             )
     db.flush()
@@ -301,6 +311,7 @@ def seed_initial_data(db: Session) -> None:
                     rating=rating,
                     is_available=avail,
                     affiliation_status=aff,
+                    user_id=_linked_user_id(db, ENTITY_LINKS["couriers"], ccode),
                 )
             )
     db.flush()
