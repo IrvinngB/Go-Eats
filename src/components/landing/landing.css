@@ -1,4 +1,5 @@
-/* Landing tokens: mirror of tokens.ts (landing.spec.ts enforces sync). Scoped to .landing. */
+/* Landing tokens: mirror of tokens.ts `light` (landing.spec.ts enforces sync). Scoped to .landing.
+   Light only: nothing global recolors the landing. */
 .landing {
   --lp-bg: #FFFFFF;
   --lp-surface: #F2F7F7;
@@ -13,44 +14,15 @@
   --lp-primary-text: #00796B;
   --lp-primary-tint: #D6F5F0;
   --lp-on-primary: #0B2B33;
+  --lp-indigo: #2E2A7A;
+  --lp-on-indigo: #FFFFFF;
+  --lp-on-indigo-soft: #C9C7F0;
+  --lp-amber-tint: #FFF1D6;
+  --lp-amber: #FFB62E;
 
   background: var(--lp-bg);
   color: var(--lp-ink);
   font-family: 'Nunito', system-ui, sans-serif;
-}
-
-@media (prefers-color-scheme: dark) {
-  .landing:not(.light) {
-    --lp-bg: #0A171B;
-    --lp-surface: #12262B;
-    --lp-surface-strong: #1B343A;
-    --lp-ink: #F0F7F7;
-    --lp-ink-soft: #B3C7CB;
-    --lp-ink-faint: #8AA2A7;
-    --lp-border: #264047;
-    --lp-primary: #2DE0C8;
-    --lp-primary-hover: #5BEAD6;
-    --lp-primary-lip: #14A895;
-    --lp-primary-text: #2DE0C8;
-    --lp-primary-tint: #10383B;
-    --lp-on-primary: #062A2F;
-  }
-}
-
-.dark .landing, .landing.dark, [data-theme="dark"] .landing {
-  --lp-bg: #0A171B;
-  --lp-surface: #12262B;
-  --lp-surface-strong: #1B343A;
-  --lp-ink: #F0F7F7;
-  --lp-ink-soft: #B3C7CB;
-  --lp-ink-faint: #8AA2A7;
-  --lp-border: #264047;
-  --lp-primary: #2DE0C8;
-  --lp-primary-hover: #5BEAD6;
-  --lp-primary-lip: #14A895;
-  --lp-primary-text: #2DE0C8;
-  --lp-primary-tint: #10383B;
-  --lp-on-primary: #062A2F;
 }
 
 /* The app's global `h1,h2,h3,h4 { text-ink }` (src/style.css) would otherwise win over
@@ -71,7 +43,7 @@
   min-height: 44px;
   min-width: 44px;
   padding: 0 1.25rem;
-  border-radius: 0.75rem;
+  border-radius: 12px;
   font-weight: 800;
   text-decoration: none;
   background: var(--lp-primary);
@@ -169,4 +141,64 @@
 .lp-link:focus-visible {
   outline: 3px solid var(--lp-primary-text);
   outline-offset: 3px;
+}
+
+/* Radii are literal on purpose: the .landing block must hold exactly the tokens.ts light tokens. */
+.lp-card {
+  border-radius: 16px;
+  background: var(--lp-bg);
+  color: var(--lp-ink);
+}
+
+/* Section bands (flat tones). Pairs are proven in tokens.ts bandPairsFor. */
+.lp-band-bg {
+  background: var(--lp-bg);
+  color: var(--lp-ink);
+}
+
+.lp-band-surface {
+  background: var(--lp-surface);
+  color: var(--lp-ink);
+}
+
+.lp-band-primary-tint {
+  background: var(--lp-primary-tint);
+  color: var(--lp-ink);
+}
+
+.lp-band-amber-tint {
+  background: var(--lp-amber-tint);
+  color: var(--lp-ink);
+}
+
+.lp-band-indigo {
+  background: var(--lp-indigo);
+  color: var(--lp-on-indigo);
+}
+
+.lp-band-indigo :is(h1, h2, h3, h4) {
+  color: var(--lp-on-indigo);
+}
+
+.lp-band-indigo a:focus-visible,
+.lp-band-indigo button:focus-visible {
+  outline: 3px solid var(--lp-on-indigo);
+  outline-offset: 3px;
+}
+
+/* Smooth anchor scrolling only when motion is allowed. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Sticky header (64px) must not cover anchored or focused content. Scoped to pages with the landing. */
+:root:has(.landing) {
+  scroll-padding-top: 5rem;
+}
+
+/* main is a non-interactive, programmatic focus target for the skip link (deliberate exception). */
+.landing main:focus {
+  outline: none;
 }

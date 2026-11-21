@@ -15,6 +15,12 @@ export const light: Theme = {
   'primary-text': '#00796B',
   'primary-tint': '#D6F5F0',
   'on-primary': '#0B2B33',
+  indigo: '#2E2A7A',
+  'on-indigo': '#FFFFFF',
+  'on-indigo-soft': '#C9C7F0',
+  'amber-tint': '#FFF1D6',
+  // Decorative only (hero circle); text on it must use ink.
+  amber: '#FFB62E',
 }
 
 export const dark: Theme = {
@@ -74,5 +80,20 @@ export function pairsFor(t: Theme): Pair[] {
     text('primary-text', 'primary-tint'),
     // Primary fill alone is 2.7:1 on white; the button edge is carried by the lip + dark label.
     { label: 'primary-lip on bg (UI)', fg: t['primary-lip'], bg: t.bg, min: 3, ui: true },
+  ]
+}
+
+/** Band pairs introduced by the redesign. Light only: `dark` has no band tokens (deferred to add-theme-mode). */
+export function bandPairsFor(t: Theme): Pair[] {
+  const text = (fg: string, bg: string): Pair => ({ label: `${fg} on ${bg}`, fg: t[fg], bg: t[bg], min: 4.5 })
+  return [
+    text('ink', 'amber-tint'),
+    text('ink-soft', 'amber-tint'),
+    text('ink-soft', 'primary-tint'),
+    text('primary-text', 'amber-tint'),
+    text('on-indigo', 'indigo'),
+    text('on-indigo-soft', 'indigo'),
+    { label: 'primary vs indigo (UI)', fg: t.primary, bg: t.indigo, min: 3, ui: true },
+    { label: 'primary-lip on primary-tint (UI)', fg: t['primary-lip'], bg: t['primary-tint'], min: 3, ui: true },
   ]
 }

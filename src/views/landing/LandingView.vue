@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
+import '@fontsource/nunito/latin-400.css'
 import '@fontsource/nunito/latin-700.css'
 import '@fontsource/nunito/latin-800.css'
 import '@fontsource/jetbrains-mono/latin-400.css'
