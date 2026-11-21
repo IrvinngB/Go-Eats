@@ -43,11 +43,11 @@ Each task is RED (failing test) then GREEN (minimal code). Tests import from `vi
 - [x] 3.4 GREEN: create `landing.css` satisfying 3.3.
 
 ## WU4: Components and LandingView
-- [ ] 4.1 RED/GREEN: `HeroVisual.spec.ts` / `HeroVisual.vue`: slot fallback `Bike` icon, `aria-hidden`.
-- [ ] 4.2 RED/GREEN: `HeroTile.spec.ts` / `HeroTile.vue`: one `h1`; "Pedir ahora" -> `/tiendas` primary; "Iniciar sesión" -> `/login` secondary (memory router).
-- [ ] 4.3 RED/GREEN: `BentoTile.spec.ts` / `BentoTile.vue`: `h2`, `p`, icon `aria-hidden`.
-- [ ] 4.4 RED/GREEN: `BentoGrid.spec.ts` / `tiles.ts` + `BentoGrid.vue`: exactly six tiles, Spanish copy per clarify Q8, no invented numbers.
-- [ ] 4.5 RED/GREEN: `LandingView.spec.ts`: one `header`, `main`, `footer`; hero and tiles inside `main`; heading order; import `landing.css` and fontsource. Then rerun 2.3.
+- [x] 4.1 RED/GREEN: `HeroVisual.spec.ts` / `HeroVisual.vue`: slot fallback `Bike` icon, `aria-hidden`.
+- [x] 4.2 RED/GREEN: `HeroTile.spec.ts` / `HeroTile.vue`: one `h1`; "Pedir ahora" -> `/tiendas` primary; "Iniciar sesión" -> `/login` secondary (memory router).
+- [x] 4.3 RED/GREEN: `BentoTile.spec.ts` / `BentoTile.vue`: `h2`, `p`, icon `aria-hidden`.
+- [x] 4.4 RED/GREEN: `BentoGrid.spec.ts` / `tiles.ts` + `BentoGrid.vue`: exactly six tiles, Spanish copy per clarify Q8, no invented numbers.
+- [x] 4.5 RED/GREEN: `LandingView.spec.ts`: one `header`, `main`, `footer`; hero and tiles inside `main`; heading order; import `landing.css` and fontsource. Then rerun 2.3.
 
 ## WU5: Verification
 - [ ] 5.1 `pnpm test` green; `pnpm exec vue-tsc -b` clean (specs type-checked).
