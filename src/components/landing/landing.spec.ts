@@ -84,6 +84,22 @@ describe('landing.css rules', () => {
     expect(block('.lp-band-indigo {')).toMatch(/color:\s*var\(--lp-on-indigo\)/)
   })
 
+  it('draws the phone mock with concentric 32/24/16px radii', () => {
+    expect(block('.lp-phone {')).toContain('border-radius: 32px')
+    expect(block('.lp-phone-screen {')).toContain('border-radius: 24px')
+    expect(block('.lp-phone-row {')).toContain('border-radius: 16px')
+  })
+
+  it('no longer carries the retired tile and hero-card rules', () => {
+    for (const cls of ['.lp-hero', '.lp-tile', '.lp-icon-chip']) expect(css, cls).not.toContain(cls)
+  })
+
+  it('defines the hero lead and skip link rules', () => {
+    expect(css).toContain('.lp-lead {')
+    expect(block('.lp-skip {')).toMatch(/position:\s*absolute/)
+    expect(css).toMatch(/\.lp-skip:focus\s*\{/)
+  })
+
   it('smooth-scrolls only when motion is allowed', () => {
     expect(block('@media (prefers-reduced-motion: no-preference)')).toMatch(/scroll-behavior:\s*smooth/)
     expect(css.match(/scroll-behavior:\s*smooth/g)).toHaveLength(1)
