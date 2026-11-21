@@ -280,3 +280,35 @@ No horizontal overflow, no dead anchors. Keyboard walk on the accordion: Enter o
 
 ### Gates
 pnpm test 25 files / 268 tests, vue-tsc -b OK, pnpm build OK (precache 39 entries, 688.78 KiB), pnpm test:e2e 1 passed.
+
+## WU8: Real-browser verification (8.1-8.5; 8.6 is the user's visual review, unchecked)
+
+### TDD Cycle Evidence
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|---|
+| 8.1 cascade | e2e/landing.spec.ts | e2e | pnpm test 268 pass, e2e smoke 1 pass | Rule `.landing :is(h1,h2,h3,h4)` commented out in landing.css (throwaway): both cascade specs FAIL, h1 `Received rgb(44, 62, 80)`, `Expected rgb(11, 43, 51)` (the global `h1..h4 text-ink` bug) | Rule restored (`git checkout landing.css`, diff empty): passes | dark scheme emulation AND `html.dark` class; h1 plus every h2 (more than 3), `.landing` bg white, `#cobertura` band bg surface | none |
+| 8.1 other | e2e/landing.spec.ts | e2e | n/a (new) | n/a: these guard existing behavior, so they pass on first run (no production change in WU8; documented, not a TDD failure) | 360x800 and 1440x900 overflow, landmarks, skip link Tab+Enter, sticky header y=0 after scroll, 3 anchors below header | two viewports, three anchors | none |
+| 8.2 | e2e/landing-behavior.spec.ts | e2e | as above | n/a (guards) | reduced motion, API fulfilled/aborted/delayed, map lazy + caption + no dialog + geolocation spy, FAQ keyboard, install event | fulfilled vs aborted vs delayed states; before vs after scroll for map | 2 test-side fixes (see below) |
+
+### Files
+New: e2e/landing.spec.ts (~150 lines), e2e/landing-behavior.spec.ts (~195), docs/landing-image-briefs.md (~65). Modified: keel tasks.md, this file. landing.css untouched (git diff empty). 19 e2e tests total (1 smoke + 18 new).
+
+### Commands that work
+`pnpm test:e2e` (builds, serves on 4173 strictPort, reuseExistingServer false: port 4173 must be free; whole suite ~15 s). Single spec: `pnpm test:e2e e2e/landing.spec.ts -g cascade`.
+
+### Deviations and notes
+- Two spec files, not one: `landing.spec.ts` (8.1) and `landing-behavior.spec.ts` (8.2 and the FAQ and install specs), to keep each readable.
+- The `/api/v1/*` calls hit the preview server (relative baseURL), so every spec mocks them via `page.route`; no real network. CARTO tiles are fulfilled with a 1x1 PNG.
+- Geolocation: no prompt can be observed headless, so the spec spies on `getCurrentPosition` and `watchPosition` and asserts 0 calls.
+- Test-side fixes: install spec first matched the FAQ trigger "Como instalar..." (name regex now `^Instalar`), and a too-broad "no banner" selector was replaced by "exactly one Instalar button".
+- The delayed-response test leaves 6 s route handlers pending at teardown (fulfill errors are swallowed); harmless.
+
+### 8.4 Precache
+`pnpm build`: precache 39 entries (688.78 KiB). Wordmarks in dist: exactly `go-eats-wordmark-color-82xTpC8z.svg` and `go-eats-wordmark-sobre-indigo-Bo8LfcSZ.svg` (4 SVG in dist overall: those two plus icon.svg and vite.svg). The 22 are not shipped; originals live in docs/brand/wordmarks/. Map chunk is separate (`CoverageMap-*.js` and `.css`).
+
+### 8.5 Docker
+`docker compose build web` OK, `docker compose up -d web` recreated `goeats-web` (5173->80). Served HTML references `assets/index-vpEFDn4-.js` (200). The string 'Preguntas frecuentes' lives in the lazy chunk `LandingView-Btlmthc3.js` (served 200, 1 match, same hash as local dist), not in the index chunk. Headers (curl -I): `sw.js`, `manifest.webmanifest` -> `Cache-Control: no-cache`; `index.html` has no Cache-Control. `registerSW.js` does not exist in this build (vite-plugin-pwa registers from the main bundle via `virtual:pwa-register`), so Caddy returns the SPA fallback (text/html, no-cache): harmless but the Caddy rule for it is dead. `registerType: 'autoUpdate'` confirmed in vite.config. One-off script (scratchpad/sw-check.mjs, SW not blocked): SW registers at scope `/`, activates, precache `workbox-precache-v2-http://localhost:5173/` created, page controlled, new landing rendered.
+Not verified: an actual update from the previous build on a returning client (needs the old build served first, then the new one, observing skipWaiting/clientsClaim and reload). Only the mechanism (autoUpdate + no-cache sw.js) is verified. Index.html having no Cache-Control means heuristic caching is possible, but the SW precache revalidates by hash.
+
+### Gates
+pnpm test 25 files / 268 tests; vue-tsc -b OK; pnpm build OK (39 entries, 688.78 KiB); pnpm test:e2e 19 passed (~15 s). tsconfig.app.tsbuildinfo restored; dist, test-results, playwright-report not staged.
