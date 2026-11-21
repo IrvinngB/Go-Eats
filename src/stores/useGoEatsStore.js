@@ -241,7 +241,9 @@ export const useGoEatsStore = defineStore('goeats', {
             agrupado[p.merchant_code].push({
               id: p.code,
               nombre: p.name,
-              precio: p.price,
+              // Effective price = what the server charges (promo_price when set and > 0).
+              precio: p.promo_price > 0 ? p.promo_price : p.price,
+              precioRegular: p.price,
               descripcion: p.description,
               categoria: p.category,
               disponible: p.is_available,
@@ -421,19 +423,15 @@ export const useGoEatsStore = defineStore('goeats', {
       this.registrarEvento(`${this.usuario.nombre} (Cliente)`, `Creación de pedido ${pedido.id}`, 'pedido')
       api
         .post('/orders/', {
+          // The server recomputes prices, fee and names: only identifiers and choices travel.
           merchant_code: comercio.id,
-          merchant_name: comercio.nombre,
-          customer_name: this.usuario.nombre,
-          customer_phone: this.usuario.telefono,
           zone_slug: this.zonaSeleccionada,
           delivery_address: direccion,
           notes: observaciones || '',
-          payment_method: metodoPago === 'electronico' ? 'tarjeta' : 'contr_entrega',
-          delivery_fee: tarifa,
+          // 'electronico' is the UI id; `yappy` is the wire id of the single simulated gateway.
+          payment_method: metodoPago === 'electronico' ? 'yappy' : 'contr_entrega',
           items: this.carrito.map((i) => ({
             product_code: String(i.id),
-            name: i.nombre,
-            unit_price: i.precio,
             quantity: i.cantidad,
             notes: i.observacion || '',
           })),

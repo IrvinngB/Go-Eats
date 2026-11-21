@@ -6,7 +6,11 @@ from app.core.rbac import CurrentUser, UserRole
 from app.domains.merchants.repository import MerchantRepository
 from app.domains.delivery.repository import CourierRepository
 from app.domains.orders.models import Order
-from app.domains.orders.repository import OrderRepository
+from app.domains.catalog.repository import ProductRepository
+from app.domains.orders.repository import OrderRepository, PricedItem
+from app.domains.users.repository import UserRepository
+from app.domains.zones.repository import ZoneRepository
+from app.shared.geo import calculate_delivery_fee
 from app.domains.orders.schemas import (
     OrderAssignCourier,
     OrderCreate,
@@ -48,6 +52,9 @@ class OrderService:
         self.repo = OrderRepository(db)
         self.courier_repo = CourierRepository(db)
         self.merchant_repo = MerchantRepository(db)
+        self.zone_repo = ZoneRepository(db)
+        self.product_repo = ProductRepository(db)
+        self.user_repo = UserRepository(db)
 
     def list_orders(
         self,
@@ -116,13 +123,51 @@ class OrderService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found.")
         return order
 
+    def _bad_request(self, detail: str) -> HTTPException:
+        return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
+
     def create_order(
         self, customer_id: int, payload: OrderCreate, background_tasks: BackgroundTasks
     ) -> Order:
-        order = self.repo.create(customer_id=customer_id, payload=payload, actor=payload.customer_name)
+        merchant = self.merchant_repo.get_by_code(payload.merchant_code)
+        if not merchant:
+            raise self._bad_request("Merchant not found.")
+        # opens_at/closes_at are deliberately not evaluated (merchant toggles is_open by hand).
+        if merchant.affiliation_status != "activo" or not merchant.is_open:
+            raise self._bad_request("Merchant is not accepting orders (closed or not active).")
+        zone = self.zone_repo.get_by_slug(payload.zone_slug)
+        if not zone or not zone.is_active:
+            raise self._bad_request("Delivery zone does not exist or is inactive.")
+
+        priced: list[PricedItem] = []
+        for item in payload.items:
+            product = self.product_repo.get_by_code(item.product_code)
+            if not product or product.merchant_code != merchant.code:
+                raise self._bad_request(
+                    f"Product '{item.product_code}' does not belong to this merchant."
+                )
+            if not product.is_available:
+                raise self._bad_request(f"Product '{item.product_code}' is unavailable.")
+            unit_price = product.promo_price if (product.promo_price or 0) > 0 else product.price
+            priced.append(
+                PricedItem(product.code, product.name, unit_price, item.quantity, item.notes)
+            )
+
+        customer = self.user_repo.get_by_id(customer_id)
+        customer_name = customer.full_name if customer else f"Cliente {customer_id}"
+        order = self.repo.create(
+            customer_id=customer_id,
+            customer_name=customer_name,
+            customer_phone=customer.phone if customer else "",
+            merchant_name=merchant.name,
+            payload=payload,
+            priced_items=priced,
+            delivery_fee=calculate_delivery_fee(zone.delivery_fee, zone.distance_km),
+            actor=customer_name,
+        )
         record_audit_event(
             self.db,
-            payload.customer_name,
+            customer_name,
             f"Creó pedido {order.code} en {order.merchant_name} por B/ {order.total:.2f}",
             "pedido",
         )

@@ -33,7 +33,7 @@ class CashOnDeliveryProvider(PaymentProvider):
 class SimulatedElectronicPaymentProvider(PaymentProvider):
     """Simulated electronic payment gateway modeling Paguelo Fácil / Yappy."""
 
-    def __init__(self, channel: str = "tarjeta") -> None:
+    def __init__(self, channel: str = "yappy") -> None:
         self.channel = channel
 
     def process(self, order_code: str, amount: float, simulate_failure: bool = False) -> PaymentGatewayResult:

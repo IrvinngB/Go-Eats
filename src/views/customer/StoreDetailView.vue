@@ -112,7 +112,10 @@ function verPedido() {
             <span v-if="!p.disponible" class="text-[10px] font-semibold uppercase text-red-500 bg-red-50 border border-red-100 rounded-full px-2 py-0.5">Agotado</span>
           </div>
           <p class="text-xs text-slatebody mt-0.5">{{ p.descripcion }}</p>
-          <p class="text-sm font-bold text-brand-dark mt-2">B/ {{ p.precio.toFixed(2) }}</p>
+          <p class="mt-2 flex items-baseline gap-2">
+            <span class="text-sm font-bold text-brand-dark" data-test="precio-efectivo">B/ {{ p.precio.toFixed(2) }}</span>
+            <span v-if="p.precioRegular > p.precio" class="text-xs text-slatebody line-through" data-test="precio-regular">B/ {{ p.precioRegular.toFixed(2) }}</span>
+          </p>
         </div>
         <button class="btn-primary !px-3 !py-2" :disabled="!p.disponible" @click="agregar(p)">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
@@ -187,7 +190,7 @@ function verPedido() {
                   <label class="flex items-center gap-3 rounded-lg border p-3 cursor-pointer" :class="metodoPago === 'electronico' ? 'border-brand bg-brand-light' : 'border-line'">
                     <input v-model="metodoPago" type="radio" value="electronico" class="accent-[#00B19D]" />
                     <span>
-                      <span class="block text-sm font-medium text-ink">Pago electrónico</span>
+                      <span class="block text-sm font-medium text-ink">Pago electrónico (simulado)</span>
                       <span class="block text-xs text-slatebody">Pasarela simulada (sin datos reales de tarjeta)</span>
                     </span>
                   </label>

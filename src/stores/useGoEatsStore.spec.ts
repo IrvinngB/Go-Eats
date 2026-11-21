@@ -283,3 +283,55 @@ describe('canonical states in order actions', () => {
     expect(store.pedidos[0].motivoCancelacion).toBe('Cerrado')
   })
 })
+
+describe('crearPedido wire payload and promo mapping', () => {
+  async function ready(products: unknown[] = [product]) {
+    serve({ '/catalog/products': products })
+    post.mockResolvedValue({ data: {} })
+    const store = loggedIn('customer')
+    await store.sincronizarConBackend()
+    store.zonaSeleccionada = 'z1'
+    return store
+  }
+
+  const sent = () => post.mock.calls.find((c) => c[0] === '/orders/')![1] as Record<string, unknown>
+
+  it('electronic checkout sends yappy and no price, fee or name fields', async () => {
+    const store = await ready()
+    store.agregarAlCarrito('c9', store.productosDe('c9')[0], 2, 'sin sal')
+    store.crearPedido({ direccion: 'Calle 45', metodoPago: 'electronico', observaciones: 'timbre' })
+    expect(sent()).toEqual({
+      merchant_code: 'c9',
+      zone_slug: 'z1',
+      delivery_address: 'Calle 45',
+      notes: 'timbre',
+      payment_method: 'yappy',
+      items: [{ product_code: 'p1', quantity: 2, notes: 'sin sal' }],
+    })
+  })
+
+  it('cash on delivery sends contr_entrega with the same trimmed shape', async () => {
+    const store = await ready()
+    store.agregarAlCarrito('c9', store.productosDe('c9')[0], 1, '')
+    store.crearPedido({ direccion: 'Calle 45', metodoPago: 'contr_entrega', observaciones: '' })
+    expect(sent().payment_method).toBe('contr_entrega')
+    expect(Object.keys(sent()).sort()).toEqual(['delivery_address', 'items', 'merchant_code', 'notes', 'payment_method', 'zone_slug'])
+  })
+
+  it('maps a positive promo_price into the effective price used by the cart', async () => {
+    const store = await ready([{ ...product, promo_price: 4 }])
+    expect(store.productosDe('c9')[0].precio).toBe(4)
+    store.agregarAlCarrito('c9', store.productosDe('c9')[0], 3, '')
+    expect(store.carritoSubtotal).toBe(12)
+  })
+
+  it.each([[null], [0]])('promo_price %s keeps the regular price', async (promo) => {
+    const store = await ready([{ ...product, promo_price: promo }])
+    expect(store.productosDe('c9')[0].precio).toBe(5)
+  })
+
+  it('keeps the regular price for the strike-through display', async () => {
+    const store = await ready([{ ...product, promo_price: 4 }])
+    expect(store.productosDe('c9')[0].precioRegular).toBe(5)
+  })
+})

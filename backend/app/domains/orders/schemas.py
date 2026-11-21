@@ -4,10 +4,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class OrderItemCreate(BaseModel):
+    # Price and name are server-derived from the catalog; extra client fields are ignored.
     product_code: str
-    name: str
-    unit_price: float = Field(..., gt=0)
-    quantity: int = Field(..., ge=1)
+    quantity: int = Field(..., ge=1, le=50)
     notes: str = ""
 
 
@@ -22,16 +21,17 @@ class OrderItemRead(BaseModel):
     notes: str
 
 
+# `yappy` is the internal id of the single simulated electronic gateway.
+PaymentMethod = Literal["contr_entrega", "yappy"]
+
+
 class OrderCreate(BaseModel):
+    # Names, fee, prices and totals sent by the client are ignored (pydantic drops extras).
     merchant_code: str
-    merchant_name: str
-    customer_name: str
-    customer_phone: str = ""
     zone_slug: str
     delivery_address: str = Field(..., min_length=4)
     notes: str = ""
-    payment_method: str = Field(..., description="contr_entrega | tarjeta | yappy")
-    delivery_fee: float = Field(..., ge=0)
+    payment_method: PaymentMethod
     items: list[OrderItemCreate] = Field(..., min_length=1)
 
 
