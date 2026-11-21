@@ -203,7 +203,7 @@ describe('map tile', () => {
   it('offers the live map for the three in-progress states and toggles the embedded CoverageMap', async () => {
     const w = setup(pedido('en_preparacion'))
     expect(find(w, '[data-test="map-tile"]').exists()).toBe(true)
-    expect(find(w, '[data-test="map-toggle"]').text()).toContain('Ver seguimiento en mapa en vivo')
+    expect(find(w, '[data-test="map-toggle"]').text()).toContain('Ver recorrido en el mapa')
     expect(find(w, '[data-test="map-toggle"]').attributes('aria-expanded')).toBe('false')
     await find(w, '[data-test="map-toggle"]').trigger('click')
     expect(find(w, '.cx-trackmap').exists()).toBe(true)

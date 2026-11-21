@@ -134,7 +134,7 @@ describe('ProfileView ARCO', () => {
     serve(true, [row(1, 'Acceso')])
     post.mockResolvedValue({ data: row(2, 'Oposición') })
     const { w } = await setup()
-    await w.findAll('[data-test="arco-type"]')[3].trigger('click')
+    await w.findAll('[data-test="arco-type"]')[3].setValue(true) // the types are real radios now
     await w.find('textarea').setValue('No uso mis datos para publicidad')
     await w.find('[data-test="arco-submit"]').trigger('click')
     await flushPromises()

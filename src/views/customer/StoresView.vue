@@ -168,7 +168,7 @@ function alSeleccionarZonaDesdeMapa(slug) {
               </div>
             </div>
 
-            <!-- View switch: list / live map -->
+            <!-- View switch: list / map -->
             <div class="cx-segment" role="group" aria-label="Vista">
               <button type="button" :aria-pressed="vistaActiva === 'grid'" @click="vistaActiva = 'grid'">
                 <LayoutGrid :size="20" aria-hidden="true" />
@@ -176,7 +176,7 @@ function alSeleccionarZonaDesdeMapa(slug) {
               </button>
               <button type="button" :aria-pressed="vistaActiva === 'mapa'" @click="vistaActiva = 'mapa'">
                 <Map :size="20" aria-hidden="true" />
-                <span>Mapa en vivo</span>
+                <span>Mapa</span>
               </button>
             </div>
           </div>

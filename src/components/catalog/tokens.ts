@@ -140,3 +140,34 @@ export function ordersPairs(t: Theme = catalogTheme): Pair[] {
     ui('ink-faint', 'bg'),
   ]
 }
+
+/**
+ * Pairs the profile adds (white inputs on a surface tile, switch, ARCO options and history, alerts).
+ * The switch is never color alone: the state is also written next to it, and the checked track uses a dark knob.
+ */
+export function profilePairs(t: Theme = catalogTheme): Pair[] {
+  const text = (fg: string, bg: string): Pair => ({ label: `${fg} on ${bg}`, fg: t[fg], bg: t[bg], min: 4.5 })
+  const ui = (fg: string, bg: string): Pair => ({ label: `${fg} on ${bg} (UI)`, fg: t[fg], bg: t[bg], min: 3, ui: true })
+  return [
+    text('ink', 'surface'), // tile titles, switch label
+    text('ink-soft', 'surface'), // helper text, legal text
+    text('ink-soft', 'bg'), // history detail on its white tile, ARCO option subtitle
+    text('ink', 'bg'),
+    text('ink-faint', 'bg'), // placeholders (examples, never labels)
+    text('ink-soft', 'surface-strong'), // read-only email field
+    text('danger-text', 'surface'), // field error on a tile
+    text('ink', 'warning-tint'), // revoked consent alert body
+    text('ink', 'success-tint'), // request sent alert body
+    text('ink', 'danger-tint'), // consent load error body
+    text('ink', 'primary'), // switch knob on the checked track
+    text('bg', 'ink'), // tick on the dark knob
+    text('primary-text', 'surface'), // state word beside the switch when on
+    ui('primary-text', 'surface'), // checked track edge, tile icons
+    ui('ink-faint', 'bg'), // unchecked track edge and knob on the white track
+    ui('ink-faint', 'surface'), // unchecked track edge on the tile
+    ui('warning', 'warning-tint'), // alert icon + side bar
+    ui('success', 'success-tint'),
+    ui('danger', 'danger-tint'),
+    ui('danger', 'surface'), // invalid field border on a white input over the tile
+  ]
+}

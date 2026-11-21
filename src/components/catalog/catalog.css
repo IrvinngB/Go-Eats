@@ -3076,3 +3076,288 @@ body.cx-dialog-open .cx-toast-region {
     border-width: 2px;
   }
 }
+
+/* ================= Profile: personal data, default address, Ley 81 switch, ARCO =================
+   Four flat 24px --surface tiles, one action each. Inside a surface tile the fields turn --bg so they still read as fields. */
+.cx-profile {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--cx-gap);
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .cx-profile {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.cx-profile-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-gap);
+  min-width: 0;
+}
+
+.cx-profile-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding: 20px;
+  border-radius: 24px;
+  background: var(--cx-surface);
+  color: var(--cx-ink);
+}
+
+@media (min-width: 640px) {
+  .cx-profile-tile {
+    padding: 24px;
+  }
+}
+
+.cx-profile-tile .cx-input {
+  background: var(--cx-bg);
+}
+
+.cx-profile-tile .cx-input:hover {
+  background: var(--cx-surface-strong);
+}
+
+.cx-profile-tile .cx-input:focus {
+  background: var(--cx-bg);
+}
+
+.cx-profile-tile .cx-input[readonly] {
+  background: var(--cx-surface-strong);
+  color: var(--cx-ink-soft);
+  cursor: default;
+}
+
+.cx-profile-tile .cx-input[readonly]:hover {
+  background: var(--cx-surface-strong);
+}
+
+.cx-profile-tile .cx-input[readonly]:focus {
+  border-color: var(--cx-primary-text);
+}
+
+.cx-profile-tile .cx-input[aria-invalid='true'] {
+  border-color: var(--cx-danger);
+}
+
+.cx-profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Switch: a native checkbox (role=switch) stretched over the whole row = one big target and real keyboard behavior. */
+.cx-switch-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 64px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: var(--cx-bg);
+  cursor: pointer;
+}
+
+.cx-switch-row:has(.cx-switch-input:focus-visible) {
+  outline: 2px solid var(--cx-primary-text);
+  outline-offset: 2px;
+}
+
+.cx-switch-row:has(.cx-switch-input:disabled) {
+  cursor: not-allowed;
+}
+
+.cx-switch-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.cx-switch-text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cx-switch-title {
+  color: var(--cx-ink);
+  font-family: var(--cx-font-heading);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.cx-switch-desc {
+  color: var(--cx-ink-soft);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.cx-switch-side {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 64px;
+}
+
+.cx-switch-track {
+  position: relative;
+  display: block;
+  width: 52px;
+  height: 32px;
+  border: 2px solid var(--cx-ink-faint);
+  border-radius: 999px;
+  background: var(--cx-bg);
+  transition: background-color 150ms ease-out, border-color 150ms ease-out;
+}
+
+.cx-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--cx-ink-faint);
+  color: var(--cx-bg);
+  transition: transform 150ms ease-out, background-color 150ms ease-out;
+}
+
+.cx-switch-knob svg {
+  opacity: 0;
+}
+
+.cx-switch-input:checked ~ .cx-switch-side .cx-switch-track {
+  border-color: var(--cx-primary-text);
+  background: var(--cx-primary);
+}
+
+.cx-switch-input:checked ~ .cx-switch-side .cx-switch-knob {
+  background: var(--cx-ink);
+  transform: translateX(20px);
+}
+
+.cx-switch-input:checked ~ .cx-switch-side .cx-switch-knob svg {
+  opacity: 1;
+}
+
+.cx-switch-state {
+  color: var(--cx-ink-soft);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.cx-switch-input:checked ~ .cx-switch-side .cx-switch-state {
+  color: var(--cx-primary-text);
+}
+
+/* Success alert (request sent). */
+.cx-alert-success {
+  background: var(--cx-success-tint);
+}
+
+.cx-alert-success::before {
+  background: var(--cx-success);
+}
+
+.cx-alert-success svg {
+  color: var(--cx-success);
+}
+
+/* ARCO: four option tiles, then the free text, then the own history. */
+.cx-arco-types {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.cx-profile-tile .cx-option {
+  background: var(--cx-bg);
+}
+
+.cx-profile-tile .cx-option:hover {
+  background: var(--cx-surface-strong);
+}
+
+.cx-profile-tile .cx-option-selected,
+.cx-profile-tile .cx-option-selected:hover {
+  background: var(--cx-primary-tint);
+}
+
+.cx-arco-history {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cx-arco-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--cx-bg);
+}
+
+.cx-arco-type {
+  font-family: var(--cx-font-heading);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.cx-arco-reply {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--cx-primary-tint);
+  color: var(--cx-ink);
+}
+
+.cx-arco-reply .cx-overline {
+  color: var(--cx-ink-soft);
+}
+
+.cx-arco-empty {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--cx-bg);
+  color: var(--cx-ink-soft);
+}
+
+.cx-arco-empty-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: var(--cx-primary-tint);
+  color: var(--cx-primary-text);
+}
