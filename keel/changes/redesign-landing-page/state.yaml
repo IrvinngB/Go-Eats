@@ -1,0 +1,9 @@
+current_phase: tasks
+completed: [explore, proposal, spec, clarify, spec-revision, design, blast-radius]
+open_questions: [palette #00B19D vs #00C2A8 (default #00B19D), public register route unverified (CTAs to /login), confirm component paths in design]
+decisions: [structure 1 classic marketplace, light mode fixed (dark deferred to add-theme-mode), imagery A css/svg + briefs for later swap, featured stores live from API with static fallback, merchant/courier CTAs to /login, nothing invented, Playwright dev-only real-browser check]
+updated: 2026-11-20
+status: active
+mode: interactive
+supersedes_layout_of: add-landing-page
+assumptions_from_design: [park sobre-turquesa and sobre-ambar unimported in src/assets/brand (only color + sobre-indigo imported), add Nunito 400 latin for body text (body currently renders at 700), keep 32/40px section title scale]
