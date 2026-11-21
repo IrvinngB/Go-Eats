@@ -12,6 +12,9 @@ const misPedidos = computed(() => store.pedidosComoCliente)
 
 const pasos = ESTADOS_PEDIDO
 
+// Payment status comes from the API (latest payment of the order); legacy values fall back to raw text.
+const PAGO_LABELS = { pagado: 'Pagado', pendiente: 'Pago pendiente', fallido: 'Pago fallido' }
+
 function indiceEstado(p) {
   return pasos.indexOf(p.estado)
 }
@@ -90,6 +93,7 @@ function progresoEstado(estado) {
           <div class="text-right">
             <p class="text-lg font-bold text-ink">B/ {{ p.total.toFixed(2) }}</p>
             <p class="text-[11px] text-slatebody">{{ p.metodoPago === 'contr_entrega' ? 'Contra entrega' : 'Pago electrónico (simulado)' }}</p>
+            <p v-if="p.pagoEstado" data-test="estado-pago" class="text-[11px] font-semibold" :class="p.pagoEstado === 'fallido' ? 'text-coral' : p.pagoEstado === 'pagado' ? 'text-emerald-600' : 'text-slatebody'">{{ PAGO_LABELS[p.pagoEstado] || p.pagoEstado }}</p>
           </div>
         </div>
 

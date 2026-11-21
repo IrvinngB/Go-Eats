@@ -284,10 +284,27 @@ describe('canonical states in order actions', () => {
   })
 })
 
+function serverPost(paymentStatus = 'pagado') {
+  post.mockImplementation(async (url: string, body: Record<string, unknown>) => {
+    if (url === '/orders/') return { data: { ...order, code: 'PED-7', payment_method: body.payment_method, total: 12, subtotal: 10, delivery_fee: 2 } }
+    if (url === '/payments/') {
+      return {
+        data: {
+          code: 'TX-9100', order_code: body.order_code, merchant_name: 'Comercio Nueve', customer_name: 'Ana',
+          method: body.method, subtotal: 10, delivery_fee: 2, commission: 1.2, total: 12,
+          status: body.method === 'contr_entrega' ? 'pendiente' : paymentStatus,
+          provider_reference: body.method === 'contr_entrega' ? 'COD-1' : 'YPY-1', created_at: '2026-01-01T10:00:00Z',
+        },
+      }
+    }
+    throw new Error(`unexpected ${url}`)
+  })
+}
+
 describe('crearPedido wire payload and promo mapping', () => {
   async function ready(products: unknown[] = [product]) {
     serve({ '/catalog/products': products })
-    post.mockResolvedValue({ data: {} })
+    serverPost()
     const store = loggedIn('customer')
     await store.sincronizarConBackend()
     store.zonaSeleccionada = 'z1'
@@ -295,11 +312,12 @@ describe('crearPedido wire payload and promo mapping', () => {
   }
 
   const sent = () => post.mock.calls.find((c) => c[0] === '/orders/')![1] as Record<string, unknown>
+  const sentPayment = () => post.mock.calls.find((c) => c[0] === '/payments/')![1] as Record<string, unknown>
 
   it('electronic checkout sends yappy and no price, fee or name fields', async () => {
     const store = await ready()
     store.agregarAlCarrito('c9', store.productosDe('c9')[0], 2, 'sin sal')
-    store.crearPedido({ direccion: 'Calle 45', metodoPago: 'electronico', observaciones: 'timbre' })
+    await store.crearPedido({ direccion: 'Calle 45', metodoPago: 'electronico', observaciones: 'timbre' })
     expect(sent()).toEqual({
       merchant_code: 'c9',
       zone_slug: 'z1',
@@ -313,9 +331,58 @@ describe('crearPedido wire payload and promo mapping', () => {
   it('cash on delivery sends contr_entrega with the same trimmed shape', async () => {
     const store = await ready()
     store.agregarAlCarrito('c9', store.productosDe('c9')[0], 1, '')
-    store.crearPedido({ direccion: 'Calle 45', metodoPago: 'contr_entrega', observaciones: '' })
+    await store.crearPedido({ direccion: 'Calle 45', metodoPago: 'contr_entrega', observaciones: '' })
     expect(sent().payment_method).toBe('contr_entrega')
     expect(Object.keys(sent()).sort()).toEqual(['delivery_address', 'items', 'merchant_code', 'notes', 'payment_method', 'zone_slug'])
+  })
+
+  it.each([
+    ['electronico', 'yappy', 'pagado', 'YPY-1'],
+    ['contr_entrega', 'contr_entrega', 'pendiente', 'COD-1'],
+  ])('%s: POST /orders then POST /payments with the server order code and no amounts', async (ui, wire, estadoPago, ref) => {
+    const store = await ready()
+    store.agregarAlCarrito('c9', store.productosDe('c9')[0], 1, '')
+    const pedido = await store.crearPedido({ direccion: 'Calle 45', metodoPago: ui, observaciones: '' })
+    expect(post.mock.calls.map((c) => c[0])).toEqual(['/orders/', '/payments/'])
+    expect(sentPayment()).toEqual({ order_code: 'PED-7', method: wire })
+    expect(pedido.id).toBe('PED-7')
+    expect(pedido.total).toBe(12)
+    expect(pedido.pagoEstado).toBe(estadoPago)
+    expect(pedido.referenciaPasarela).toBe(ref)
+    expect(store.pedidos[0].id).toBe('PED-7')
+    expect(store.transacciones[0]).toMatchObject({ id: 'TX-9100', pedidoId: 'PED-7' })
+    expect(store.carrito).toEqual([])
+  })
+
+  it('a failed electronic payment shows the order cancelled with the reason', async () => {
+    const store = await ready()
+    serverPost('fallido')
+    store.agregarAlCarrito('c9', store.productosDe('c9')[0], 1, '')
+    const pedido = await store.crearPedido({ direccion: 'Calle 45', metodoPago: 'electronico', observaciones: '' })
+    expect(pedido.pagoEstado).toBe('fallido')
+    expect(pedido.estado).toBe('cancelado')
+    expect(pedido.motivoCancelacion).toBe('Pago electrónico rechazado')
+    expect(store.transacciones[0].estado).toBe('rechazado')
+  })
+
+  it('does not call payments and keeps the cart when the order POST fails', async () => {
+    const store = await ready()
+    post.mockRejectedValue(Object.assign(new Error('boom'), { response: { status: 400 } }))
+    store.agregarAlCarrito('c9', store.productosDe('c9')[0], 1, '')
+    const pedido = await store.crearPedido({ direccion: 'Calle 45', metodoPago: 'electronico', observaciones: '' })
+    expect(pedido).toBeNull()
+    expect(post.mock.calls.map((c) => c[0])).toEqual(['/orders/'])
+    expect(store.carrito).toHaveLength(1)
+    expect(store.pedidos.some((p: { id: string }) => p.id.startsWith('ORD'))).toBe(false)
+  })
+
+  it('anonymous checkout sends nothing and keeps the cart', async () => {
+    const store = await ready()
+    store.agregarAlCarrito('c9', store.productosDe('c9')[0], 1, '')
+    store.autenticado = false
+    expect(await store.crearPedido({ direccion: 'Calle 45', metodoPago: 'contr_entrega', observaciones: '' })).toBeNull()
+    expect(post).not.toHaveBeenCalled()
+    expect(store.carrito).toHaveLength(1)
   })
 
   it('maps a positive promo_price into the effective price used by the cart', async () => {

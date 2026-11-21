@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, select
+from sqlalchemy.orm import Mapped, column_property, mapped_column, relationship
 from app.core.database import Base
+from app.domains.payments.models import Payment
 
 
 class Order(Base):
@@ -38,6 +39,18 @@ class Order(Base):
     rating: Mapped["OrderRating | None"] = relationship(
         "OrderRating", back_populates="order", uselist=False, cascade="all, delete-orphan"
     )
+
+
+# Read-only: status of the order's latest payment (None while unpaid). Legacy rows read as-is.
+Order.payment_status = column_property(
+    select(Payment.status)
+    .where(Payment.order_code == Order.code)
+    .order_by(Payment.id.desc())
+    .limit(1)
+    .correlate_except(Payment)
+    .scalar_subquery(),
+    deferred=False,
+)
 
 
 class OrderItem(Base):

@@ -16,8 +16,9 @@ const checkoutPaso = ref(false)
 const direccion = ref('')
 const observaciones = ref('')
 const metodoPago = ref('contr_entrega')
-const pagoSimulado = ref(false) // null | 'aprobado' | 'rechazado'
+const pagoEstado = ref(null) // null | 'procesando' | 'aprobado' | 'rechazado' | 'error'
 const pedidoCreado = ref(null)
+const totalAPagar = ref(0)
 const modalPago = ref(false)
 
 const total = computed(() => store.carritoSubtotal + (checkoutPaso.value ? store.zonaActual.tarifa : 0))
@@ -34,29 +35,56 @@ function irACheckout() {
   carritoAbierto.value = true
 }
 
-function confirmarPedido() {
-  if (!direccion.value.trim()) {
-    store.notificar('Ingresa la dirección de entrega para continuar.')
-    return
-  }
-  const pedido = store.crearPedido({ direccion: direccion.value, metodoPago: metodoPago.value, observaciones: observaciones.value })
-  if (!pedido) return
-  pedidoCreado.value = pedido
+function limpiarFormulario() {
   checkoutPaso.value = false
   carritoAbierto.value = false
   direccion.value = ''
   observaciones.value = ''
-  if (pedido.metodoPago === 'electronico') {
-    pagoSimulado.value = null
-    modalPago.value = true
-  } else {
-    store.notificar(`Pedido ${pedido.id} enviado. Pagarás B/ ${pedido.total.toFixed(2)} contra entrega.`)
-  }
 }
 
-function resolverPago(aprobar) {
-  pagoSimulado.value = aprobar ? 'aprobado' : 'rechazado'
-  store.simularPago(pedidoCreado.value.id, aprobar)
+function datosPedido() {
+  return { direccion: direccion.value, metodoPago: metodoPago.value, observaciones: observaciones.value }
+}
+
+async function confirmarPedido() {
+  if (!direccion.value.trim()) {
+    store.notificar('Ingresa la dirección de entrega para continuar.')
+    return
+  }
+  if (!store.autenticado) {
+    // Anonymous visitors keep their cart and come back to this store after signing in.
+    router.push({ name: 'login', query: { redirect: `/tiendas/${comercio.value.id}` } })
+    return
+  }
+  if (metodoPago.value === 'electronico') {
+    // Nothing is created until the user pays: the modal's single action does both calls.
+    totalAPagar.value = total.value
+    pedidoCreado.value = null
+    pagoEstado.value = null
+    carritoAbierto.value = false
+    modalPago.value = true
+    return
+  }
+  const pedido = await store.crearPedido(datosPedido())
+  if (!pedido) return
+  limpiarFormulario()
+  store.notificar(`Pedido ${pedido.id} enviado. Pagarás B/ ${pedido.total.toFixed(2)} contra entrega.`)
+}
+
+async function pagar() {
+  pagoEstado.value = 'procesando'
+  const pedido = await store.crearPedido(datosPedido())
+  if (!pedido) {
+    pagoEstado.value = 'error'
+    return
+  }
+  pedidoCreado.value = pedido
+  limpiarFormulario()
+  pagoEstado.value = pedido.pagoEstado === 'pagado' ? 'aprobado' : pedido.pagoEstado === 'fallido' ? 'rechazado' : 'error'
+}
+
+function cerrarModal() {
+  if (pagoEstado.value !== 'procesando') modalPago.value = false
 }
 
 function verPedido() {
@@ -222,28 +250,30 @@ function verPedido() {
 
     <!-- Modal de pago simulado -->
     <transition name="modal">
-      <div v-if="modalPago" class="fixed inset-0 z-50 bg-ink/40 grid place-items-center p-4" @click="pagoSimulado ? modalPago = false : null">
+      <div v-if="modalPago" class="fixed inset-0 z-50 bg-ink/40 grid place-items-center p-4" @click="cerrarModal">
         <div class="modal-panel card p-6 w-full max-w-sm" @click.stop>
-          <template v-if="!pagoSimulado">
-            <h3 class="text-lg font-semibold text-ink">Pasarela de pago simulada</h3>
-            <p class="text-sm text-slatebody mt-1">Pedido {{ pedidoCreado.id }} · Total <strong>B/ {{ pedidoCreado.total.toFixed(2) }}</strong></p>
-            <p class="text-xs text-slatebody mt-3 bg-canvas rounded-lg p-3">Por cumplimiento PCI-DSS, esta demo no solicita datos reales de tarjeta. Usa los botones para simular el resultado del cobro.</p>
-            <div class="mt-5 grid grid-cols-2 gap-3">
-              <button class="btn-danger-ghost" @click="resolverPago(false)">Simular rechazo</button>
-              <button class="btn-primary" @click="resolverPago(true)">Simular aprobación</button>
+          <template v-if="!pagoEstado || pagoEstado === 'procesando'">
+            <h3 class="text-lg font-semibold text-ink">Pago electrónico (simulado)</h3>
+            <p class="text-sm text-slatebody mt-1">Total a pagar <strong>B/ {{ totalAPagar.toFixed(2) }}</strong></p>
+            <p class="text-xs text-slatebody mt-3 bg-canvas rounded-lg p-3">Por cumplimiento PCI-DSS, esta demo no solicita datos reales de tarjeta. El cobro lo procesa la pasarela simulada.</p>
+            <div class="mt-5">
+              <button class="btn-primary w-full" :disabled="pagoEstado === 'procesando'" @click="pagar">{{ pagoEstado === 'procesando' ? 'Procesando…' : 'Pagar (simulado)' }}</button>
             </div>
           </template>
           <template v-else>
             <div class="text-center py-4">
-              <div class="mx-auto grid place-items-center w-14 h-14 rounded-full" :class="pagoSimulado === 'aprobado' ? 'bg-emerald-50' : 'bg-red-50'">
-                <svg v-if="pagoSimulado === 'aprobado'" class="w-7 h-7 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <div class="mx-auto grid place-items-center w-14 h-14 rounded-full" :class="pagoEstado === 'aprobado' ? 'bg-emerald-50' : 'bg-red-50'">
+                <svg v-if="pagoEstado === 'aprobado'" class="w-7 h-7 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                 <svg v-else class="w-7 h-7 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
               </div>
-              <h3 class="mt-4 text-lg font-semibold text-ink">{{ pagoSimulado === 'aprobado' ? 'Pago aprobado' : 'Pago rechazado' }}</h3>
-              <p class="text-sm text-slatebody mt-1">
-                {{ pagoSimulado === 'aprobado' ? 'El comercio ya recibió la confirmación de tu pedido.' : 'El pedido fue cancelado. Puedes intentarlo de nuevo con pago contra entrega.' }}
+              <h3 class="mt-4 text-lg font-semibold text-ink">{{ pagoEstado === 'aprobado' ? 'Pago aprobado' : pagoEstado === 'rechazado' ? 'Pago rechazado' : 'No se pudo completar' }}</h3>
+              <p v-if="pagoEstado === 'aprobado'" class="text-sm text-slatebody mt-1">
+                Pedido {{ pedidoCreado.id }} · Referencia <span data-test="referencia-pago" class="font-mono">{{ pedidoCreado.referenciaPasarela }}</span>
               </p>
-              <button class="btn-primary w-full mt-5" @click="verPedido">Ver mis pedidos</button>
+              <p v-else-if="pagoEstado === 'rechazado'" class="text-sm text-slatebody mt-1">El pedido fue cancelado. Puedes intentarlo de nuevo con pago contra entrega.</p>
+              <p v-else class="text-sm text-slatebody mt-1">No pudimos procesar el pago. Revisa tus pedidos o inténtalo de nuevo.</p>
+              <button v-if="pagoEstado === 'error' && !pedidoCreado" class="btn-primary w-full mt-5" @click="modalPago = false">Cerrar</button>
+              <button v-else class="btn-primary w-full mt-5" @click="verPedido">Ver mis pedidos</button>
             </div>
           </template>
         </div>

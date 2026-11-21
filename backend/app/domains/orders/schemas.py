@@ -90,6 +90,7 @@ class OrderRead(BaseModel):
     status: str
     courier_code: str | None = None
     cancellation_reason: str | None = None
+    payment_status: str | None = None
     subtotal: float
     delivery_fee: float
     total: float

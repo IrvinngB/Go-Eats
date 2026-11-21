@@ -46,12 +46,12 @@ def test_order_accepts_supported_methods(client, shop, method):
 
 @pytest.mark.parametrize("method,ok", [("tarjeta", False), ("yappy", True), ("contr_entrega", True)])
 def test_payment_create_method_literal(client, db, shop, method, ok):
+    order = make_order(db, "PED-1", shop.id)
+    order.payment_method = method if ok else "contr_entrega"
+    db.commit()
     res = client.post(
         "/api/v1/payments/",
-        json={
-            "order_code": "PED-1", "merchant_name": "m", "customer_name": "c",
-            "method": method, "subtotal": 5, "delivery_fee": 1,
-        },
+        json={"order_code": "PED-1", "method": method},
         headers=auth_headers(shop),
     )
     assert (res.status_code == 201) is ok, res.text

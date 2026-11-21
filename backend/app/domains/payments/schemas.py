@@ -4,12 +4,14 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class PaymentCreate(BaseModel):
+    """Only the order code and method travel: amounts and names come from the persisted order.
+
+    Unknown fields (client amounts, names, any card data) are dropped by pydantic, never stored.
+    """
+
     order_code: str
-    merchant_name: str
-    customer_name: str
     method: Literal["contr_entrega", "yappy"]
-    subtotal: float = Field(..., ge=0)
-    delivery_fee: float = Field(..., ge=0)
+    # Honored only when the server-side DEV_SIMULATE_FAILURE flag is on.
     simulate_failure: bool = False
 
 

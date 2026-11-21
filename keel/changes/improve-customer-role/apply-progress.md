@@ -219,3 +219,38 @@ backend pytest 295 passed; `pnpm test` 346 passed (33 files; router/App/App.sync
 - No mobile viewport screenshots.
 
 ### Remaining: PR7..PR10 (and V.1/V.2/V.3)
+
+
+## PR7 (tasks 7.1-7.2) - DONE, not committed
+Branch: feat/customer-pr7-payments.
+
+### Files
+Backend: MOD payments/{schemas,service,router,repository}.py (`PaymentCreate` = `order_code`, `method` Literal, `simulate_failure`; client amounts/names/card fields dropped by pydantic; amounts and names from the persisted order; POST = customer only, other's/unknown order 404, admin and other roles 403; order must be `pendiente` and method equal to the order's (400); active `pagado`/`pendiente` payment -> 409; `simulate_failure` honored only if `settings.dev_simulate_failure`; `fallido` electronic -> payment fallido + order `cancelado` with reason "Pago electrónico rechazado", history actor `sistema:pago`; payment history actor `customer:<id>`; receipt: customer must own the order (404 otherwise), admin/accountant any, merchant/courier 403), orders/{models,schemas}.py (read-only `payment_status` = latest payment status via column_property, null while unpaid). Tests: NEW tests/test_payments.py (24 cases), MOD test_payment_method.py (payment create now uses the new body).
+Frontend: MOD store (`crearPedido` async: POST /orders -> POST /payments `{order_code, method}`; local `simularPago` and local order id removed; `mapPedidoApi`/`mapTransaccionApi` extracted, `pagoEstado` mapped), StoreDetailView.vue (electronic: modal with the single "Pagar (simulado)" action that runs crearPedido; result states aprobado/rechazado/error with server reference; cash uses the same call; anonymous -> login with `redirect=/tiendas/<id>`, cart kept), OrdersView.vue (payment status line from API). Tests: store spec, StoreDetailView.spec (+5), OrdersView.spec (+4).
+
+### Decisions / deviations
+- Electronic checkout: the order is created only when the user presses "Pagar (simulado)" (no unpaid orphan order); both calls run inside crearPedido.
+- A failed electronic payment cancels the order (user-confirmed), so the spec scenario "retry after failure" is only reachable for a non-cancelled order; UI tells the user to re-order with cash.
+- Server approval does not confirm the order (stays `pendiente` until the merchant confirms); the old local "confirmado" was dropped.
+- `payment_status` added to OrderRead so the customer sees payment status after reload (customer cannot GET /payments/).
+- Consent gate is PR9, not done. Write rollback/typed errors are PR8: failures only notify generically; order failure keeps the cart.
+- `get_payment_provider` still falls back to the simulated channel for unknown methods (design said raise; not needed since the Literal blocks it).
+
+### TDD evidence
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|---|
+| 7.1 | tests/test_payments.py | integration | 295 green | 19 of 24 failed: `assert 422 == 201` (client subtotal/fee/names required), tampered amount `1.0 != 10.0`, no `payment_status` | 319 pass | tamper, cash/electronic, other 404, unknown 404, 4 roles 403, anon 401, dup x2 methods, method mismatch, non-pending, flag off/on/on-without-flag, cash never fails, history create+reconcile+failed, card fields, legacy tarjeta, receipt 6 roles | none |
+| 7.2 | useGoEatsStore.spec.ts, StoreDetailView.spec.ts, OrdersView.spec.ts | store + component | 346 green | store 5 failed (only /orders/ called, no pagoEstado, null cases returned local order); view crashed on `toFixed` of undefined (sync crearPedido); OrdersView 3 failed without the status line | 360 pass | both methods, failed payment, order failure, anonymous, single modal button, approved/rejected, cash, 3 statuses + none | none |
+
+### Real verification (throwaway sqlite scratchpad/pr7a.db flag OFF :8771, pr7b.db DEV_SIMULATE_FAILURE=1 :8772, vite :5211/:5212, Playwright scratchpad/pr7.mjs, real login carlos@ejemplo.pa; goeats.db never created)
+Through the UI: cash order PED-1100 -> payment TX-9061 pendiente (15.50 = order total); electronic PED-1101 -> modal had exactly one button "Pagar (simulado)", result "Pago aprobado" with reference YPY-..., TX-9062 pagado 15.50; request bodies captured: payments body is only `{order_code, method}`. Reload: Mis pedidos shows Pagado / Pago pendiente. History rows `(null -> status, customer:1)`. Flag OFF via curl: tampered subtotal/fee + `card_number` + `simulate_failure:true` -> pagado with order amounts (6.5+2.5=9.0), duplicate 409, no card string in DB/audit. Flag ON via curl: same body -> `fallido`, order `cancelado` reason "Pago electrónico rechazado", order history `pendiente->cancelado sistema:pago`, retry 400 (order cancelled). UI on the flag-ON backend approves (UI cannot force failure). Accountant GET /payments/ 200, customer 403, admin POST 403. Receipt: owner 200, another customer's 404. Screenshots read: scratchpad/pr7-a-modal-pagar.png, pr7-a-modal-resultado.png, pr7-a-pedidos.png. Servers stopped by PID, ports free.
+
+### Gates
+backend pytest 319 passed; `pnpm test` 360 passed (33 files); vue-tsc clean; `pnpm build` ok; `pnpm test:e2e` 19 passed; tsbuildinfo restored.
+
+### Not verified
+- Project PostgreSQL / docker volume; receipt PDF content (only status/content-type checked).
+- UI failure rendering ("Pago rechazado") only by component test; the browser failure path was exercised through curl, not clicked (the UI deliberately cannot trigger it).
+- No mobile viewport screenshots; the checkout screenshots for cash were taken but not Read.
+
+### Remaining: PR8..PR10 (and V.1/V.2/V.3)

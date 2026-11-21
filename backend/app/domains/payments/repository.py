@@ -28,6 +28,12 @@ class PaymentRepository:
         stmt = select(Payment).where(Payment.code == code)
         return self.db.scalars(stmt).first()
 
+    def has_active_payment(self, order_code: str) -> bool:
+        stmt = select(Payment.id).where(
+            Payment.order_code == order_code, Payment.status.in_(("pagado", "pendiente"))
+        )
+        return self.db.scalars(stmt).first() is not None
+
     def create(
         self,
         order_code: str,
