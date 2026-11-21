@@ -8,6 +8,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Added
 
+- Customer delivery address, simulated payment gateway, and catalog browsing (`improve-customer-checkout`):
+  - Nullable `users.address`, `users.lat`, `users.lng` and `orders.delivery_lat`, `orders.delivery_lng` columns via idempotent `_add_plain_column` startup migration (`backend/app/core/migrations.py`) and shared coordinate validation (`backend/app/shared/coordinates.py`).
+  - `AddressPickerMap.vue` (Leaflet + OSM tiles, click/drag pin, keyboard lat/lng inputs) and `puntoEnCobertura` helper (`src/utils/geo.js`) with non-blocking coverage warning in `ProfileView.vue` and `StoreDetailView.vue`.
+  - Checkout delivery address prefill from profile, per-order override ("Cambiar para este pedido"), and optional "Guardar como mi dirección" checkbox.
+  - Multi-step simulated payment gateway (`PaymentGatewayModal.vue`, `src/utils/card.ts`) with Luhn, expiry, CVV, brand detection, and 3-D Secure OTP steps.
+  - Customer catalog browsing (`src/utils/catalog.ts`, `StoresView.vue`, `StoreDetailView.vue`): accent-insensitive search, category filter chips, sorting, promo badges (`precioRegular > precio`), and closed-merchant ordering block.
+
+### Changed
+
+- `PUT /users/me` updates and clears default delivery address and coordinates; `POST /orders/` snapshots `delivery_lat` and `delivery_lng` on the created order.
+- `StoreDetailView.vue` delegates electronic payment confirmation to `PaymentGatewayModal.vue`.
+
+### Security
+
+- Cardholder name, card number, expiry, CVV, and OTP stay strictly in component-local refs inside `PaymentGatewayModal.vue` and are wiped before network calls and on close/unmount; `POST /payments/` still receives only `{ order_code, method }` (plus `simulate_failure: true` only when `VITE_ENABLE_DEMO_SWITCHER=true` at build time and the decline test card is used).
+- Admin `GET /users/` response (`UserListRead`) excludes `address`, `lat`, and `lng` to avoid exposing customer location PII.
+- Custom 422 validation handler in `backend/app/main.py` strips raw `input`/`ctx` to prevent `NaN`/`Infinity` serialization 500 errors.
+
 - Spec-Driven Development (SDD) bootstrap under `keel/`, using the git-tracked `files` store.
   - `keel/config.yaml`: detected stack, verified commands, `strict_tdd: true`, `security_review: true`.
   - `keel/steering/product.md`, `keel/steering/tech.md`, `keel/steering/structure.md`: project steering documents.

@@ -69,16 +69,56 @@ describe('StoreDetailView checkout', () => {
     expect(w.text()).not.toMatch(/yappy|paguelo/i)
   })
 
-  it('shows the effective promo price and the regular one struck through', async () => {
+  it('shows the effective promo price, the regular one struck through, and the promo badge', async () => {
     const { w } = await setup(true)
     expect(w.find('[data-test="precio-efectivo"]').text()).toBe('B/ 4.00')
     expect(w.find('[data-test="precio-regular"]').text()).toBe('B/ 5.00')
+    expect(w.find('[data-test="promo-badge"]').text()).toBe('Promo')
   })
 
-  it('shows a single price when there is no promo', async () => {
+  it('shows a single price and no promo badge when there is no promo', async () => {
     const { w } = await setup(false)
     expect(w.find('[data-test="precio-efectivo"]').text()).toBe('B/ 5.00')
     expect(w.find('[data-test="precio-regular"]').exists()).toBe(false)
+    expect(w.find('[data-test="promo-badge"]').exists()).toBe(false)
+  })
+
+  it('filters menu products by search and category and shows an empty state when none match', async () => {
+    const { w, store } = await setup(false)
+    store.catalogo = {
+      c9: [
+        { id: 'p1', nombre: 'Sancocho de gallina', precio: 5, precioRegular: 6, descripcion: 'Con culantro', categoria: 'Sopas', disponible: true },
+        { id: 'p2', nombre: 'Chicha de limón', precio: 2, precioRegular: 2, descripcion: 'Refrescante', categoria: 'Bebidas', disponible: true },
+      ],
+    }
+    await flushPromises()
+
+    expect(w.findAll('[data-test="product-card"]')).toHaveLength(2)
+    const chips = w.findAll('[data-test="products-category"]')
+    expect(chips.map((c) => c.text())).toEqual(['Todos', 'Sopas', 'Bebidas'])
+
+    await chips[2].trigger('click')
+    expect(w.findAll('[data-test="product-card"]').map((c) => c.find('h3').text())).toEqual(['Chicha de limón'])
+
+    await chips[0].trigger('click')
+    await w.find('[data-test="products-search"]').setValue('sancocho')
+    expect(w.findAll('[data-test="product-card"]').map((c) => c.find('h3').text())).toEqual(['Sancocho de gallina'])
+
+    await w.find('[data-test="products-search"]').setValue('pizza')
+    expect(w.findAll('[data-test="product-card"]')).toHaveLength(0)
+    expect(w.find('[data-test="products-empty"]').exists()).toBe(true)
+  })
+
+  it('shows a closed merchant notice and disables adding products to the cart when the merchant is closed', async () => {
+    const { w, store } = await setup(false)
+    store.comercios = [{ id: 'c9', nombre: 'Comercio', tipo: 'Restaurante', zona: 'san-francisco', rating: 4, tiempoEntrega: '20', activo: false, descripcion: '', icono: 'Store', estadoAfiliacion: 'activo' }]
+    await flushPromises()
+
+    expect(w.find('[data-test="closed-merchant-notice"]').text()).toContain('cerrado')
+    const addBtn = w.find('[data-test="product-card"] button.btn-primary')
+    expect((addBtn.element as HTMLButtonElement).disabled).toBe(true)
+    await addBtn.trigger('click')
+    expect(store.carrito).toHaveLength(0)
   })
 })
 

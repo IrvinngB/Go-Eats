@@ -424,8 +424,12 @@ describe('crearPedido wire payload and promo mapping', () => {
     expect(store.productosDe('c9')[0].precio).toBe(5)
   })
 
-  it('keeps the regular price for the strike-through display', async () => {
-    const store = await ready([{ ...product, promo_price: 4 }])
-    expect(store.productosDe('c9')[0].precioRegular).toBe(5)
+  it('keeps the regular price and category for catalog browsing and promo display', async () => {
+    const store = await ready([{ ...product, promo_price: 4, category: 'Especiales' }])
+    expect(store.productosDe('c9')[0]).toMatchObject({
+      precio: 4,
+      precioRegular: 5,
+      categoria: 'Especiales',
+    })
   })
 })

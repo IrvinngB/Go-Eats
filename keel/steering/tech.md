@@ -12,7 +12,11 @@ Last refreshed: 2026-11-20
 - One PWA codebase for web + mobile instead of native apps.
 - JWT access 30 min / refresh 7 days, HS256, bcrypt; RBAC in `core/rbac.py`.
 - Payment adapter pattern (`payments/providers.py`) so real gateways can be added later.
-- Prices and totals frozen on order creation; audit tables insert-only.
+- Prices, totals, delivery address text, and delivery coordinates (`orders.delivery_lat`, `orders.delivery_lng`) are frozen on order creation; audit tables insert-only.
+- User profile stores optional default delivery address (`users.address`, `users.lat`, `users.lng`, nullable) updated via `PUT /users/me`; `_add_plain_column` in `backend/app/core/migrations.py` applies idempotent nullable column migrations under the startup advisory lock.
+- Coverage check (`puntoEnCobertura` in `src/utils/geo.js`) compares Haversine distance against `COORDENADAS_ZONAS` radii (`radioM`) and surfaces a non-blocking warning in profile and checkout.
+- Simulated payment gateway (`src/components/PaymentGatewayModal.vue` + `src/utils/card.ts`): validates Luhn, expiry, CVV, and 6-digit 3-D Secure OTP strictly in component memory; raw card/OTP fields are wiped before network calls and on close/unmount, never stored in Pinia/Storage or sent over the network. Decline simulation (`simulate_failure: true` on `POST /payments/`) is sent only when build-time `VITE_ENABLE_DEMO_SWITCHER === 'true'` (`DEMO_SWITCHER` in `src/config.ts`) and honored server-side only when `DEV_SIMULATE_FAILURE=true`.
+- Customer catalog browsing (`src/utils/catalog.ts`, `StoresView.vue`, `StoreDetailView.vue`): accent-insensitive search, category chips (`category_type` / `category`), sorting, promo badge (`precioRegular > precio`), and closed-merchant ordering block (`is_open`).
 - BackgroundTasks for async work (push); Redis/Celery only if load requires.
 - Frontend API base: `src/services/api.ts` (axios, bearer token + refresh interceptors per spec).
 

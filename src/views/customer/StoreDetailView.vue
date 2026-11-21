@@ -5,6 +5,7 @@ import { useGoEatsStore } from '../../stores/useGoEatsStore'
 import CommerceIcon from '../../components/CommerceIcon.vue'
 import PaymentGatewayModal from '../../components/PaymentGatewayModal.vue'
 import { puntoEnCobertura } from '../../utils/geo'
+import { extraerCategorias, filtrarProductos, tienePromocion } from '../../utils/catalog'
 
 // Leaflet only loads when the user chooses to change the address for this order.
 const AddressPickerMap = defineAsyncComponent(() => import('../../components/AddressPickerMap.vue'))
@@ -15,6 +16,16 @@ const router = useRouter()
 
 const comercio = computed(() => store.comercioPorId(route.params.id))
 const productos = computed(() => store.productosDe(route.params.id))
+const comercioAbierto = computed(() => Boolean(comercio.value && (comercio.value.activo ?? comercio.value.abierto ?? true)))
+const busquedaProducto = ref('')
+const categoriaProducto = ref('')
+const categoriasMenu = computed(() => extraerCategorias(productos.value, 'categoria'))
+const productosFiltrados = computed(() =>
+  filtrarProductos(productos.value, {
+    busqueda: busquedaProducto.value,
+    categoria: categoriaProducto.value,
+  }),
+)
 
 const carritoAbierto = ref(false)
 const checkoutPaso = ref(false)
@@ -40,7 +51,7 @@ const fueraDeCobertura = computed(() => punto.value !== null && !puntoEnCobertur
 const total = computed(() => store.carritoSubtotal + (checkoutPaso.value ? store.zonaActual.tarifa : 0))
 
 function agregar(p) {
-  if (!p.disponible) return
+  if (!p.disponible || !comercioAbierto.value) return
   store.agregarAlCarrito(comercio.value.id, p, 1, '')
   carritoAbierto.value = true
   checkoutPaso.value = false
@@ -203,17 +214,66 @@ function verPedido() {
       </div>
     </div>
 
+    <!-- Aviso de comercio cerrado -->
+    <div
+      v-if="!comercioAbierto"
+      data-test="closed-merchant-notice"
+      role="status"
+      class="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+    >
+      Este comercio se encuentra cerrado en este momento. Puedes explorar su menú, pero no es posible agregar productos al carrito.
+    </div>
+
+    <!-- Buscador y filtros del menú -->
+    <div class="mt-6 space-y-3">
+      <div>
+        <label for="products-search" class="sr-only">Buscar en el menú</label>
+        <input
+          id="products-search"
+          v-model="busquedaProducto"
+          data-test="products-search"
+          type="search"
+          class="w-full max-w-md rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm text-ink placeholder:text-slatebody/70 focus:border-brand focus:outline-none"
+          placeholder="Buscar producto en el menú…"
+        />
+      </div>
+      <div v-if="categoriasMenu.length > 0" class="flex flex-wrap gap-2">
+        <button
+          type="button"
+          data-test="products-category"
+          class="rounded-full border px-3 py-1 text-xs font-medium transition-colors"
+          :class="categoriaProducto === '' ? 'bg-brand text-white border-brand' : 'bg-white text-ink border-line hover:border-brand/50'"
+          @click="categoriaProducto = ''"
+        >Todos</button>
+        <button
+          v-for="cat in categoriasMenu"
+          :key="cat"
+          type="button"
+          data-test="products-category"
+          class="rounded-full border px-3 py-1 text-xs font-medium transition-colors"
+          :class="categoriaProducto === cat ? 'bg-brand text-white border-brand' : 'bg-white text-ink border-line hover:border-brand/50'"
+          @click="categoriaProducto = cat"
+        >{{ cat }}</button>
+      </div>
+    </div>
+
     <!-- Productos -->
-    <h2 class="mt-8 mb-4 text-lg font-semibold">Menú</h2>
-    <div class="grid gap-3 sm:grid-cols-2">
+    <h2 class="mt-6 mb-4 text-lg font-semibold">Menú</h2>
+    <div v-if="productosFiltrados.length > 0" class="grid gap-3 sm:grid-cols-2">
       <div
-        v-for="p in productos" :key="p.id"
+        v-for="p in productosFiltrados" :key="p.id"
+        data-test="product-card"
         class="card p-4 flex items-start gap-4"
-        :class="{ 'opacity-55': !p.disponible }"
+        :class="{ 'opacity-55': !p.disponible || !comercioAbierto }"
       >
         <div class="flex-1">
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 flex-wrap">
             <h3 class="font-medium text-ink text-sm">{{ p.nombre }}</h3>
+            <span
+              v-if="tienePromocion(p)"
+              data-test="promo-badge"
+              class="text-[10px] font-semibold uppercase text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5"
+            >Promo</span>
             <span v-if="!p.disponible" class="text-[10px] font-semibold uppercase text-red-500 bg-red-50 border border-red-100 rounded-full px-2 py-0.5">Agotado</span>
           </div>
           <p class="text-xs text-slatebody mt-0.5">{{ p.descripcion }}</p>
@@ -222,10 +282,13 @@ function verPedido() {
             <span v-if="p.precioRegular > p.precio" class="text-xs text-slatebody line-through" data-test="precio-regular">B/ {{ p.precioRegular.toFixed(2) }}</span>
           </p>
         </div>
-        <button class="btn-primary !px-3 !py-2" :disabled="!p.disponible" @click="agregar(p)">
+        <button class="btn-primary !px-3 !py-2" :disabled="!p.disponible || !comercioAbierto" @click="agregar(p)">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
         </button>
       </div>
+    </div>
+    <div v-else data-test="products-empty" class="card p-6 text-center text-sm text-slatebody">
+      No hay productos que coincidan con tu búsqueda.
     </div>
 
     <!-- Botón flotante del carrito -->
