@@ -72,3 +72,33 @@ seed.py adds `DataConsent(accepted=True)` for every newly created user (all 25).
 backend pytest 13 passed; `pnpm test` 273 passed; `pnpm exec vue-tsc -b` clean (tsbuildinfo restored).
 
 ### Remaining: PR3..PR10 (and V.1/V.2/V.3)
+
+
+## PR3 (tasks 3.1-3.4) - DONE, not committed
+Branch: feat/customer-pr3-auth-hardening. Auth hardening only.
+
+### Files
+- MOD backend/app/core/config.py (`env_flag`, `dev_role_override`, `dev_simulate_failure`: env only, 1/true/yes, default OFF)
+- MOD backend/app/domains/auth/service.py (login uses `user.role`, `payload.role` only honored with the flag; register forces customer; refresh uses DB role, still rejects missing/suspended users)
+- MOD backend/app/domains/users/schemas.py (`UserCreate.role` removed -> extra body field ignored; `accepts_privacy_policy` required, no default)
+- NEW backend/tests/test_auth.py (18 cases incl. parametrized flag parsing)
+- MOD src/views/LoginView.vue (role picker removed, navigates by `store.rol`, consent checkbox only in register mode and only required there)
+- MOD src/stores/useGoEatsStore.js (no `role` in login/register payloads, consent default false, `rol = data.user.role`; offline fallback keeps `rolLocal` only for the old local fallback, removed in a later PR per "No offline fake login")
+- NEW src/views/LoginView.spec.ts (6 tests)
+
+### TDD evidence
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|---|
+| 3.1 | test_auth.py::test_login_ignores_role_flag_off, test_login_honors_role_flag_on, test_flags_default_off, test_flag_parsing | integration/unit | 13 green | `'admin' == 'customer'` (override honored); AttributeError no `dev_role_override`; ImportError env_flag | pass | flag on/off, no role, header/query/body cannot enable, 7 parse values | none |
+| 3.2 | test_register_role_admin_becomes_customer, test_register_requires_consent_field, test_register_consent_false_rejected | integration | - | admin role created (`'admin' == 'customer'`); missing consent got 200 not 422 | pass | role admin ignored, field missing 422, false 400 | none |
+| 3.3 | test_refresh_uses_db_role, test_refresh_picks_up_role_changed_after_issue, test_refresh_suspended_user_rejected | integration | - | claim role returned instead of DB role | pass | forged claim, role changed after login, suspended 401 (suspended already passed: existing behavior pinned) | none |
+| 3.4 | LoginView.spec.ts (6) | component+store | 273 green | payload had `role`, picker present, route by chosen role, consent default true | pass | customer, merchant, login w/o checkbox, register gating, demo switch payload, register default | test mock needed `tokenStorage` (first merchant test passed vacuously via offline fallback until fixed) |
+
+### Notes
+- "Admin-only endpoint" probes use `GET /users/` (the only locked admin route today); `/users/arco` is still open until PR4.
+- Demo switcher: TopBar `CUENTAS_DEMO` roles verified equal to seeded stored roles (carlos customer, hector merchant, maria/javier courier, contabilidad accountant, admin admin); logs in by email+password; no mapping fix needed. TopBar still routes by `cuenta.role` (equals server role for seeds).
+- Real check (throwaway sqlite in scratchpad, uvicorn :8765, vite dev :5199 with VITE_API_URL, Playwright script outside repo): login role=admin as carlos -> customer token claim; register role=admin -> customer; register w/o consent -> 422; browser: login page has no picker/checkbox, Entrar -> /tiendas, switcher to admin -> /panel-admin, to merchant -> /panel-comercio, POST bodies carried no `role`. Servers stopped by PID.
+- Not verified: with DEV_ROLE_OVERRIDE=1 in a real server (covered by pytest monkeypatch only); post-login redirect param (later PR); offline fake login still exists (later PR).
+- Gates: pytest 31 passed; pnpm test 279 passed; vue-tsc clean; build ok; e2e 19 passed.
+
+### Remaining: PR4..PR10

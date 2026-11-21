@@ -82,8 +82,8 @@ export const useGoEatsStore = defineStore('goeats', {
       const res = await this.autenticarUsuario({
         email: cuenta.email,
         password: 'demo1234',
-        rol: cuenta.role,
         nombre: cuenta.name,
+        rolLocal: cuenta.role,
       })
       if (res.ok) {
         this.notificar(`Sesión activa: ${cuenta.name}`)
@@ -99,7 +99,7 @@ export const useGoEatsStore = defineStore('goeats', {
       this.notificar('Has cerrado sesión.')
     },
 
-    async autenticarUsuario({ email, password, rol, nombre, modoRegistro = false, aceptaPolitica = true }) {
+    async autenticarUsuario({ email, password, nombre, modoRegistro = false, aceptaPolitica = false, rolLocal = 'customer' }) {
       try {
         const endpoint = modoRegistro ? '/auth/register' : '/auth/login'
         const payload = modoRegistro
@@ -108,10 +108,9 @@ export const useGoEatsStore = defineStore('goeats', {
               email,
               phone: this.usuario.telefono || '6000-0000',
               password,
-              role: rol,
               accepts_privacy_policy: aceptaPolitica,
             }
-          : { email, password, role: rol }
+          : { email, password }
 
         const { data } = await api.post(endpoint, payload)
         tokenStorage.setTokens(data.access_token, data.refresh_token)
@@ -121,7 +120,7 @@ export const useGoEatsStore = defineStore('goeats', {
           telefono: data.user.phone || '6123-4567',
           consentimientoLey81: true,
         }
-        this.rol = data.user.role || rol
+        this.rol = data.user.role
         this.autenticado = true
         await this.sincronizarConBackend()
         return { ok: true, origen: 'api' }
@@ -132,7 +131,7 @@ export const useGoEatsStore = defineStore('goeats', {
         // Fallback offline/demo cuando el backend no está levantado
         if (modoRegistro && nombre) this.usuario.nombre = nombre
         this.usuario.email = email
-        this.rol = rol
+        this.rol = rolLocal
         this.autenticado = true
         return { ok: true, origen: 'local' }
       }

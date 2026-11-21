@@ -2,26 +2,10 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGoEatsStore } from '../stores/useGoEatsStore'
-import {
-  ShoppingBag,
-  Store,
-  Bike,
-  BarChart3,
-  ShieldCheck,
-} from '@lucide/vue'
 
 const store = useGoEatsStore()
 const router = useRouter()
 
-const roles = [
-  { id: 'customer', nombre: 'Cliente', desc: 'Pide comida a domicilio', icono: ShoppingBag },
-  { id: 'merchant', nombre: 'Comercio', desc: 'Gestiona tu local y pedidos', icono: Store },
-  { id: 'courier', nombre: 'Repartidor', desc: 'Entrega pedidos en tu zona', icono: Bike },
-  { id: 'accountant', nombre: 'Contabilidad', desc: 'Concilia pagos y comprobantes', icono: BarChart3 },
-  { id: 'admin', nombre: 'Administrador', desc: 'Supervisa toda la plataforma', icono: ShieldCheck },
-]
-
-const rolElegido = ref('customer')
 const modoRegistro = ref(false)
 const aceptaPolitica = ref(false)
 const email = ref('carlos@ejemplo.pa')
@@ -43,14 +27,13 @@ async function entrar() {
     error.value = 'Ingresa tu correo y contraseña para continuar.'
     return
   }
-  if (!aceptaPolitica.value) {
+  if (modoRegistro.value && !aceptaPolitica.value) {
     error.value = 'Debes aceptar la política de protección de datos personales (Ley 81) para continuar.'
     return
   }
   const resultado = await store.autenticarUsuario({
     email: email.value,
     password: password.value,
-    rol: rolElegido.value,
     nombre: nombre.value,
     modoRegistro: modoRegistro.value,
     aceptaPolitica: aceptaPolitica.value,
@@ -59,7 +42,8 @@ async function entrar() {
     error.value = resultado.mensaje
     return
   }
-  router.push(rutaPorRol[rolElegido.value])
+  // Navigate by the role the SERVER returned, never a client-side choice.
+  router.push(rutaPorRol[store.rol] || '/tiendas')
 }
 </script>
 
@@ -90,26 +74,7 @@ async function entrar() {
     <div class="lg:w-1/2 flex items-center justify-center p-6 lg:p-12">
       <div class="w-full max-w-md">
         <h2 class="text-2xl font-bold text-ink">{{ modoRegistro ? 'Crea tu cuenta' : 'Inicia sesión' }}</h2>
-        <p class="text-sm text-slatebody mt-1">Selecciona tu rol para entrar a la demo.</p>
-
-        <!-- Selector de rol -->
-        <div class="mt-6 grid gap-2">
-          <button
-            v-for="r in roles" :key="r.id"
-            class="flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all duration-150"
-            :class="rolElegido === r.id ? 'border-brand bg-brand-light ring-1 ring-brand' : 'border-line bg-white hover:border-brand/40'"
-            @click="rolElegido = r.id"
-          >
-            <span class="grid place-items-center w-8 h-8 rounded-lg bg-brand-light text-brand shrink-0">
-              <component :is="r.icono" class="w-5 h-5" />
-            </span>
-            <span class="flex-1">
-              <span class="block text-sm font-semibold text-ink">{{ r.nombre }}</span>
-              <span class="block text-xs text-slatebody">{{ r.desc }}</span>
-            </span>
-            <span v-if="rolElegido === r.id" class="w-2 h-2 rounded-full bg-brand" />
-          </button>
-        </div>
+        <p class="text-sm text-slatebody mt-1">{{ modoRegistro ? 'Registra tu cuenta de cliente.' : 'Ingresa con tu correo y contraseña.' }}</p>
 
         <div class="mt-6 space-y-4">
           <div v-if="modoRegistro">
@@ -126,7 +91,7 @@ async function entrar() {
           </div>
 
           <!-- Ley 81 -->
-          <label class="flex items-start gap-2.5 rounded-lg bg-blue-50/60 border border-blue-100 p-3.5 cursor-pointer">
+          <label v-if="modoRegistro" class="flex items-start gap-2.5 rounded-lg bg-blue-50/60 border border-blue-100 p-3.5 cursor-pointer">
             <input v-model="aceptaPolitica" type="checkbox" class="mt-0.5 w-4 h-4 accent-[#00B19D]" />
             <span class="text-xs text-slatebody leading-relaxed">
               He leído y acepto la <button class="text-brand-dark font-medium underline underline-offset-2" type="button">política de protección de datos personales</button> en cumplimiento de la <strong class="text-ink">Ley 81 de 2019</strong> de Panamá. Autorizo el tratamiento de mis datos para gestionar pedidos y entregas.
