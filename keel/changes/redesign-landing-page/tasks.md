@@ -49,11 +49,11 @@ Note: ~700 words on purpose, given the scope. Stacked means each PR targets `dev
 - [x] 3.6 Run the three gates.
 
 ## WU4: Categories, steps, role panels (base: WU3)
-- [ ] 4.1 Create `content.ts` (typed categories, steps, `ENVIO_COPY` exact sentence) + spec for the sentence.
-- [ ] 4.2 RED/GREEN: `CategoryStrip` spec (names with icons, no digits, no link or button) then component.
-- [ ] 4.3 RED/GREEN: `StepsSection` spec (exactly 4, numbered 1-4, h3, cash on delivery) then component.
-- [ ] 4.4 RED/GREEN: `RolePanels` spec (two separate `section`s, CTAs `/login` secondary) then component.
-- [ ] 4.5 Wire into `LandingView`; update its order spec.
+- [x] 4.1 Create `content.ts` (typed categories, steps, `ENVIO_COPY` exact sentence) + spec for the sentence.
+- [x] 4.2 RED/GREEN: `CategoryStrip` spec (names with icons, no digits, no link or button) then component.
+- [x] 4.3 RED/GREEN: `StepsSection` spec (exactly 4, numbered 1-4, h3, cash on delivery) then component.
+- [x] 4.4 RED/GREEN: `RolePanels` spec (two separate `section`s, CTAs `/login` secondary) then component.
+- [x] 4.5 Wire into `LandingView`; update its order spec.
 
 ## WU5: Data layer, stores, coverage (base: WU4)
 - [ ] 5.1 RED/GREEN: `useLandingData.spec.ts` (`vi.mock` api: filter `activo`, cap 6, `/merchants/` and `/zones/` with `timeout: 5000`, abort on unmount, errors, one `console.warn`) then `useLandingData.ts`.

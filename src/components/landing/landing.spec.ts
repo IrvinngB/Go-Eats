@@ -173,3 +173,18 @@ describe('landing headings are not captured by the app global heading rule', () 
     expect(block('.lp-display {')).toMatch(/font-weight:\s*800/)
   })
 })
+
+describe('landing.css section rhythm', () => {
+  it('defines the section title, eyebrow, chip and step rules', () => {
+    for (const sel of ['.lp-title {', '.lp-eyebrow {', '.lp-chip {', '.lp-step-number {', '.lp-icon-disc {']) {
+      expect(css, sel).toContain(sel)
+    }
+    expect(block('.lp-title {')).toMatch(/font-weight:\s*800/)
+  })
+
+  it('keeps chips and step numerals on token colours, chips at 44px', () => {
+    expect(block('.lp-chip {')).toContain('min-height: 44px')
+    expect(block('.lp-step-number {')).toMatch(/background:\s*var\(--lp-indigo\)/)
+    expect(block('.lp-step-number {')).toMatch(/color:\s*var\(--lp-on-indigo\)/)
+  })
+})
