@@ -4,6 +4,11 @@ import { useRouter, useRoute } from 'vue-router'
 import { useGoEatsStore } from '../stores/useGoEatsStore'
 import { rutaPorRol, safeRedirect } from '../guards'
 import { DEMO_SWITCHER } from '../config'
+import '@fontsource/nunito/latin-400.css'
+import '@fontsource/nunito/latin-700.css'
+import '@fontsource/nunito/latin-800.css'
+import '../components/catalog/catalog.css'
+import { Check, CircleAlert, Lock, Mail, MapPin, User } from '@lucide/vue'
 
 const store = useGoEatsStore()
 const router = useRouter()
@@ -24,14 +29,26 @@ if (DEMO_SWITCHER) {
 }
 const nombre = ref('')
 const error = ref('')
+// Which controls the current error points at (aria-invalid + red border); typing or ticking clears each one.
+const invalidos = ref({ email: false, password: false, consentimiento: false })
+const ERROR_ID = 'login-error'
+const ZONAS = ['San Francisco', 'Costa del Este', 'Bella Vista', 'Condado del Rey']
+
+function cambiarModo(registro) {
+  modoRegistro.value = registro
+  error.value = ''
+  invalidos.value = { email: false, password: false, consentimiento: false }
+}
 
 async function entrar() {
   error.value = ''
+  invalidos.value = { email: !email.value, password: !password.value, consentimiento: false }
   if (!email.value || !password.value) {
     error.value = 'Ingresa tu correo y contraseña para continuar.'
     return
   }
   if (modoRegistro.value && !aceptaPolitica.value) {
+    invalidos.value.consentimiento = true
     error.value = 'Debes aceptar la política de protección de datos personales (Ley 81) para continuar.'
     return
   }
@@ -53,69 +70,134 @@ async function entrar() {
 </script>
 
 <template>
-  <div class="min-h-screen bg-canvas flex flex-col lg:flex-row">
-    <!-- Panel visual -->
-    <div class="lg:w-1/2 bg-brand relative overflow-hidden flex flex-col justify-between p-8 lg:p-14 text-white">
-      <div class="flex items-center gap-3">
-        <span class="grid place-items-center w-11 h-11 rounded-xl bg-white text-brand text-2xl font-bold">G</span>
-        <span class="text-2xl font-bold">Go Eats</span>
-      </div>
-      <div class="my-10 lg:my-0">
-        <h1 class="text-3xl lg:text-5xl font-bold leading-tight text-white">Delivery multicomercio para todo Panamá</h1>
-        <p class="mt-4 text-white/85 max-w-md leading-relaxed">
-          Un solo lugar para pedir de tus comercios locales favoritos, coordinar entregas y conciliar pagos. Una plataforma de Comercios Unidos del Istmo, S.A.
-        </p>
-        <div class="mt-8 flex gap-3 flex-wrap">
-          <span class="rounded-full bg-white/15 px-4 py-1.5 text-sm">San Francisco</span>
-          <span class="rounded-full bg-white/15 px-4 py-1.5 text-sm">Costa del Este</span>
-          <span class="rounded-full bg-white/15 px-4 py-1.5 text-sm">Bella Vista</span>
-          <span class="rounded-full bg-white/15 px-4 py-1.5 text-sm">Condado del Rey</span>
+  <div class="cx cx-login">
+    <div class="cx-login-grid">
+      <!-- Hero tile -->
+      <section class="cx-tile cx-tile-hero cx-tile-indigo cx-login-hero">
+        <div class="cx-login-brand">
+          <span class="cx-brand-mark" aria-hidden="true">G</span>
+          <span>Go Eats</span>
         </div>
-      </div>
-      <p class="text-xs text-white/60">© 2025 Comercios Unidos del Istmo, S.A. · Todos los derechos reservados</p>
-    </div>
-
-    <!-- Formulario -->
-    <div class="lg:w-1/2 flex items-center justify-center p-6 lg:p-12">
-      <div class="w-full max-w-md">
-        <h2 class="text-2xl font-bold text-ink">{{ modoRegistro ? 'Crea tu cuenta' : 'Inicia sesión' }}</h2>
-        <p class="text-sm text-slatebody mt-1">{{ modoRegistro ? 'Registra tu cuenta de cliente.' : 'Ingresa con tu correo y contraseña.' }}</p>
-
-        <div class="mt-6 space-y-4">
-          <div v-if="modoRegistro">
-            <label class="label">Nombre completo</label>
-            <input v-model="nombre" class="input" placeholder="Ej. María Pérez" />
+        <div>
+          <h1 class="cx-login-title">Delivery multicomercio para todo Panamá</h1>
+          <div class="cx-login-extra">
+            <p class="cx-lead cx-soft cx-login-lead">
+              Un solo lugar para pedir de tus comercios locales favoritos, coordinar entregas y conciliar pagos. Una plataforma de Comercios Unidos del Istmo, S.A.
+            </p>
+            <ul class="cx-row cx-login-zones">
+              <li v-for="z in ZONAS" :key="z" class="cx-badge">
+                <MapPin :size="16" aria-hidden="true" />
+                {{ z }}
+              </li>
+            </ul>
           </div>
-          <div>
-            <label class="label">Correo electrónico</label>
-            <input v-model="email" type="email" class="input" placeholder="tucorreo@correo.com" />
-          </div>
-          <div>
-            <label class="label">Contraseña</label>
-            <input v-model="password" type="password" class="input" placeholder="••••••••" />
-          </div>
+        </div>
+        <p class="cx-caption cx-soft">© 2025 Comercios Unidos del Istmo, S.A. · Todos los derechos reservados</p>
+      </section>
 
-          <!-- Ley 81 -->
-          <label v-if="modoRegistro" class="flex items-start gap-2.5 rounded-lg bg-blue-50/60 border border-blue-100 p-3.5 cursor-pointer">
-            <input v-model="aceptaPolitica" type="checkbox" class="mt-0.5 w-4 h-4 accent-[#00B19D]" />
-            <span class="text-xs text-slatebody leading-relaxed">
-              Acepto el tratamiento de mis datos personales en cumplimiento de la <strong class="text-ink">Ley 81 de 2019</strong> de Panamá, para gestionar pedidos y entregas. Podré revisar y revocar este consentimiento desde mi perfil.
-            </span>
-          </label>
-
-          <p v-if="error" class="text-sm text-coral bg-red-50 border border-red-100 rounded-lg px-3 py-2">{{ error }}</p>
-
-          <button class="btn-primary w-full !py-3" @click="entrar">
-            {{ modoRegistro ? 'Crear cuenta' : 'Entrar' }}
-          </button>
-          <p class="text-center text-sm text-slatebody">
-            {{ modoRegistro ? '¿Ya tienes cuenta?' : '¿No tienes cuenta?' }}
-            <button class="text-brand-dark font-semibold" @click="modoRegistro = !modoRegistro">
-              {{ modoRegistro ? 'Inicia sesión' : 'Regístrate' }}
+      <!-- Form tile -->
+      <section class="cx-login-form" aria-labelledby="login-heading">
+        <div class="cx-login-form-inner">
+          <div class="cx-row" role="group" aria-label="Acceso" data-test="login-tabs">
+            <button
+              type="button"
+              class="cx-chip"
+              :class="!modoRegistro ? 'cx-chip-selected' : ''"
+              :aria-pressed="!modoRegistro ? 'true' : 'false'"
+              @click="cambiarModo(false)"
+            >
+              <Check v-if="!modoRegistro" :size="16" aria-hidden="true" />
+              Iniciar sesión
             </button>
-          </p>
+            <button
+              type="button"
+              class="cx-chip"
+              :class="modoRegistro ? 'cx-chip-selected' : ''"
+              :aria-pressed="modoRegistro ? 'true' : 'false'"
+              @click="cambiarModo(true)"
+            >
+              <Check v-if="modoRegistro" :size="16" aria-hidden="true" />
+              Regístrate
+            </button>
+          </div>
+
+          <div>
+            <h2 id="login-heading" class="cx-h2">{{ modoRegistro ? 'Crea tu cuenta' : 'Inicia sesión' }}</h2>
+            <p class="cx-small cx-soft cx-login-sub">
+              {{ modoRegistro ? 'Registra tu cuenta de cliente.' : 'Ingresa con tu correo y contraseña.' }}
+            </p>
+          </div>
+
+          <form class="cx-form" novalidate @submit.prevent="entrar">
+            <div v-if="modoRegistro">
+              <label class="cx-label" for="login-nombre">Nombre completo</label>
+              <div class="cx-field">
+                <User :size="20" aria-hidden="true" />
+                <input id="login-nombre" v-model="nombre" class="cx-input" autocomplete="name" placeholder="Ej. María Pérez" />
+              </div>
+            </div>
+            <div>
+              <label class="cx-label" for="login-email">Correo electrónico</label>
+              <div class="cx-field">
+                <Mail :size="20" aria-hidden="true" />
+                <input
+                  id="login-email"
+                  v-model="email"
+                  type="email"
+                  class="cx-input"
+                  autocomplete="email"
+                  placeholder="tucorreo@correo.com"
+                  :aria-invalid="invalidos.email ? 'true' : undefined"
+                  :aria-describedby="invalidos.email ? ERROR_ID : undefined"
+                  @input="invalidos.email = false"
+                />
+              </div>
+            </div>
+            <div>
+              <label class="cx-label" for="login-password">Contraseña</label>
+              <div class="cx-field">
+                <Lock :size="20" aria-hidden="true" />
+                <input
+                  id="login-password"
+                  v-model="password"
+                  type="password"
+                  class="cx-input"
+                  :autocomplete="modoRegistro ? 'new-password' : 'current-password'"
+                  placeholder="••••••••"
+                  :aria-invalid="invalidos.password ? 'true' : undefined"
+                  :aria-describedby="invalidos.password ? ERROR_ID : undefined"
+                  @input="invalidos.password = false"
+                />
+              </div>
+            </div>
+
+            <!-- Ley 81 -->
+            <label v-if="modoRegistro" class="cx-check">
+              <input
+                v-model="aceptaPolitica"
+                type="checkbox"
+                class="cx-check-input"
+                :aria-invalid="invalidos.consentimiento ? 'true' : undefined"
+                :aria-describedby="invalidos.consentimiento ? ERROR_ID : undefined"
+                @change="invalidos.consentimiento = false"
+              />
+              <span class="cx-check-box" aria-hidden="true"><Check v-if="aceptaPolitica" :size="16" /></span>
+              <span>
+                Acepto el tratamiento de mis datos personales en cumplimiento de la <strong>Ley 81 de 2019</strong> de Panamá, para gestionar pedidos y entregas. Podré revisar y revocar este consentimiento desde mi perfil.
+              </span>
+            </label>
+
+            <p v-if="error" :id="ERROR_ID" class="cx-form-error" role="alert">
+              <CircleAlert :size="20" aria-hidden="true" />
+              <span>{{ error }}</span>
+            </p>
+
+            <button type="submit" class="cx-btn cx-btn-lg cx-btn-block" data-test="login-submit" @click.prevent="entrar">
+              {{ modoRegistro ? 'Crear cuenta' : 'Entrar' }}
+            </button>
+          </form>
         </div>
-      </div>
+      </section>
     </div>
   </div>
 </template>

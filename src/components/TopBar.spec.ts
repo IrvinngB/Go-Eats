@@ -93,7 +93,7 @@ describe('TopBar', () => {
 
   describe('demo switcher flag', () => {
     async function openMenu(wrapper: ReturnType<typeof mount>) {
-      await wrapper.find('header button.rounded-full').trigger('click')
+      await wrapper.find('[data-test="account-trigger"]').trigger('click')
     }
 
     it('is hidden when the flag is off (unset)', async () => {
@@ -141,6 +141,75 @@ describe('TopBar', () => {
       await wrapper.findAll('button').find((b) => b.text().includes('admin@goeats.pa'))!.trigger('click')
       await flushPromises()
       expect(router.currentRoute.value.fullPath).toBe('/panel-comercio')
+    })
+  })
+
+  describe('restyle contract (Friendly Bento shell)', () => {
+    const customer = { rol: 'customer', nombre: 'Carlos Andrade', email: 'carlos@ejemplo.pa' }
+
+    it('the bar sits in the light .cx scope and is a banner landmark', async () => {
+      const { wrapper } = await mountTopBar(undefined)
+      expect(wrapper.element.tagName).toBe('HEADER')
+      expect(wrapper.classes()).toEqual(expect.arrayContaining(['cx', 'cx-topbar']))
+    })
+
+    it('anonymous: the way in is a secondary (not a second primary) pill button', async () => {
+      const { wrapper } = await mountTopBar(undefined)
+      const btn = wrapper.findAll('button').find((b) => b.text() === 'Iniciar sesión')!
+      expect(btn.classes()).toEqual(expect.arrayContaining(['cx-btn', 'cx-btn-secondary']))
+    })
+
+    it('the account trigger names the user, exposes aria-expanded and toggles it', async () => {
+      const { wrapper } = await mountTopBar(undefined, merchant)
+      const trigger = wrapper.find('[data-test="account-trigger"]')
+      expect(trigger.attributes('aria-label')).toBe('Cuenta de Héctor Endara')
+      expect(trigger.attributes('aria-expanded')).toBe('false')
+      await trigger.trigger('click')
+      expect(trigger.attributes('aria-expanded')).toBe('true')
+      expect(wrapper.find('[data-test="account-menu"]').exists()).toBe(true)
+      await trigger.trigger('click')
+      expect(trigger.attributes('aria-expanded')).toBe('false')
+      expect(wrapper.find('[data-test="account-menu"]').exists()).toBe(false)
+    })
+
+    it('Escape closes the account menu', async () => {
+      const { wrapper } = await mountTopBar(undefined, merchant)
+      await wrapper.find('[data-test="account-trigger"]').trigger('click')
+      await wrapper.find('[data-test="account-menu"]').trigger('keydown', { key: 'Escape' })
+      expect(wrapper.find('[data-test="account-menu"]').exists()).toBe(false)
+    })
+
+    it('marks the current customer destination with aria-current="page"', async () => {
+      const { wrapper } = await mountTopBar(undefined, customer)
+      const items = wrapper.findAll('nav button')
+      expect(items.map((b) => b.text())).toEqual(['Explorar', 'Mis pedidos', 'Perfil'])
+      expect(items.map((b) => b.attributes('aria-current'))).toEqual(['page', undefined, undefined])
+    })
+
+    it('a customer also gets the destinations inside the account menu (the nav is hidden under 768px)', async () => {
+      const { wrapper, router } = await mountTopBar(undefined, customer)
+      await wrapper.find('[data-test="account-trigger"]').trigger('click')
+      const links = wrapper.findAll('[data-test="menu-nav"] button')
+      expect(links.map((b) => b.text())).toEqual(['Explorar', 'Mis pedidos', 'Perfil'])
+      await links[1].trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.fullPath).toBe('/pedidos')
+      expect(wrapper.find('[data-test="account-menu"]').exists()).toBe(false)
+    })
+
+    it('other roles get no customer destinations in the menu', async () => {
+      const { wrapper } = await mountTopBar(undefined, merchant)
+      await wrapper.find('[data-test="account-trigger"]').trigger('click')
+      expect(wrapper.find('[data-test="menu-nav"]').exists()).toBe(false)
+    })
+
+    it('logout still signs out and goes to /login', async () => {
+      const { wrapper, router, store } = await mountTopBar(undefined, merchant)
+      await wrapper.find('[data-test="account-trigger"]').trigger('click')
+      await wrapper.findAll('button').find((b) => b.text() === 'Cerrar sesión')!.trigger('click')
+      await flushPromises()
+      expect(store.autenticado).toBe(false)
+      expect(router.currentRoute.value.name).toBe('login')
     })
   })
 })

@@ -170,8 +170,9 @@ test.describe('targets, focus and primary button', () => {
     const count = await targets.count()
     expect(count).toBeGreaterThan(6)
     for (let i = 0; i < count; i++) {
-      const box = await targets.nth(i).boundingBox()
-      expect(box!.height, `target #${i}`).toBeGreaterThanOrEqual(44)
+      // offsetHeight ignores the 220ms selected-chip pop (scale 0.94) that boundingBox would measure mid-animation.
+      const height = await targets.nth(i).evaluate((el) => (el as HTMLElement).offsetHeight)
+      expect(height, `target #${i}`).toBeGreaterThanOrEqual(44)
     }
     await context.close()
   })
@@ -182,9 +183,9 @@ test.describe('targets, focus and primary button', () => {
     const count = await targets.count()
     expect(count).toBeGreaterThan(8)
     for (let i = 0; i < count; i++) {
-      const box = await targets.nth(i).boundingBox()
-      expect(box!.height, `target #${i}`).toBeGreaterThanOrEqual(44)
-      expect(box!.width, `target #${i}`).toBeGreaterThanOrEqual(44)
+      const size = await targets.nth(i).evaluate((el) => ({ h: (el as HTMLElement).offsetHeight, w: (el as HTMLElement).offsetWidth }))
+      expect(size.h, `target #${i}`).toBeGreaterThanOrEqual(44)
+      expect(size.w, `target #${i}`).toBeGreaterThanOrEqual(44)
     }
   })
 
