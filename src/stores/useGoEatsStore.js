@@ -47,6 +47,8 @@ export const useGoEatsStore = defineStore('goeats', {
     carrito: [], // items {id, nombre, precio, cantidad, observacion, comercioId}
     carritoComercioId: null,
     notificacion: null,
+    comercioPropioId: null, // comercio vinculado a la cuenta (GET /merchants/mine)
+    repartidorPropioId: null, // repartidor vinculado a la cuenta (GET /delivery/couriers/me)
   }),
 
   getters: {
@@ -58,6 +60,8 @@ export const useGoEatsStore = defineStore('goeats', {
     repartidoresDisponibles: (s) => s.repartidores.filter((r) => r.disponible && r.estadoAfiliacion === 'activo'),
     carritoTotalItems: (s) => s.carrito.reduce((acc, i) => acc + i.cantidad, 0),
     carritoSubtotal: (s) => s.carrito.reduce((acc, i) => acc + i.cantidad * i.precio, 0),
+    comercioPropio: (s) => (s.comercioPropioId ? s.comercios.find((c) => c.id === s.comercioPropioId) || null : null),
+    repartidorPropio: (s) => (s.repartidorPropioId ? s.repartidores.find((r) => r.id === s.repartidorPropioId) || null : null),
     carritoComercio: (s) => (s.carritoComercioId ? s.comercios.find((c) => c.id === s.carritoComercioId) : null),
 
     pedidosComoCliente: (s) => s.pedidos.filter((p) => p.clienteNombre === s.usuario.nombre || p.clienteEmail === s.usuario.email),
@@ -83,7 +87,6 @@ export const useGoEatsStore = defineStore('goeats', {
         email: cuenta.email,
         password: 'demo1234',
         nombre: cuenta.name,
-        rolLocal: cuenta.role,
       })
       if (res.ok) {
         this.notificar(`Sesión activa: ${cuenta.name}`)
@@ -96,10 +99,12 @@ export const useGoEatsStore = defineStore('goeats', {
       this.autenticado = false
       this.usuario = { nombre: 'Invitado', email: '', telefono: '', consentimientoLey81: false }
       this.rol = 'customer'
+      this.comercioPropioId = null
+      this.repartidorPropioId = null
       this.notificar('Has cerrado sesión.')
     },
 
-    async autenticarUsuario({ email, password, nombre, modoRegistro = false, aceptaPolitica = false, rolLocal = 'customer' }) {
+    async autenticarUsuario({ email, password, nombre, modoRegistro = false, aceptaPolitica = false }) {
       try {
         const endpoint = modoRegistro ? '/auth/register' : '/auth/login'
         const payload = modoRegistro
@@ -128,36 +133,72 @@ export const useGoEatsStore = defineStore('goeats', {
         if (err?.response?.status === 400 || err?.response?.status === 401 || err?.response?.status === 409) {
           return { ok: false, mensaje: err.response?.data?.detail || 'Credenciales inválidas.' }
         }
-        // Fallback offline/demo cuando el backend no está levantado
-        if (modoRegistro && nombre) this.usuario.nombre = nombre
-        this.usuario.email = email
-        this.rol = rolLocal
+        // Sin respaldo offline: un error de red nunca autentica ni asigna rol localmente.
+        return { ok: false, mensaje: 'No se pudo conectar con el servidor. Inténtalo de nuevo.' }
+      }
+    },
+
+    async restaurarSesion() {
+      if (!tokenStorage.getAccessToken()) return { ok: false }
+      try {
+        const { data } = await api.get('/users/me')
+        this.usuario = {
+          nombre: data.full_name,
+          email: data.email,
+          telefono: data.phone || '',
+          consentimientoLey81: true,
+        }
+        this.rol = data.role
         this.autenticado = true
-        return { ok: true, origen: 'local' }
+        return { ok: true }
+      } catch (err) {
+        if (err?.response?.status === 401) {
+          // Token inválido y refresh fallido: sesión anónima.
+          tokenStorage.clear()
+          this.autenticado = false
+          return { ok: false }
+        }
+        // Error de red u otro: se conservan los tokens, sin cerrar sesión ni avisar.
+        return { ok: false, offline: true }
       }
     },
 
     async sincronizarConBackend() {
+      // Anónimo: solo endpoints públicos (se decide por estado del store, no por tokenStorage).
+      const llamadas = {
+        zones: '/zones/',
+        merchants: '/merchants/',
+        couriers: '/delivery/couriers',
+        products: '/catalog/products',
+      }
+      if (this.autenticado) {
+        llamadas.orders = '/orders/' // el backend lo acota según el rol
+        if (this.rol === 'merchant') llamadas.mine = '/merchants/mine'
+        if (this.rol === 'courier') llamadas.me = '/delivery/couriers/me'
+        if (this.rol === 'accountant' || this.rol === 'admin') {
+          llamadas.payments = '/payments/'
+          llamadas.audit = '/reports/audit-logs'
+        }
+        if (this.rol === 'admin') llamadas.arco = '/users/arco'
+      }
+      const claves = Object.keys(llamadas)
+      const resultados = await Promise.allSettled(claves.map((k) => api.get(llamadas[k])))
+      const respuestas = {}
+      const fallos = {}
+      claves.forEach((k, i) => {
+        const r = resultados[i]
+        if (r.status === 'fulfilled') respuestas[k] = r.value
+        else fallos[k] = r.reason // 401/403/404/red: se ignora salvo 404 de mine/me
+      })
       try {
-        const [
-          zonesRes,
-          merchantsRes,
-          couriersRes,
-          productsRes,
-          ordersRes,
-          paymentsRes,
-          arcoRes,
-          auditRes,
-        ] = await Promise.all([
-          api.get('/zones/'),
-          api.get('/merchants/'),
-          api.get('/delivery/couriers'),
-          api.get('/catalog/products'),
-          api.get('/orders/'),
-          api.get('/payments/'),
-          api.get('/users/arco'),
-          api.get('/reports/audit-logs'),
-        ])
+        const zonesRes = respuestas.zones || {}
+        const merchantsRes = respuestas.merchants || {}
+        const couriersRes = respuestas.couriers || {}
+        const productsRes = respuestas.products || {}
+        const ordersRes = respuestas.orders || {}
+        const paymentsRes = respuestas.payments || {}
+        const arcoRes = respuestas.arco || {}
+        const auditRes = respuestas.audit || {}
         if (Array.isArray(zonesRes.data) && zonesRes.data.length > 0) {
           this.zonas = zonesRes.data.map((z) => ({
             id: z.slug,
@@ -207,7 +248,7 @@ export const useGoEatsStore = defineStore('goeats', {
           }
           this.catalogo = agrupado
         }
-        if (Array.isArray(ordersRes.data) && ordersRes.data.length > 0) {
+        if (Array.isArray(ordersRes.data)) {
           this.pedidos = ordersRes.data.map((o) => ({
             id: o.code,
             comercioId: o.merchant_code,
@@ -241,7 +282,7 @@ export const useGoEatsStore = defineStore('goeats', {
             }),
           }))
         }
-        if (Array.isArray(paymentsRes.data) && paymentsRes.data.length > 0) {
+        if (Array.isArray(paymentsRes.data)) {
           this.transacciones = paymentsRes.data.map((t) => ({
             id: t.code,
             pedidoId: t.order_code,
@@ -261,7 +302,7 @@ export const useGoEatsStore = defineStore('goeats', {
             referencia: t.provider_reference || '—',
           }))
         }
-        if (Array.isArray(arcoRes.data) && arcoRes.data.length > 0) {
+        if (Array.isArray(arcoRes.data)) {
           this.solicitudesARCO = arcoRes.data.map((a) => ({
             id: a.id,
             usuario: a.user_name,
@@ -277,7 +318,7 @@ export const useGoEatsStore = defineStore('goeats', {
             }),
           }))
         }
-        if (Array.isArray(auditRes.data) && auditRes.data.length > 0) {
+        if (Array.isArray(auditRes.data)) {
           this.eventos = auditRes.data.map((e) => ({
             id: `EV-${e.id}`,
             actor: e.actor,
@@ -291,9 +332,18 @@ export const useGoEatsStore = defineStore('goeats', {
             }),
           }))
         }
+        if (this.autenticado) {
+          // Entidad vinculada: 404 `no_linked_entity` => cuenta sin comercio/repartidor.
+          // Un fallo transitorio (red/5xx) conserva el vínculo anterior; solo 404 o rol ajeno lo borra.
+          if (respuestas.mine) this.comercioPropioId = respuestas.mine.data?.code || null
+          else if (this.rol !== 'merchant' || fallos.mine?.response?.status === 404) this.comercioPropioId = null
+          if (respuestas.me) this.repartidorPropioId = respuestas.me.data?.code || null
+          else if (this.rol !== 'courier' || fallos.me?.response?.status === 404) this.repartidorPropioId = null
+        }
       } catch {
         // Silencioso si el backend no está activo (modo PWA offline/demo)
       }
+      // Los fallos por llamada (401/403/404/red) se ignoran: nunca toast ni descarte de datos.
     },
 
     seleccionarZona(zonaId) {

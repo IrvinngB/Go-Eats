@@ -1,5 +1,7 @@
 from fastapi import BackgroundTasks, HTTPException, status
 from sqlalchemy.orm import Session
+from app.core.rbac import CurrentUser, UserRole
+from app.domains.merchants.repository import MerchantRepository
 from app.domains.delivery.repository import CourierRepository
 from app.domains.orders.models import Order
 from app.domains.orders.repository import OrderRepository
@@ -32,6 +34,7 @@ class OrderService:
         self.db = db
         self.repo = OrderRepository(db)
         self.courier_repo = CourierRepository(db)
+        self.merchant_repo = MerchantRepository(db)
 
     def list_orders(
         self,
@@ -44,6 +47,55 @@ class OrderService:
             merchant_code=merchant_code,
             courier_code=courier_code,
         )
+
+    def list_for(
+        self,
+        user: CurrentUser,
+        merchant_code: str | None = None,
+        courier_code: str | None = None,
+    ) -> list[Order]:
+        """Role-scoped listing. Query filters can only narrow the caller's scope (AND)."""
+        scope: dict = {}
+        if user.role == UserRole.CUSTOMER:
+            scope["customer_id"] = user.user_id
+        elif user.role == UserRole.MERCHANT:
+            merchant = self.merchant_repo.get_by_owner(user.user_id)
+            if not merchant:
+                return []
+            scope["merchant_code"] = merchant.code
+        elif user.role == UserRole.COURIER:
+            courier = self.courier_repo.get_by_user(user.user_id)
+            if not courier:
+                return []
+            scope["courier_code"] = courier.code
+        elif user.role not in (UserRole.ADMIN, UserRole.ACCOUNTANT):
+            return []
+        for key, value in (("merchant_code", merchant_code), ("courier_code", courier_code)):
+            if value is None:
+                continue
+            if key in scope and scope[key] != value:
+                return []
+            scope[key] = value
+        return self.repo.list_orders(**scope)
+
+    def _in_scope(self, user: CurrentUser, order: Order) -> bool:
+        if user.role in (UserRole.ADMIN, UserRole.ACCOUNTANT):
+            return True
+        if user.role == UserRole.CUSTOMER:
+            return order.customer_id == user.user_id
+        if user.role == UserRole.MERCHANT:
+            merchant = self.merchant_repo.get_by_owner(user.user_id)
+            return merchant is not None and order.merchant_code == merchant.code
+        if user.role == UserRole.COURIER:
+            courier = self.courier_repo.get_by_user(user.user_id)
+            return courier is not None and order.courier_code == courier.code
+        return False
+
+    def get_order_for(self, user: CurrentUser, code: str) -> Order:
+        order = self.get_order(code)
+        if not self._in_scope(user, order):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found.")
+        return order
 
     def get_order(self, code: str) -> Order:
         order = self.repo.get_by_code(code)

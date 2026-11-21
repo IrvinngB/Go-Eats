@@ -19,6 +19,10 @@ class CourierRepository:
         stmt = select(Courier).where(Courier.code == code)
         return self.db.scalars(stmt).first()
 
+    def get_by_user(self, user_id: int) -> Courier | None:
+        stmt = select(Courier).where(Courier.user_id == user_id)
+        return self.db.scalars(stmt).first()
+
     def set_availability(self, courier: Courier, is_available: bool) -> Courier:
         courier.is_available = is_available
         self.db.commit()

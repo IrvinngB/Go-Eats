@@ -17,6 +17,10 @@ class MerchantRepository:
         stmt = select(Merchant).where(Merchant.code == code)
         return self.db.scalars(stmt).first()
 
+    def get_by_owner(self, user_id: int) -> Merchant | None:
+        stmt = select(Merchant).where(Merchant.owner_user_id == user_id)
+        return self.db.scalars(stmt).first()
+
     def update_schedule(
         self, merchant: Merchant, opens_at: str, closes_at: str, is_open: bool | None = None
     ) -> Merchant:

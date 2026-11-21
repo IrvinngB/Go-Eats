@@ -20,6 +20,14 @@ def list_merchants(
     return MerchantService(db).list_merchants(zone_slug=zone)
 
 
+@router.get("/mine", response_model=MerchantRead)
+def get_my_merchant(
+    current_user: CurrentUser = Depends(require_roles(UserRole.MERCHANT)),
+    db: Session = Depends(get_db),
+) -> MerchantRead:
+    return MerchantService(db).get_mine(current_user.user_id)
+
+
 @router.get("/{code}", response_model=MerchantRead)
 def get_merchant(code: str, db: Session = Depends(get_db)) -> MerchantRead:
     return MerchantService(db).get_merchant(code)

@@ -20,6 +20,12 @@ class MerchantService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Merchant not found.")
         return merchant
 
+    def get_mine(self, user_id: int) -> Merchant:
+        merchant = self.repo.get_by_owner(user_id)
+        if not merchant:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no_linked_entity")
+        return merchant
+
     def update_schedule(self, code: str, payload: MerchantScheduleUpdate) -> Merchant:
         merchant = self.get_merchant(code)
         updated = self.repo.update_schedule(

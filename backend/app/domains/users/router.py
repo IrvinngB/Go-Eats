@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.core.rbac import CurrentUser, UserRole, get_current_user, get_optional_user, require_roles
+from app.core.rbac import CurrentUser, UserRole, get_current_user, require_roles
 from app.domains.users.schemas import (
     ArcoRequestCreate,
     ArcoRequestRead,
@@ -42,7 +42,7 @@ def create_arco_request(
 
 @router.get("/arco", response_model=list[ArcoRequestRead])
 def list_arco_requests(
-    _: CurrentUser | None = Depends(get_optional_user),
+    _: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
     db: Session = Depends(get_db),
 ) -> list[ArcoRequestRead]:
     return UserService(db).list_arco()

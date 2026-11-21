@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.core.rbac import CurrentUser, UserRole, get_optional_user, require_roles
+from app.core.rbac import CurrentUser, UserRole, require_roles
 from app.domains.payments.schemas import PaymentCreate, PaymentRead, PaymentStatusUpdate
 from app.domains.payments.service import PaymentService
 
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/payments", tags=["payments"])
 def list_payments(
     status: str | None = Query(default=None),
     method: str | None = Query(default=None),
-    _: CurrentUser | None = Depends(get_optional_user),
+    _: CurrentUser = Depends(require_roles(UserRole.ACCOUNTANT, UserRole.ADMIN)),
     db: Session = Depends(get_db),
 ) -> list[PaymentRead]:
     return PaymentService(db).list_payments(status_filter=status, method_filter=method)

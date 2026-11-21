@@ -102,3 +102,40 @@ Branch: feat/customer-pr3-auth-hardening. Auth hardening only.
 - Gates: pytest 31 passed; pnpm test 279 passed; vue-tsc clean; build ok; e2e 19 passed.
 
 ### Remaining: PR4..PR10
+
+
+## PR4 (tasks 4.1-4.6) - DONE, not committed
+Branch: feat/customer-pr4-scoped-reads. Size exception (~600 lines) accepted: backend and frontend ship together.
+
+### Files
+Backend: MOD orders/{router,service}.py (`OrderService.list_for`, `get_order_for`, filters only narrow), merchants/{repository,service,router}.py (`get_by_owner`, `GET /merchants/mine` before `/{code}`), delivery/{repository,service,router}.py (`get_by_user`, `GET /delivery/couriers/me`), payments/router.py (GET admin+accountant), users/router.py (`GET /users/arco` admin), reports/router.py (kpis, financial, audit-logs admin+accountant). Tests: NEW tests/test_orders_scope.py, tests/test_linked_entity_and_locks.py; MOD tests/factories.py (`make_order`, `link_merchant`, `link_courier`).
+Frontend: MOD src/stores/useGoEatsStore.js (allSettled sync with role gating, `comercioPropio`/`repartidorPropio`, `restaurarSesion`, offline fake login and `rolLocal` removed, logout clears links), src/main.ts (async bootstrap: restaurarSesion before sync/router), MerchantView.vue and CourierView.vue (linked entity, empty states, no c1/r2/name matching). Tests: NEW src/stores/useGoEatsStore.spec.ts (21), MerchantView.spec.ts (3), CourierView.spec.ts (3).
+
+### Decisions
+- Policy per spec: no role is "wrong" for GET /orders/{code} (all roles are in the table), so no 403 there; out-of-scope (incl. unlinked merchant/courier) -> 404. 403 applies to `mine`/`me` and the locks.
+- Query params `merchant_code`/`courier_code` narrow (AND) any role's scope, never widen.
+- Private lists (orders, payments, arco, audit) replace local data on any fulfilled array, including empty; fulfilled `mine`/`me` sets the link; only 404 or a foreign role clears it, transient failures keep it.
+- Sync decides anonymous from `this.autenticado`, never tokenStorage (App.sync.spec mock has none).
+- Views resolve the link against the synced lists; if the entity is missing the empty state shows (no fallback).
+
+### TDD evidence
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|---|
+| 4.1 | test_orders_scope.py | integration | 31 green | list returned all orders / anon 200 instead of 401, other-order GET 200 instead of 404 (14 failed for the right reason after fixing my `/api/v1` prefix) | pass (2 narrowing tests failed first: filters ignored for non-admin; fixed to AND-narrowing) | customer/merchant/courier/unlinked x2/admin/accountant, other-order 404, nonexistent 404, filters per role | single scope path |
+| 4.2 | test_linked_entity_and_locks.py (mine/me) | integration | - | `/merchants/mine` captured by `/{code}` ("Merchant not found") | pass | linked, unlinked `no_linked_entity`, 4 foreign roles 403, anon 401, `/{code}` still works, no owner/user id exposed | none |
+| 4.3 | same file (locks) | integration | - | 35 failed in total (anon 200, customer 200) | pass | 5 endpoints x 5 roles + anon | none |
+| 4.4 | useGoEatsStore.spec.ts (sync) | store | 279 green | 18 of 21 failed (private calls for anonymous, `comercioPropio` undefined) | pass | anonymous, 5 role gates, 403 keeps public data, empty replaces, outage no toast, mine/me linked and 404 | removed unused var, link survives transient failures |
+| 4.5 | useGoEatsStore.spec.ts (restaurarSesion) | store | - | `restaurarSesion is not a function` | pass | no token, ok, 401 clears, network error keeps tokens | none |
+| 4.6 | store (login/logout), MerchantView.spec.ts, CourierView.spec.ts | store+component | - | fake login `ok:true`; views rendered c1/r2 panel (6 failed) | pass | unlinked, dangling link id, linked by id not name | test fix: empty state has an h1 too |
+
+### Real verification (throwaway sqlite scratchpad/pr4.db seeded via init_db; uvicorn :8766; vite :5201 with VITE_API_URL; Playwright scratchpad/pr4.mjs; real login form; servers stopped by PID, ports confirmed free; goeats.db never created)
+API == UI order counts: customer Carlos 12 (only his), merchant Hector 10 (only c1), courier Maria 11 (only r2), accountant 60, admin 60. Anonymous curl `GET /orders/` -> 401, `GET /payments/` -> 401. Anonymous /tiendas requested only zones, merchants, couriers, products. Private calls per role matched the matrix (customer: orders; merchant +mine; courier +me; accountant +payments,audit-logs; admin +users/arco), all 200. Reload on each panel kept the session (`/users/me` 200) and the same data. Two extra unlinked users inserted in the scratch DB: merchant and courier show the empty state (`mine`/`me` 404). Screenshots read: merchant, courier, unlinked merchant, admin, accountant, customer (scratchpad/pr4-*.png).
+
+### Gates
+pytest 100 passed; `pnpm test` 306 passed; vue-tsc clean; build ok; e2e 19 passed; tsbuildinfo restored.
+
+### Not verified / pre-existing
+- Anonymous TopBar still shows the mock user "Carlos Andrade / Cliente" (guards are PR10); AdminView KPI cards are mockData. Both pre-existing.
+- PostgreSQL/Docker path (SQLite only); restore on network error covered by unit test only (backend not killed in the browser).
+
+### Remaining: PR5..PR10 (and V.1/V.2/V.3)
