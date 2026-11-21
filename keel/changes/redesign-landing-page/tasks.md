@@ -2,7 +2,7 @@
 
 ## Review Workload Forecast
 
-Decision needed before apply: Yes
+Decision needed before apply: No
 Chained PRs recommended: Yes
 Chain strategy: stacked-to-main
 400-line budget risk: High
@@ -25,11 +25,11 @@ Note: ~700 words on purpose, given the scope. Stacked means each PR targets `dev
 | WU8 | e2e specs, docs, verification | ~300 | Medium |
 
 ## WU1: Playwright harness (base: develop)
-- [ ] 1.1 `pnpm add -D @playwright/test`; commit the updated `pnpm-lock.yaml` (Dockerfile uses `--frozen-lockfile`).
-- [ ] 1.2 Create `playwright.config.ts` (testDir `./e2e`, chromium, `serviceWorkers: 'block'`, webServer `pnpm build && pnpm preview --port 4173 --strictPort`, no `process.env`); add script `test:e2e`.
-- [ ] 1.3 Add `test-results/` and `playwright-report/` to `.gitignore`.
-- [ ] 1.4 RED/GREEN: smoke `e2e/smoke.spec.ts` (`/` loads, title present); `pnpm exec playwright install chromium`.
-- [ ] 1.5 Confirm vitest and tsc ignore `e2e/`: `pnpm test`, `vue-tsc -b`, `pnpm build` green.
+- [x] 1.1 `pnpm add -D @playwright/test`; commit the updated `pnpm-lock.yaml` (Dockerfile uses `--frozen-lockfile`).
+- [x] 1.2 Create `playwright.config.ts` (testDir `./e2e`, chromium, `serviceWorkers: 'block'`, webServer `pnpm build && pnpm preview --port 4173 --strictPort`, no `process.env`); add script `test:e2e`.
+- [x] 1.3 Add `test-results/` and `playwright-report/` to `.gitignore`.
+- [x] 1.4 RED/GREEN: smoke `e2e/smoke.spec.ts` (`/` loads, title present); `pnpm exec playwright install chromium`.
+- [x] 1.5 Confirm vitest and tsc ignore `e2e/`: `pnpm test`, `vue-tsc -b`, `pnpm build` green.
 
 ## WU2: Tokens, assets, BrandLogo (base: WU1)
 - [ ] 2.1 RED: `tokens.spec.ts` band pairs (ink and ink-soft on amber-tint, ink-soft on primary-tint, primary-text on amber-tint, on-indigo and on-indigo-soft on indigo, primary vs indigo and primary-lip on primary-tint at 3.0); `dark` loop unchanged.
@@ -86,3 +86,4 @@ Note: ~700 words on purpose, given the scope. Stacked means each PR targets `dev
 
 ## Cleanup
 - [ ] 9.1 Archive merge into `keel/specs/landing-page/spec.md` (sdd-archive).
+Resolved 2026-11-20: user accepted stacked PRs into develop (merge commits), WU3 as size-exception (~600 added), WU5 split with CoverageMap in its own PR. Auto mode: run WU1..WU8 in order.

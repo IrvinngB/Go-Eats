@@ -1,4 +1,4 @@
-current_phase: tasks
+current_phase: apply
 completed: [explore, proposal, spec, clarify, spec-revision, design, blast-radius]
 open_questions: [palette #00B19D vs #00C2A8 (default #00B19D), public register route unverified (CTAs to /login), confirm component paths in design]
 decisions: [structure 1 classic marketplace, light mode fixed (dark deferred to add-theme-mode), imagery A css/svg + briefs for later swap, featured stores live from API with static fallback, merchant/courier CTAs to /login, nothing invented, Playwright dev-only real-browser check]
