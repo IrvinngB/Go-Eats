@@ -22,10 +22,10 @@ def list_payments(
 @router.post("/", response_model=PaymentRead, status_code=201)
 def process_payment(
     payload: PaymentCreate,
-    _: CurrentUser = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN)),
+    current_user: CurrentUser = Depends(require_roles(UserRole.CUSTOMER)),
     db: Session = Depends(get_db),
 ) -> PaymentRead:
-    return PaymentService(db).process_payment(payload)
+    return PaymentService(db).process_payment(current_user, payload)
 
 
 @router.patch("/{code}/status", response_model=PaymentRead)
@@ -45,12 +45,12 @@ def reconcile_payment(
 @router.get("/{code}/receipt.pdf")
 def download_receipt_pdf(
     code: str,
-    _: CurrentUser = Depends(
+    current_user: CurrentUser = Depends(
         require_roles(UserRole.ACCOUNTANT, UserRole.ADMIN, UserRole.CUSTOMER)
     ),
     db: Session = Depends(get_db),
 ) -> Response:
-    pdf_bytes = PaymentService(db).build_receipt_pdf(code)
+    pdf_bytes = PaymentService(db).build_receipt_pdf(current_user, code)
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",

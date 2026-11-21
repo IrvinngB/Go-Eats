@@ -68,8 +68,8 @@ Every PR gate: `cd backend && .venv/bin/pytest`, `pnpm test`, `pnpm exec vue-tsc
 - [x] 6.4 Store: send `yappy`, drop price/fee/name fields, map `promo_price`, label "Pago electrónico (simulado)" (RED store spec).
 
 ## PR7: Payments
-- [ ] 7.1 RED `test_payments.py` (amounts from order, duplicate 409, other's order 404, flag-off ignores `simulate_failure`, legacy `tarjeta` readable, fallido cancels order, receipt owner); GREEN.
-- [ ] 7.2 RED vitest `crearPedido` calls orders then payments, anonymous redirect keeps cart; GREEN async; modal single "Pagar (simulado)".
+- [x] 7.1 RED `test_payments.py` (amounts from order, duplicate 409, other's order 404, flag-off ignores `simulate_failure`, legacy `tarjeta` readable, fallido cancels order, receipt owner); GREEN.
+- [x] 7.2 RED vitest `crearPedido` calls orders then payments, anonymous redirect keeps cart; GREEN async; modal single "Pagar (simulado)".
 
 ## PR8: Writes
 - [ ] 8.1 RED `errors.spec` `toWriteError`; GREEN `services/errors.ts`.

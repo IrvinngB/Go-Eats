@@ -93,3 +93,18 @@ describe('OrdersView timeline with canonical states', () => {
     expect(setup(pedido('listo_para_recoger', rep)).text()).not.toContain('Tu repartidor en camino')
   })
 })
+
+describe('OrdersView payment status from the API', () => {
+  it.each([
+    ['pagado', 'Pagado'],
+    ['pendiente', 'Pago pendiente'],
+    ['fallido', 'Pago fallido'],
+  ])('shows "%s" as "%s"', (pagoEstado, label) => {
+    const w = setup(pedido('pendiente', { pagoEstado }))
+    expect(w.find('[data-test="estado-pago"]').text()).toBe(label)
+  })
+
+  it('shows no payment line while the order has no payment', () => {
+    expect(setup(pedido('pendiente', { pagoEstado: null })).find('[data-test="estado-pago"]').exists()).toBe(false)
+  })
+})

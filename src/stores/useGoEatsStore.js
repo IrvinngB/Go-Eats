@@ -17,6 +17,56 @@ import {
 let seq = 1100
 const nextId = (prefix) => `${prefix}-${++seq}`
 
+const FORMATO_FECHA = { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }
+
+// API order -> UI order. `payment_status` is the latest payment's status (null while unpaid).
+function mapPedidoApi(o) {
+  return {
+    id: o.code,
+    comercioId: o.merchant_code,
+    comercioNombre: o.merchant_name,
+    clienteNombre: o.customer_name,
+    clienteTelefono: o.customer_phone,
+    zona: o.zone_slug,
+    direccion: o.delivery_address,
+    items: (o.items || []).map((it) => ({
+      nombre: it.name,
+      cantidad: it.quantity,
+      precio: it.unit_price,
+      observacion: it.notes || '',
+    })),
+    subtotal: o.subtotal,
+    tarifaEnvio: o.delivery_fee,
+    total: o.total,
+    estado: o.status,
+    metodoPago: o.payment_method === 'contr_entrega' ? 'contr_entrega' : 'electronico',
+    pagoEstado: o.payment_status ?? null,
+    repartidorId: o.courier_code,
+    observaciones: o.notes,
+    motivoCancelacion: o.cancellation_reason,
+    calificacion: o.rating?.merchant_stars || null,
+    calificacionComercio: o.rating?.merchant_stars || null,
+    calificacionRepartidor: o.rating?.courier_stars || null,
+    fecha: new Date(o.created_at).toLocaleString('es-PA', FORMATO_FECHA),
+  }
+}
+
+function mapTransaccionApi(t) {
+  return {
+    id: t.code,
+    pedidoId: t.order_code,
+    fecha: new Date(t.created_at).toLocaleString('es-PA', FORMATO_FECHA),
+    cliente: t.customer_name,
+    comercio: t.merchant_name,
+    monto: t.total,
+    comision: t.commission,
+    total: Number((t.total - t.commission).toFixed(2)),
+    estado: t.status === 'pagado' ? 'aprobado' : t.status === 'fallido' ? 'rechazado' : 'pendiente',
+    metodo: t.method === 'contr_entrega' ? 'contr_entrega' : 'electronico',
+    referencia: t.provider_reference || '—',
+  }
+}
+
 function ahora() {
   return new Date().toLocaleTimeString('es-PA', { hour: '2-digit', minute: '2-digit', hour12: true })
 }
@@ -252,58 +302,10 @@ export const useGoEatsStore = defineStore('goeats', {
           this.catalogo = agrupado
         }
         if (Array.isArray(ordersRes.data)) {
-          this.pedidos = ordersRes.data.map((o) => ({
-            id: o.code,
-            comercioId: o.merchant_code,
-            comercioNombre: o.merchant_name,
-            clienteNombre: o.customer_name,
-            clienteTelefono: o.customer_phone,
-            zona: o.zone_slug,
-            direccion: o.delivery_address,
-            items: (o.items || []).map((it) => ({
-              nombre: it.name,
-              cantidad: it.quantity,
-              precio: it.unit_price,
-              observacion: it.notes || '',
-            })),
-            subtotal: o.subtotal,
-            tarifaEnvio: o.delivery_fee,
-            total: o.total,
-            estado: o.status,
-            metodoPago: o.payment_method === 'contr_entrega' ? 'contr_entrega' : 'electronico',
-            repartidorId: o.courier_code,
-            observaciones: o.notes,
-            motivoCancelacion: o.cancellation_reason,
-            calificacion: o.rating?.merchant_stars || null,
-            calificacionComercio: o.rating?.merchant_stars || null,
-            calificacionRepartidor: o.rating?.courier_stars || null,
-            fecha: new Date(o.created_at).toLocaleString('es-PA', {
-              day: '2-digit',
-              month: 'short',
-              hour: '2-digit',
-              minute: '2-digit',
-            }),
-          }))
+          this.pedidos = ordersRes.data.map(mapPedidoApi)
         }
         if (Array.isArray(paymentsRes.data)) {
-          this.transacciones = paymentsRes.data.map((t) => ({
-            id: t.code,
-            pedidoId: t.order_code,
-            fecha: new Date(t.created_at).toLocaleString('es-PA', {
-              day: '2-digit',
-              month: 'short',
-              hour: '2-digit',
-              minute: '2-digit',
-            }),
-            cliente: t.customer_name,
-            comercio: t.merchant_name,
-            monto: t.total,
-            comision: t.commission,
-            total: Number((t.total - t.commission).toFixed(2)),
-            estado: t.status === 'pagado' ? 'aprobado' : t.status === 'fallido' ? 'rechazado' : 'pendiente',
-            metodo: t.method === 'contr_entrega' ? 'contr_entrega' : 'electronico',
-            referencia: t.provider_reference || '—',
-          }))
+          this.transacciones = paymentsRes.data.map(mapTransaccionApi)
         }
         if (Array.isArray(arcoRes.data)) {
           this.solicitudesARCO = arcoRes.data.map((a) => ({
@@ -381,82 +383,51 @@ export const useGoEatsStore = defineStore('goeats', {
       this.carritoComercioId = null
     },
 
-    crearPedido({ direccion, metodoPago, observaciones }) {
+    // POST /orders then POST /payments for the server order code (both awaited).
+    // Returns the UI order (with `pagoEstado`, `referenciaPasarela`) or null when nothing was created.
+    // Rollback and typed error messages are PR8; here a failure only keeps the cart.
+    async crearPedido({ direccion, metodoPago, observaciones }) {
       const comercio = this.carritoComercio
-      if (!comercio || this.carrito.length === 0) return null
-      const subtotal = this.carritoSubtotal
-      const tarifa = this.zonaActual.tarifa
-      const pedido = {
-        id: nextId('ORD'),
-        comercioId: comercio.id,
-        comercioNombre: comercio.nombre,
-        clienteNombre: this.usuario.nombre,
-        clienteTelefono: this.usuario.telefono,
-        zona: this.zonaSeleccionada,
-        direccion,
-        items: this.carrito.map((i) => ({ nombre: i.nombre, cantidad: i.cantidad, precio: i.precio, observacion: i.observacion || '' })),
-        subtotal,
-        tarifaEnvio: tarifa,
-        total: subtotal + tarifa,
-        estado: 'pendiente',
-        metodoPago,
-        referenciaPasarela: metodoPago === 'electronico' ? `PAY-${Math.floor(Math.random() * 90000 + 10000)}-GO` : undefined,
-        repartidorId: null,
-        observaciones,
-        calificacion: null,
-        fecha: `Hoy, ${ahora()}`,
-      }
-      this.pedidos.unshift(pedido)
-      this.transacciones.unshift({
-        id: nextId('TX'),
-        pedidoId: pedido.id,
-        fecha: `Hoy, ${ahora()}`,
-        cliente: pedido.clienteNombre,
-        comercio: pedido.comercioNombre,
-        monto: pedido.total,
-        comision: metodoPago === 'electronico' ? Number((pedido.total * 0.12).toFixed(2)) : 0,
-        total: metodoPago === 'electronico' ? Number((pedido.total * 0.88).toFixed(2)) : pedido.total,
-        estado: metodoPago === 'electronico' ? 'pendiente' : 'pendiente',
-        metodo: metodoPago,
-        referencia: pedido.referenciaPasarela || '—',
-      })
-      this.registrarEvento(`${this.usuario.nombre} (Cliente)`, `Creación de pedido ${pedido.id}`, 'pedido')
-      api
-        .post('/orders/', {
+      if (!this.autenticado || !comercio || this.carrito.length === 0) return null
+      const metodo = metodoPago === 'electronico' ? 'yappy' : 'contr_entrega'
+      let pedido
+      try {
+        const { data: orden } = await api.post('/orders/', {
           // The server recomputes prices, fee and names: only identifiers and choices travel.
           merchant_code: comercio.id,
           zone_slug: this.zonaSeleccionada,
           delivery_address: direccion,
           notes: observaciones || '',
           // 'electronico' is the UI id; `yappy` is the wire id of the single simulated gateway.
-          payment_method: metodoPago === 'electronico' ? 'yappy' : 'contr_entrega',
+          payment_method: metodo,
           items: this.carrito.map((i) => ({
             product_code: String(i.id),
             quantity: i.cantidad,
             notes: i.observacion || '',
           })),
         })
-        .catch(() => {})
-      this.vaciarCarrito()
-      return pedido
-    },
-
-    simularPago(pedidoId, aprobar) {
-      const pedido = this.pedidos.find((p) => p.id === pedidoId)
-      if (!pedido || pedido.metodoPago !== 'electronico') return
-      const tx = this.transacciones.find((t) => t.pedidoId === pedidoId)
-      if (aprobar) {
-        pedido.estado = 'confirmado'
-        if (tx) tx.estado = 'aprobado'
-        this.registrarEvento('Sistema', `Aprobación de pago ${pedido.referenciaPasarela}`, 'pago')
-        this.notificar('Pago aprobado. Tu pedido fue confirmado con el comercio.')
-      } else {
-        pedido.estado = 'cancelado'
-        pedido.motivoCancelacion = 'Pago electrónico rechazado en la pasarela simulada.'
-        if (tx) tx.estado = 'rechazado'
-        this.registrarEvento('Sistema', `Pago rechazado para ${pedido.id}`, 'pago')
-        this.notificar('Pago rechazado. El pedido fue cancelado.')
+        pedido = mapPedidoApi(orden)
+      } catch {
+        this.notificar('No se pudo crear el pedido. Intenta de nuevo.')
+        return null
       }
+      this.pedidos.unshift(pedido)
+      this.vaciarCarrito()
+      try {
+        // Amounts are never sent: the server takes them from the persisted order.
+        const { data: pago } = await api.post('/payments/', { order_code: pedido.id, method: metodo })
+        pedido.pagoEstado = pago.status
+        pedido.referenciaPasarela = pago.provider_reference || undefined
+        if (pago.status === 'fallido') {
+          // The server cancels the order when the electronic payment fails.
+          pedido.estado = 'cancelado'
+          pedido.motivoCancelacion = 'Pago electrónico rechazado'
+        }
+        this.transacciones.unshift(mapTransaccionApi(pago))
+      } catch {
+        this.notificar('El pedido se creó pero no se pudo registrar el pago.')
+      }
+      return pedido
     },
 
     avanzarEstadoPedido(pedidoId, nuevoEstado, extra = {}) {
