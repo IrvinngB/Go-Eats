@@ -78,6 +78,8 @@ class OrderRepository:
                 customer_phone=customer_phone,
                 zone_slug=payload.zone_slug,
                 delivery_address=payload.delivery_address,
+                delivery_lat=payload.delivery_lat,
+                delivery_lng=payload.delivery_lng,
                 notes=payload.notes,
                 payment_method=payload.payment_method,
                 status="pendiente",

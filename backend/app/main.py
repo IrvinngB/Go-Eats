@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
@@ -47,6 +48,14 @@ app.add_middleware(
 def code_generation_failed(_: Request, __: CodeGenerationError) -> JSONResponse:
     # Heavy contention on the code sequence: ask the client to retry, never a bare 500.
     return JSONResponse(status_code=503, content={"detail": "Could not allocate a code. Please retry."})
+
+
+@app.exception_handler(RequestValidationError)
+def validation_failed(_: Request, exc: RequestValidationError) -> JSONResponse:
+    # Same 422 shape as the default, minus `input`/`ctx`: echoing a NaN/Infinity input makes
+    # the JSON encoder fail and turns a client error into a 500.
+    detail = [{"type": e["type"], "loc": list(e["loc"]), "msg": e["msg"]} for e in exc.errors()]
+    return JSONResponse(status_code=422, content={"detail": detail})
 
 
 for domain_router in (

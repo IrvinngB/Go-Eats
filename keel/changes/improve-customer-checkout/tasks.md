@@ -35,15 +35,15 @@ Each PR must pass `cd backend && .venv/bin/pytest -q`, `pnpm test`, `pnpm exec v
 
 ## Unit A1 (PR 1): backend + migration
 
-- [ ] 1.1 RED `backend/tests/test_migrations.py::test_adds_address_columns_idempotent`: legacy DDL (users/orders minimal) gains 5 nullable columns; runs twice; existing rows keep NULLs.
-- [ ] 1.2 GREEN `backend/app/core/migrations.py`: `_add_plain_column` + call for users/orders when tables exist; extend `test_fresh_schema_noop` columns.
-- [ ] 1.3 Add columns to `users/models.py` and `orders/models.py` (Float, Text, nullable).
-- [ ] 1.4 RED `backend/tests/test_users_address.py`: PUT /users/me saves address+lat+lng; lat 91, lng 181, NaN, only lat -> 422; null clears; another user's data untouched; anonymous 401; admin list omits address/coords.
-- [ ] 1.5 GREEN `users/schemas.py`, `users/service.py`, `users/repository.py`, `users/router.py` (exclude on list).
-- [ ] 1.6 RED `backend/tests/test_orders_delivery_coords.py`: create with valid coords stores them in OrderRead; half/out-of-range -> 422; no coords -> NULL; profile change after order does not alter the order.
-- [ ] 1.7 GREEN `orders/schemas.py` (OrderCreate validator, OrderRead fields), `orders/repository.py` create.
-- [ ] 1.8 Extend `backend/tests/factories.py` (`make_user` address/lat/lng, `make_order` delivery_lat/lng).
-- [ ] 1.9 Throwaway postgres:16 container (scratchpad, random port; never the project volume): load legacy schema, run `run_startup_migrations` twice, then 4 concurrent workers; assert columns once and no errors; remove container.
+- [x] 1.1 RED `backend/tests/test_migrations.py::test_adds_address_columns_idempotent`: legacy DDL (users/orders minimal) gains 5 nullable columns; runs twice; existing rows keep NULLs.
+- [x] 1.2 GREEN `backend/app/core/migrations.py`: `_add_plain_column` + call for users/orders when tables exist; extend `test_fresh_schema_noop` columns.
+- [x] 1.3 Add columns to `users/models.py` and `orders/models.py` (Float, Text, nullable).
+- [x] 1.4 RED `backend/tests/test_users_address.py`: PUT /users/me saves address+lat+lng; lat 91, lng 181, NaN, only lat -> 422; null clears; another user's data untouched; anonymous 401; admin list omits address/coords.
+- [x] 1.5 GREEN `users/schemas.py`, `users/service.py`, `users/repository.py`, `users/router.py` (exclude on list).
+- [x] 1.6 RED `backend/tests/test_orders_delivery_coords.py`: create with valid coords stores them in OrderRead; half/out-of-range -> 422; no coords -> NULL; profile change after order does not alter the order.
+- [x] 1.7 GREEN `orders/schemas.py` (OrderCreate validator, OrderRead fields), `orders/repository.py` create.
+- [x] 1.8 Extend `backend/tests/factories.py` (`make_user` address/lat/lng, `make_order` delivery_lat/lng).
+- [x] 1.9 Throwaway postgres:16 container (scratchpad, random port; never the project volume): load legacy schema, run `run_startup_migrations` twice, then 4 concurrent workers; assert columns once and no errors; remove container.
 
 ## Unit A2 (PR 2): picker, geo, store, profile
 

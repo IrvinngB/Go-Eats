@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import Literal
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 from app.core.rbac import UserRole
+from app.shared.coordinates import Latitude, Longitude, ensure_both_or_neither
 
 
 class UserCreate(BaseModel):
@@ -15,6 +16,19 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     full_name: str | None = Field(default=None, min_length=2, max_length=150)
     phone: str | None = Field(default=None, max_length=40)
+    # Partial update: an omitted field is left alone, an explicit null clears it
+    # (distinguished through `model_fields_set`).
+    address: str | None = Field(default=None, min_length=4, max_length=300)
+    lat: Latitude | None = None
+    lng: Longitude | None = None
+
+    @model_validator(mode="after")
+    def _coords_together(self) -> "UserUpdate":
+        sent = {"lat", "lng"} & self.model_fields_set
+        if len(sent) == 1:
+            raise ValueError("lat and lng must be sent together.")
+        ensure_both_or_neither(self.lat, self.lng)
+        return self
 
 
 class UserRead(BaseModel):
@@ -27,6 +41,18 @@ class UserRead(BaseModel):
     role: UserRole
     is_active: bool
     created_at: datetime
+    address: str | None = None
+    lat: float | None = None
+    lng: float | None = None
+
+
+# Admin list: no delivery address / coordinates (avoids new PII exposure).
+class UserListRead(UserRead):
+    model_config = ConfigDict(from_attributes=True)
+
+    address: str | None = Field(default=None, exclude=True)
+    lat: float | None = Field(default=None, exclude=True)
+    lng: float | None = Field(default=None, exclude=True)
 
 
 ArcoType = Literal["Acceso", "Rectificación", "Cancelación", "Oposición"]

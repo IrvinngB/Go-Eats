@@ -51,6 +51,28 @@ def _add_column(conn: Connection, table: str, column: str) -> None:
         raise
 
 
+# table -> [(column, SQL type)]: nullable plain columns for the delivery address feature
+_PLAIN_COLUMNS = {
+    "users": [("address", "TEXT"), ("lat", "FLOAT"), ("lng", "FLOAT")],
+    "orders": [("delivery_lat", "FLOAT"), ("delivery_lng", "FLOAT")],
+}
+
+
+def _add_plain_column(conn: Connection, table: str, column: str, sqltype: str) -> None:
+    """Add a nullable column without constraints; idempotent and tolerant of concurrent adds."""
+    columns = {c["name"] for c in inspect(conn).get_columns(table)}
+    if column in columns:
+        return
+    try:
+        with conn.begin_nested():
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {sqltype}"))
+    except (ProgrammingError, OperationalError) as exc:
+        if "duplicate column" in str(exc).lower() or "already exists" in str(exc).lower():
+            logger.warning("column %s.%s already added by another worker", table, column)
+            return
+        raise
+
+
 def _backfill(conn: Connection, table: str, column: str, links: dict[str, str]) -> int:
     linked = 0
     for email, code in links.items():
@@ -107,4 +129,9 @@ def run_startup_migrations(engine: Engine) -> None:
             )
             linked = _backfill(conn, table, column, ENTITY_LINKS[table])
             logger.info("migration: %s linked: %d", table, linked)
+        for table, specs in _PLAIN_COLUMNS.items():
+            if table not in tables:
+                continue
+            for column, sqltype in specs:
+                _add_plain_column(conn, table, column, sqltype)
         logger.info("migration: statuses rewritten: %d", _rewrite_statuses(conn, tables))

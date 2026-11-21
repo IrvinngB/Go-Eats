@@ -24,7 +24,15 @@ class UserService:
 
     def update_profile(self, user_id: int, payload: UserUpdate) -> User:
         user = self.get_profile(user_id)
-        updated = self.repo.update(user, full_name=payload.full_name, phone=payload.phone)
+        # Only keys the client actually sent may clear (null) the address fields.
+        address_changes = {
+            k: getattr(payload, k)
+            for k in ("address", "lat", "lng")
+            if k in payload.model_fields_set
+        }
+        updated = self.repo.update(
+            user, full_name=payload.full_name, phone=payload.phone, address_changes=address_changes
+        )
         record_audit_event(self.db, updated.full_name, "Actualizó datos de perfil", "acceso")
         return updated
 
