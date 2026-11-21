@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useGoEatsStore } from '../../stores/useGoEatsStore'
 import { useRouter } from 'vue-router'
 import CommerceIcon from '../../components/CommerceIcon.vue'
@@ -8,8 +8,9 @@ import '@fontsource/nunito/latin-400.css'
 import '@fontsource/nunito/latin-700.css'
 import '@fontsource/nunito/latin-800.css'
 import '../../components/catalog/catalog.css'
-import { MapPin, LayoutGrid, Map, Search, SearchX, Clock, Bike, Sparkles, Star, Check, ChevronDown, CircleCheck, Lock, Hourglass } from '@lucide/vue'
+import { MapPin, LayoutGrid, Map, Search, SearchX, Clock, Bike, Sparkles, Star, Check, ChevronDown, CircleCheck, Lock, Hourglass, ChevronLeft, ChevronRight } from '@lucide/vue'
 import { extraerCategorias, filtrarYOrdenarComercios, tienePromocion } from '../../utils/catalog'
+import { layoutGrid, cellClass } from '../../utils/grid'
 
 const store = useGoEatsStore()
 const router = useRouter()
@@ -27,6 +28,7 @@ const comerciosFiltrados = computed(() =>
   }),
 )
 
+const celdas = computed(() => layoutGrid(comerciosFiltrados.value.length).map(cellClass))
 // Cover tones cycle through the pale brand tints (tone, never border or shadow).
 const TONOS_PORTADA = ['', 'cx-cover-b', 'cx-cover-c']
 
@@ -57,6 +59,65 @@ function seleccionarZona(slug) {
   store.seleccionarZona(slug)
   categoriaSeleccionada.value = ''
 }
+
+// Zone chip row: keep the selected chip in view and offer chevrons while the row overflows.
+const zonaScroller = ref(null)
+const zonaDesborda = ref(false)
+const zonaPuedeAtras = ref(false)
+const zonaPuedeAdelante = ref(false)
+let zonaObserver = null
+
+function comportamientoScroll(instantaneo = false) {
+  const reducido = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  return instantaneo || reducido ? 'auto' : 'smooth'
+}
+
+function actualizarScrollZonas() {
+  const el = zonaScroller.value
+  if (!el) return
+  const max = el.scrollWidth - el.clientWidth
+  zonaDesborda.value = max > 1
+  zonaPuedeAtras.value = el.scrollLeft > 1
+  zonaPuedeAdelante.value = el.scrollLeft < max - 1
+}
+
+function centrarZonaSeleccionada(instantaneo = false) {
+  const el = zonaScroller.value
+  const chip = el?.querySelector('[aria-pressed="true"]')
+  if (!el || !chip) return
+  const e = el.getBoundingClientRect()
+  const c = chip.getBoundingClientRect()
+  const left = el.scrollLeft + (c.left - e.left) - (e.width - c.width) / 2
+  if (typeof el.scrollTo === 'function') el.scrollTo({ left, behavior: comportamientoScroll(instantaneo) })
+  else el.scrollLeft = left
+}
+
+function desplazarZonas(direccion) {
+  const el = zonaScroller.value
+  if (!el) return
+  const left = direccion * el.clientWidth * 0.8
+  if (typeof el.scrollBy === 'function') el.scrollBy({ left, behavior: comportamientoScroll() })
+  else el.scrollLeft += left
+}
+
+onMounted(() => {
+  centrarZonaSeleccionada(true)
+  actualizarScrollZonas()
+  if (typeof ResizeObserver === 'function' && zonaScroller.value) {
+    zonaObserver = new ResizeObserver(actualizarScrollZonas)
+    zonaObserver.observe(zonaScroller.value)
+  }
+})
+onBeforeUnmount(() => zonaObserver?.disconnect())
+
+watch(
+  () => [store.zonaSeleccionada, store.zonas.length],
+  async () => {
+    await nextTick()
+    centrarZonaSeleccionada()
+    actualizarScrollZonas()
+  },
+)
 
 function abrirTienda(c) {
   if (!c.activo || c.estadoAfiliacion !== 'activo') return
@@ -101,7 +162,18 @@ function alSeleccionarZonaDesdeMapa(slug) {
             </div>
           </div>
 
-          <div role="group" aria-label="Cambiar zona" class="cx-scroll-x">
+          <div class="cx-zone-head">
+            <p class="cx-overline" aria-hidden="true">Cambiar zona</p>
+            <div v-show="zonaDesborda" class="cx-scroll-btns">
+              <button type="button" class="cx-scroll-btn" aria-label="Ver zonas anteriores" :disabled="!zonaPuedeAtras" @click="desplazarZonas(-1)">
+                <ChevronLeft :size="20" aria-hidden="true" />
+              </button>
+              <button type="button" class="cx-scroll-btn" aria-label="Ver más zonas" :disabled="!zonaPuedeAdelante" @click="desplazarZonas(1)">
+                <ChevronRight :size="20" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+          <div ref="zonaScroller" data-test="zone-scroller" role="group" aria-label="Cambiar zona" class="cx-scroll-x cx-zone-scroller" @scroll.passive="actualizarScrollZonas">
             <button
               v-for="z in store.zonas" :key="z.id"
               type="button"
@@ -206,12 +278,13 @@ function alSeleccionarZonaDesdeMapa(slug) {
             </p>
           </div>
 
-          <div v-if="comerciosFiltrados.length > 0" class="cx-cards cx-cards-3">
+          <div v-if="comerciosFiltrados.length > 0" class="cx-cards" data-test="merchant-grid">
             <button
               v-for="(c, idx) in comerciosFiltrados" :key="c.id"
               type="button"
               data-test="merchant-card"
               class="cx-tile cx-tile-interactive cx-merchant"
+              :class="celdas[idx]"
               :disabled="!c.activo"
               :aria-disabled="!c.activo ? 'true' : undefined"
               @click="abrirTienda(c)"
