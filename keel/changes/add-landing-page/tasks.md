@@ -30,11 +30,11 @@ Each task is RED (failing test) then GREEN (minimal code). Tests import from `vi
 - [x] 1.6 Regenerate `pnpm-lock.yaml`; run `pnpm install --frozen-lockfile` to confirm; commit it with `package.json` (Dockerfile:6-9 BREAKS otherwise).
 
 ## WU2: Router + App shell
-- [ ] 2.1 RED: `src/router.spec.ts`: `/` named `landing`, no `redirect`; catch-all still `/tiendas`; `/tiendas` and `/login` resolve.
-- [ ] 2.2 GREEN: `src/router.ts:6` lazy landing route; add a stub `src/views/LandingView.vue` (div.landing).
-- [ ] 2.3 RED: `src/App.spec.ts` (`vi.mock` store, stub TopBar/PwaStatus): at `/` no TopBar and no `main` inside `main`; at `/tiendas` TopBar present.
-- [ ] 2.4 GREEN: `App.vue`: `esLanding = route.name === 'landing'`, `v-if="!esLogin && !esLanding"`, `<component :is="esLanding ? 'div' : 'main'">` wrapper.
-- [ ] 2.5 RED/GREEN: App test with the store mock whose `sincronizarConBackend` rejects; assert no notification at `/` (blast: store sync for anonymous).
+- [x] 2.1 RED: `src/router.spec.ts`: `/` named `landing`, no `redirect`; catch-all still `/tiendas`; `/tiendas` and `/login` resolve.
+- [x] 2.2 GREEN: `src/router.ts:6` lazy landing route; add a stub `src/views/LandingView.vue` (div.landing).
+- [x] 2.3 RED: `src/App.spec.ts` (`vi.mock` store, stub TopBar/PwaStatus): at `/` no TopBar and no `main` inside `main`; at `/tiendas` TopBar present.
+- [x] 2.4 GREEN: `App.vue`: `esLanding = route.name === 'landing'`, `v-if="!esLogin && !esLanding"`, `<component :is="esLanding ? 'div' : 'main'">` wrapper.
+- [x] 2.5 RED/GREEN: App test with the store mock whose `sincronizarConBackend` rejects; assert no notification at `/` (blast: store sync for anonymous).
 
 ## WU3: Tokens and contrast
 - [ ] 3.1 RED: `src/components/landing/tokens.spec.ts`: every light/dark pair >= 4.5 (button, hover, primary-text on tint); hover must pass (`#009C8A` rejected).
