@@ -56,3 +56,19 @@ export function catalogPairs(t: Theme = catalogTheme): Pair[] {
     ui('primary-lip', 'bg'),
   ]
 }
+
+/** Pairs the customer shell adds (top bar, account menu, toast, banners, login form). */
+export function shellPairs(t: Theme = catalogTheme): Pair[] {
+  const text = (fg: string, bg: string): Pair => ({ label: `${fg} on ${bg}`, fg: t[fg], bg: t[bg], min: 4.5 })
+  const ui = (fg: string, bg: string): Pair => ({ label: `${fg} on ${bg} (UI)`, fg: t[fg], bg: t[bg], min: 3, ui: true })
+  return [
+    text('ink', 'bg'),
+    text('ink', 'surface'),
+    text('ink-soft', 'surface'),
+    text('ink-faint', 'surface'),
+    text('danger-text', 'bg'),
+    ui('danger', 'bg'),
+    ui('danger', 'surface'),
+    ui('primary-text', 'bg'),
+  ]
+}

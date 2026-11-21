@@ -117,7 +117,7 @@ test.describe('route guards (real browser)', () => {
     await page.goto('/login')
     await login(page)
     await expect(page).toHaveURL('/tiendas')
-    await page.locator('header button.rounded-full').click()
+    await page.locator('[data-test="account-trigger"]').click()
     await expect(page.getByText('Cerrar sesión')).toBeVisible()
     await expect(page.getByText('Cambiar de Cuenta')).toHaveCount(0)
     await expect(page.getByText('admin@goeats.pa')).toHaveCount(0)

@@ -64,7 +64,7 @@ describe('LoginView', () => {
     post.mockResolvedValue(session('customer'))
     const { wrapper, router } = await setup()
     await fillCredentials(wrapper)
-    await wrapper.find('button.btn-primary').trigger('click')
+    await wrapper.find('[data-test="login-submit"]').trigger('click')
     await flushPromises()
     expect(post).toHaveBeenCalledWith('/auth/login', {
       email: 'carlos@ejemplo.pa',
@@ -77,7 +77,7 @@ describe('LoginView', () => {
     post.mockResolvedValue(session('merchant'))
     const { wrapper, router } = await setup()
     await fillCredentials(wrapper)
-    await wrapper.find('button.btn-primary').trigger('click')
+    await wrapper.find('[data-test="login-submit"]').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.path).toBe('/panel-comercio')
   })
@@ -93,13 +93,13 @@ describe('LoginView', () => {
     const { wrapper } = await setup()
     await wrapper.findAll('button').find((b) => b.text() === 'Regístrate')!.trigger('click')
     await fillCredentials(wrapper)
-    await wrapper.find('button.btn-primary').trigger('click')
+    await wrapper.find('[data-test="login-submit"]').trigger('click')
     await flushPromises()
     expect(post).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('Ley 81')
 
     await wrapper.find('input[type="checkbox"]').setValue(true)
-    await wrapper.find('button.btn-primary').trigger('click')
+    await wrapper.find('[data-test="login-submit"]').trigger('click')
     await flushPromises()
     const [endpoint, body] = post.mock.calls[0]
     expect(endpoint).toBe('/auth/register')
@@ -184,7 +184,7 @@ describe('LoginView ?redirect (PR10)', () => {
   // Real routes are lazy-loaded views: wait until the navigation left /login.
   async function submit(wrapper: ReturnType<typeof mount>, router?: { currentRoute: { value: { name?: unknown } } }) {
     await fillCredentials(wrapper)
-    await wrapper.find('button.btn-primary').trigger('click')
+    await wrapper.find('[data-test="login-submit"]').trigger('click')
     await flushPromises()
     if (router) await vi.waitFor(() => expect(router.currentRoute.value.name).not.toBe('login'), { timeout: 5000 })
   }
@@ -270,7 +270,7 @@ describe('LoginView demo prefill (flag-gated)', () => {
   it('flag off: submitting the untouched form asks for credentials and calls no API', async () => {
     post.mockReset()
     const wrapper = await mountWithFlag('')
-    await wrapper.find('button.btn-primary').trigger('click')
+    await wrapper.find('[data-test="login-submit"]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Ingresa tu correo y contraseña')
     expect(post).not.toHaveBeenCalled()
@@ -282,5 +282,99 @@ describe('LoginView demo prefill (flag-gated)', () => {
       expect((wrapper.find('input[type="email"]').element as HTMLInputElement).value).toBe('carlos@ejemplo.pa')
     })
     expect((wrapper.find('input[type="password"]').element as HTMLInputElement).value).toBe('demo1234')
+  })
+})
+
+describe('LoginView restyle contract (Friendly Bento)', () => {
+  it('sits in the light .cx scope with one h1 (hero) and an h2 (form)', async () => {
+    const { wrapper } = await setup()
+    expect(wrapper.classes()).toEqual(expect.arrayContaining(['cx', 'cx-login']))
+    expect(wrapper.findAll('h1')).toHaveLength(1)
+    expect(wrapper.find('h2').text()).toBe('Inicia sesión')
+  })
+
+  it('every field has a visible label wired to its input', async () => {
+    const { wrapper } = await setup()
+    await wrapper.findAll('button').find((b) => b.text() === 'Regístrate')!.trigger('click')
+    const inputs = wrapper.findAll('input:not([type="checkbox"])')
+    expect(inputs).toHaveLength(3)
+    const labels = inputs.map((i) => wrapper.find(`label[for="${i.attributes('id')}"]`).text())
+    expect(labels).toEqual(['Nombre completo', 'Correo electrónico', 'Contraseña'])
+  })
+
+  it('login/register are chips that report state with aria-pressed and a check on the selected one', async () => {
+    const { wrapper } = await setup()
+    const chips = () => wrapper.findAll('[data-test="login-tabs"] button')
+    expect(chips().map((c) => c.text())).toEqual(['Iniciar sesión', 'Regístrate'])
+    expect(chips().map((c) => c.attributes('aria-pressed'))).toEqual(['true', 'false'])
+    expect(chips()[0].classes()).toContain('cx-chip-selected')
+    expect(chips()[0].findAll('svg')).toHaveLength(1)
+    await chips()[1].trigger('click')
+    expect(chips().map((c) => c.attributes('aria-pressed'))).toEqual(['false', 'true'])
+    expect(wrapper.find('h2').text()).toBe('Crea tu cuenta')
+    expect(wrapper.find('[data-test="login-submit"]').text()).toBe('Crear cuenta')
+  })
+
+  it('the primary submit is the only solid primary: cx-btn with no white text class', async () => {
+    const { wrapper } = await setup()
+    const submit = wrapper.find('[data-test="login-submit"]')
+    expect(submit.classes()).toEqual(expect.arrayContaining(['cx-btn', 'cx-btn-lg']))
+    expect(submit.attributes('type')).toBe('submit')
+    expect(wrapper.html()).not.toContain('text-white')
+    expect(wrapper.findAll('.cx-btn:not(.cx-btn-secondary):not(.cx-btn-ghost)')).toHaveLength(1)
+  })
+
+  it('empty submit shows an alert with icon + message and marks the empty fields invalid', async () => {
+    const { wrapper } = await setup()
+    await wrapper.find('[data-test="login-submit"]').trigger('click')
+    const alert = wrapper.find('[role="alert"]')
+    expect(alert.text()).toContain('Ingresa tu correo y contraseña')
+    expect(alert.findAll('svg')).toHaveLength(1)
+    const email = wrapper.find('input[type="email"]')
+    const password = wrapper.find('input[type="password"]')
+    expect(email.attributes('aria-invalid')).toBe('true')
+    expect(password.attributes('aria-invalid')).toBe('true')
+    expect(email.attributes('aria-describedby')).toBe(alert.attributes('id'))
+  })
+
+  it('only the empty field is flagged and typing clears its flag', async () => {
+    const { wrapper } = await setup()
+    await wrapper.find('input[type="email"]').setValue('a@b.pa')
+    await wrapper.find('[data-test="login-submit"]').trigger('click')
+    expect(wrapper.find('input[type="email"]').attributes('aria-invalid')).toBeUndefined()
+    expect(wrapper.find('input[type="password"]').attributes('aria-invalid')).toBe('true')
+    await wrapper.find('input[type="password"]').setValue('x')
+    expect(wrapper.find('input[type="password"]').attributes('aria-invalid')).toBeUndefined()
+  })
+
+  it('the consent checkbox is a real input inside its label, with a custom box and no inert button', async () => {
+    const { wrapper } = await setup()
+    await wrapper.findAll('button').find((b) => b.text() === 'Regístrate')!.trigger('click')
+    const label = wrapper.find('label.cx-check')
+    const box = label.find('input[type="checkbox"]')
+    expect(box.classes()).toContain('cx-check-input')
+    expect(label.find('.cx-check-box').exists()).toBe(true)
+    expect(label.find('.cx-check-box svg').exists()).toBe(false)
+    await box.setValue(true)
+    expect(label.find('.cx-check-box svg').exists()).toBe(true)
+  })
+
+  it('a missing consent is flagged on the checkbox, not only in the message', async () => {
+    const { wrapper } = await setup()
+    await wrapper.findAll('button').find((b) => b.text() === 'Regístrate')!.trigger('click')
+    await fillCredentials(wrapper)
+    await wrapper.find('[data-test="login-submit"]').trigger('click')
+    expect(wrapper.find('input[type="checkbox"]').attributes('aria-invalid')).toBe('true')
+    expect(wrapper.find('[role="alert"]').text()).toContain('Ley 81')
+  })
+
+  it('Enter inside a field submits through the form (keyboard users)', async () => {
+    post.mockResolvedValue(session('customer'))
+    const { wrapper } = await setup()
+    expect(wrapper.find('form').exists()).toBe(true)
+    await fillCredentials(wrapper)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(post).toHaveBeenCalledTimes(1)
   })
 })

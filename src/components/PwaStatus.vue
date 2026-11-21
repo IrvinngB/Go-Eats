@@ -4,6 +4,10 @@ import { useRoute } from 'vue-router'
 import { useRegisterSW } from 'virtual:pwa-register/vue'
 import { Download, RefreshCw, WifiOff, X } from '@lucide/vue'
 import { useInstallPrompt } from '../composables/useInstallPrompt'
+import '@fontsource/nunito/latin-400.css'
+import '@fontsource/nunito/latin-700.css'
+import '@fontsource/nunito/latin-800.css'
+import './catalog/catalog.css'
 
 const { needRefresh, updateServiceWorker } = useRegisterSW()
 
@@ -38,55 +42,43 @@ onUnmounted(() => {
 
 <template>
   <!-- Offline indicator -->
-  <div
-    v-if="isOffline"
-    class="bg-amber-50 border-b border-amber-200 text-amber-800 text-xs font-medium px-4 py-2 flex items-center justify-center gap-2"
-  >
-    <WifiOff class="w-3.5 h-3.5 shrink-0" />
+  <div v-if="isOffline" class="cx cx-shell cx-banner" role="status" data-test="offline-banner">
+    <WifiOff :size="16" aria-hidden="true" />
     <span>Sin conexión. Mostrando datos en caché.</span>
   </div>
 
   <!-- New SW version available -->
-  <div
-    v-if="needRefresh"
-    class="fixed bottom-5 right-5 z-50 card p-4 shadow-lg border-brand/30 flex items-center gap-3 max-w-sm"
-  >
-    <RefreshCw class="w-5 h-5 text-brand shrink-0" />
-    <div class="flex-1 text-xs">
-      <p class="font-semibold text-ink">Nueva versión disponible</p>
-      <p class="text-slatebody">Actualiza para aplicar las mejoras.</p>
+  <div v-if="needRefresh" class="cx cx-shell cx-float" role="status" data-test="update-banner">
+    <span class="cx-float-disc"><RefreshCw :size="20" aria-hidden="true" /></span>
+    <div class="cx-float-text">
+      <p class="cx-float-title">Nueva versión disponible</p>
+      <p class="cx-caption cx-soft">Actualiza para aplicar las mejoras.</p>
     </div>
-    <button class="btn-primary !py-1.5 !px-3 text-xs" @click="updateServiceWorker()">
-      Actualizar
-    </button>
-    <button
-      class="text-slatebody hover:text-ink p-1"
-      aria-label="Cerrar"
-      @click="needRefresh = false"
-    >
-      <X class="w-4 h-4" />
-    </button>
+    <div class="cx-float-actions">
+      <button type="button" class="cx-btn cx-btn-secondary" @click="updateServiceWorker()">Actualizar</button>
+      <button type="button" class="cx-icon-btn" aria-label="Cerrar" @click="needRefresh = false">
+        <X :size="20" aria-hidden="true" />
+      </button>
+    </div>
   </div>
 
   <!-- Install PWA prompt -->
   <div
     v-else-if="canInstall && !dismissed && route.name !== 'landing'"
-    class="fixed bottom-5 right-5 z-50 card p-4 shadow-lg border-brand/30 flex items-center gap-3 max-w-sm"
+    class="cx cx-shell cx-float"
+    role="status"
+    data-test="install-banner"
   >
-    <Download class="w-5 h-5 text-brand shrink-0" />
-    <div class="flex-1 text-xs">
-      <p class="font-semibold text-ink">Instalar Go Eats</p>
-      <p class="text-slatebody">Accede rápido desde tu pantalla de inicio.</p>
+    <span class="cx-float-disc"><Download :size="20" aria-hidden="true" /></span>
+    <div class="cx-float-text">
+      <p class="cx-float-title">Instalar Go Eats</p>
+      <p class="cx-caption cx-soft">Accede rápido desde tu pantalla de inicio.</p>
     </div>
-    <button class="btn-primary !py-1.5 !px-3 text-xs" @click="installApp">
-      Instalar
-    </button>
-    <button
-      class="text-slatebody hover:text-ink p-1"
-      aria-label="Cerrar"
-      @click="dismissed = true"
-    >
-      <X class="w-4 h-4" />
-    </button>
+    <div class="cx-float-actions">
+      <button type="button" class="cx-btn cx-btn-secondary" @click="installApp">Instalar</button>
+      <button type="button" class="cx-icon-btn" aria-label="Cerrar" @click="dismissed = true">
+        <X :size="20" aria-hidden="true" />
+      </button>
+    </div>
   </div>
 </template>

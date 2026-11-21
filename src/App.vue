@@ -5,11 +5,20 @@ import TopBar from './components/TopBar.vue'
 import PwaStatus from './components/PwaStatus.vue'
 import { useRoute } from 'vue-router'
 import { computed, onMounted } from 'vue'
+import { CircleAlert, CircleCheck, Info, X } from '@lucide/vue'
+import '@fontsource/nunito/latin-400.css'
+import '@fontsource/nunito/latin-700.css'
+import '@fontsource/nunito/latin-800.css'
+import './components/catalog/catalog.css'
 
 const store = useGoEatsStore()
 const route = useRoute()
 const esLogin = computed(() => route.path === '/login')
 const esLanding = computed(() => route.name === 'landing')
+
+// The toast keeps the store's timing (auto-dismiss); only errors get a manual dismiss on top of it.
+const ICONOS_TOAST = { info: Info, success: CircleCheck, error: CircleAlert }
+const tipoToast = computed(() => store.notificacion?.tipo || 'info')
 
 onMounted(() => {
   store.sincronizarConBackend()
@@ -28,16 +37,32 @@ onMounted(() => {
       </router-view>
     </component>
 
-    <!-- Global notification toast -->
-    <transition name="modal">
-      <div
-        v-if="store.notificacion"
-        :class="store.notificacion.tipo === 'error' ? 'bg-red-600' : 'bg-ink'"
-        :data-tipo="store.notificacion.tipo || 'info'"
-        class="fixed bottom-5 left-1/2 -translate-x-1/2 z-[60] text-white text-sm font-medium px-5 py-3 rounded-xl shadow-lg max-w-[90vw] text-center"
-      >
-        {{ store.notificacion.texto }}
-      </div>
-    </transition>
+    <!-- Global notification toast: a persistent polite live region; errors use role="alert" -->
+    <div class="cx cx-shell cx-toast-region" aria-live="polite">
+      <transition name="modal">
+        <div
+          v-if="store.notificacion"
+          :key="store.notificacion.id"
+          class="cx-toast"
+          :class="`cx-toast-${tipoToast}`"
+          :data-tipo="tipoToast"
+          :role="tipoToast === 'error' ? 'alert' : 'status'"
+        >
+          <span class="cx-toast-icon">
+            <component :is="ICONOS_TOAST[tipoToast] || Info" :size="20" aria-hidden="true" />
+          </span>
+          <span>{{ store.notificacion.texto }}</span>
+          <button
+            v-if="tipoToast === 'error'"
+            type="button"
+            class="cx-icon-btn cx-toast-close"
+            aria-label="Cerrar notificación"
+            @click="store.notificacion = null"
+          >
+            <X :size="20" aria-hidden="true" />
+          </button>
+        </div>
+      </transition>
+    </div>
   </div>
 </template>
