@@ -124,3 +124,15 @@ export const COVERAGE_COPY = {
   empty: 'Estamos activando zonas de cobertura. Entra a la app para ver los comercios disponibles.',
   error: 'No pudimos mostrar las zonas en este momento. Puedes consultarlas directamente en la app.',
 } as const
+
+/** Install section copy. Only PWA facts: installs from the browser, opens like any app. No stores, ratings or counts. */
+export const INSTALL_COPY = {
+  eyebrow: 'Instala la app',
+  title: 'Lleva Go Eats en tu pantalla de inicio',
+  lead: 'Instala Go Eats desde tu navegador y ábrela como cualquier otra app, directo desde tu pantalla de inicio.',
+  cta: 'Instalar Go Eats',
+  iosIntro: 'En iPhone y iPad, desde Safari:',
+  iosShare: 'Compartir',
+  iosAdd: 'Agregar a pantalla de inicio',
+  neutral: 'Si tu navegador permite instalar apps, busca la opción Instalar o Agregar a pantalla de inicio en su menú.',
+} as const

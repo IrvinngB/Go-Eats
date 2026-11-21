@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { CATEGORIES, ENVIO_COPY, ROLES, STEPS } from './content'
+import { CATEGORIES, ENVIO_COPY, INSTALL_COPY, ROLES, STEPS } from './content'
 
 function allCopy(): string[] {
-  const out: string[] = [ENVIO_COPY]
+  const out: string[] = [ENVIO_COPY, ...Object.values(INSTALL_COPY)]
   for (const c of CATEGORIES) out.push(c.name)
   for (const s of STEPS) out.push(s.title, s.text)
   for (const r of Object.values(ROLES)) out.push(r.eyebrow, r.title, r.lead, r.cta, ...r.points.map((p) => p.title), ...r.points.map((p) => p.text))

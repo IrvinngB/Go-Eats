@@ -12,6 +12,7 @@ import StepsSection from '../../components/landing/StepsSection.vue'
 import StoresSection from '../../components/landing/StoresSection.vue'
 import CoverageSection from '../../components/landing/CoverageSection.vue'
 import RolePanels from '../../components/landing/RolePanels.vue'
+import InstallSection from '../../components/landing/InstallSection.vue'
 import BrandLogo from '../../components/landing/BrandLogo.vue'
 import { useLandingData } from '../../composables/useLandingData'
 
@@ -28,8 +29,9 @@ const { estado, loading, tiendas, zonas, zonasError } = useLandingData()
       <StepsSection />
       <StoresSection :estado="estado" :tiendas="tiendas" />
       <CoverageSection :zonas="zonas" :zonas-error="zonasError" :cargando="loading" />
-      <!-- WU6-7 add install, FAQ and the CTA band after the roles. -->
       <RolePanels />
+      <InstallSection />
+      <!-- WU7 adds the FAQ and the CTA band after the install section. -->
     </main>
     <!-- Minimal footer; WU7 replaces it with LandingFooter. -->
     <footer class="lp-band-indigo">

@@ -1,19 +1,17 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useRegisterSW } from 'virtual:pwa-register/vue'
 import { Download, RefreshCw, WifiOff, X } from '@lucide/vue'
+import { useInstallPrompt } from '../composables/useInstallPrompt'
 
 const { needRefresh, updateServiceWorker } = useRegisterSW()
 
-const installPrompt = ref(null)
-const showInstallBanner = ref(false)
+// Install state is a shared singleton: the landing section reads the same event.
+const { canInstall, install } = useInstallPrompt()
+const route = useRoute()
+const dismissed = ref(false)
 const isOffline = ref(typeof navigator !== 'undefined' ? !navigator.onLine : false)
-
-function handleBeforeInstall(e) {
-  e.preventDefault()
-  installPrompt.value = e
-  showInstallBanner.value = true
-}
 
 function handleOnline() {
   isOffline.value = false
@@ -24,21 +22,15 @@ function handleOffline() {
 }
 
 async function installApp() {
-  if (!installPrompt.value) return
-  await installPrompt.value.prompt()
-  await installPrompt.value.userChoice
-  installPrompt.value = null
-  showInstallBanner.value = false
+  await install()
 }
 
 onMounted(() => {
-  window.addEventListener('beforeinstallprompt', handleBeforeInstall)
   window.addEventListener('online', handleOnline)
   window.addEventListener('offline', handleOffline)
 })
 
 onUnmounted(() => {
-  window.removeEventListener('beforeinstallprompt', handleBeforeInstall)
   window.removeEventListener('online', handleOnline)
   window.removeEventListener('offline', handleOffline)
 })
@@ -78,7 +70,7 @@ onUnmounted(() => {
 
   <!-- Install PWA prompt -->
   <div
-    v-else-if="showInstallBanner"
+    v-else-if="canInstall && !dismissed && route.name !== 'landing'"
     class="fixed bottom-5 right-5 z-50 card p-4 shadow-lg border-brand/30 flex items-center gap-3 max-w-sm"
   >
     <Download class="w-5 h-5 text-brand shrink-0" />
@@ -92,7 +84,7 @@ onUnmounted(() => {
     <button
       class="text-slatebody hover:text-ink p-1"
       aria-label="Cerrar"
-      @click="showInstallBanner = false"
+      @click="dismissed = true"
     >
       <X class="w-4 h-4" />
     </button>
