@@ -67,3 +67,62 @@ describe('landing.css rules', () => {
     expect(block('.lp-btn {')).toMatch(/transition:[^;]*150ms/)
   })
 })
+
+/**
+ * Static proof only: jsdom cannot compute the Tailwind cascade, so we compare
+ * selector specificity in the CSS text. A real-browser check is still required.
+ */
+function specificity(selector: string): [number, number, number] {
+  let s = selector.trim()
+  // :is() takes the specificity of its most specific argument
+  let extra: [number, number, number] = [0, 0, 0]
+  s = s.replace(/:is\(([^)]*)\)/g, (_m, args: string) => {
+    for (const a of args.split(',')) {
+      const sp = specificity(a)
+      if (sp[0] > extra[0] || (sp[0] === extra[0] && (sp[1] > extra[1] || (sp[1] === extra[1] && sp[2] > extra[2])))) extra = sp
+    }
+    return ''
+  })
+  s = s.replace(/:not\(([^)]*)\)/g, (_m, a: string) => {
+    const sp = specificity(a)
+    extra = [extra[0] + sp[0], extra[1] + sp[1], extra[2] + sp[2]]
+    return ''
+  })
+  const ids = (s.match(/#[\w-]+/g) ?? []).length
+  const cls = (s.match(/\.[\w-]+|\[[^\]]+\]|:(?!:)[\w-]+/g) ?? []).length
+  const tags = (s.replace(/[#.][\w-]+|\[[^\]]+\]|::?[\w-]+/g, ' ').match(/(^|[\s>+~])[a-z][\w-]*/gi) ?? []).length
+  return [ids + extra[0], cls + extra[1], tags + extra[2]]
+}
+
+const gte = (a: number[], b: number[]) => a[0] !== b[0] ? a[0] > b[0] : a[1] !== b[1] ? a[1] > b[1] : a[2] >= b[2]
+
+// vitest returns '' for style.css?raw and the project has no node types, so the selector of the
+// global rule (src/style.css, @layer base) is mirrored here. Update it if that rule changes.
+const GLOBAL_HEADING_SELECTOR = 'h1, h2, h3, h4'
+
+describe('landing headings are not captured by the app global heading rule', () => {
+  const landingRule = css.match(/(\.landing\s+:is\(h1,\s*h2,\s*h3,\s*h4\))\s*\{([^}]*)\}/)
+
+  it('has a .landing heading rule that sets color to --lp-ink', () => {
+    expect(landingRule).not.toBeNull()
+    expect(landingRule![2]).toMatch(/color:\s*var\(--lp-ink\)/)
+  })
+
+  it('beats the global heading rule on specificity', () => {
+    const g = specificity(GLOBAL_HEADING_SELECTOR.split(',')[0])
+    expect(g).toEqual([0, 0, 1])
+    const l = specificity('.landing :is(h1, h2, h3, h4)')
+    expect(l).toEqual([0, 1, 1])
+    expect(gte(l, g) && l.join() !== g.join()).toBe(true)
+  })
+
+  it('forces the Nunito family inherited from .landing on headings', () => {
+    expect(landingRule![2]).toMatch(/font-family:\s*inherit/)
+    expect(block('.landing {')).toContain("font-family: 'Nunito'")
+  })
+
+  it('keeps .lp-display font-weight and letter-spacing above the global heading rule', () => {
+    expect(specificity('.lp-display')).toEqual([0, 1, 0])
+    expect(block('.lp-display {')).toMatch(/font-weight:\s*800/)
+  })
+})

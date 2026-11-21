@@ -53,6 +53,13 @@
   --lp-on-primary: #062A2F;
 }
 
+/* The app's global `h1,h2,h3,h4 { text-ink }` (src/style.css) would otherwise win over
+   inheritance and paint dark indigo on dark tiles. (0,1,1) beats its (0,0,1). */
+.landing :is(h1, h2, h3, h4) {
+  color: var(--lp-ink);
+  font-family: inherit;
+}
+
 .landing .lp-mono {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
 }

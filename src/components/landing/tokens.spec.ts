@@ -62,3 +62,16 @@ describe('primary hover', () => {
     expect(contrast(light.primary, light.bg)).toBeLessThan(3)
   })
 })
+
+describe.each([
+  ['light', light],
+  ['dark', dark],
+] as const)('%s heading text (ink) on every tile background', (_name, theme) => {
+  it.each(['surface', 'primary-tint', 'bg'] as const)('ink on %s is at least 7:1 (AAA)', (bgKey) => {
+    expect(contrast(theme.ink, theme[bgKey])).toBeGreaterThanOrEqual(7)
+  })
+
+  it('ink on bg-strong surface stays at least 4.5:1', () => {
+    expect(contrast(theme.ink, theme['surface-strong'])).toBeGreaterThanOrEqual(4.5)
+  })
+})

@@ -123,3 +123,20 @@ Verification: `pnpm test` 11 files / 74 tests pass; `pnpm exec vue-tsc -b` clean
 
 ## Remaining
 WU5 (manual gates 5.3, 5.4).
+
+## Fix: heading color leak (branch fix/landing-heading-contrast)
+Bug: in dark mode, `h1` (HeroTile) and `h2` (BentoTile) rendered in the app's dark indigo. Cause: `src/style.css` `@layer base { h1,h2,h3,h4 { @apply text-ink ... } }` sets color directly on headings, which beats inheritance from `.lp-hero`/`.lp-tile`.
+
+Fix (landing.css only): `.landing :is(h1, h2, h3, h4) { color: var(--lp-ink); font-family: inherit; }` — specificity (0,1,1) > global (0,0,1). `src/style.css`, tailwind.config.js and TopBar untouched.
+
+Audit of global rules that can reach `.landing`:
+- `h1-h4` color: LEAK, fixed. font-family: headings inherit (Preflight does not set it); now explicit `inherit` so Nunito from `.landing` is guaranteed.
+- `h1-h4` font-weight 600 / tracking-tight: overridden by `.lp-display` (800, -0.01em) and `font-extrabold` (utility); both (0,1,0) > (0,0,1). No leak.
+- `body` bg-canvas / text-slatebody / font-sans (Inter): `.landing` sets its own background, color and Nunito; `p`, spans inherit. Inline `p` colors use `--lp-ink-soft`. No leak.
+- Preflight `a { color: inherit; text-decoration: inherit }`: `.lp-link`/`.lp-btn` set color and decoration with (0,1,0). No leak.
+- Preflight `button`: no `<button>` elements in landing (CTAs are RouterLink anchors). No leak today.
+- Global `.btn-*`, `.card`, `.input` etc. are class-based and not used in landing.
+
+Tests (strict TDD): RED = 3 failing specs in landing.spec.ts (rule missing / color / font-family); GREEN after the CSS rule; tokens.spec adds heading contrast (ink on bg, surface, primary-tint >= 7:1; on surface-strong >= 4.5:1) for light and dark. Full suite 11 files / 86 tests, vue-tsc clean, build ok, tsbuildinfo restored.
+
+Honest limits: the landing.spec proof is STATIC (CSS text and selector specificity). jsdom cannot compute the Tailwind cascade, and `style.css?raw` is empty under vitest, so the global selector is mirrored as a constant in the spec. A real-browser check (dark via prefers-color-scheme: h1/h2 computed color equals --lp-ink) is still required.
