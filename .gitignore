@@ -28,3 +28,7 @@ __pycache__/
 *.njsproj
 *.sln
 *.sw?
+
+# Playwright
+test-results/
+playwright-report/
