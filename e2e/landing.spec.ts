@@ -41,7 +41,7 @@ async function mockApi(page: Page) {
 }
 
 async function mockTiles(page: Page) {
-  await page.route(/basemaps\.cartocdn\.com/, (route) => route.fulfill({ contentType: 'image/png', body: TILE_PNG }))
+  await page.route(/tile\.openstreetmap\.org/, (route) => route.fulfill({ contentType: 'image/png', body: TILE_PNG }))
 }
 
 async function openLanding(page: Page) {

@@ -350,3 +350,5 @@ Text and interactive-component contrast MUST be at least 4.5:1 in the light them
 
 ### Requirement: Theme tokens
 (Reason: replaced by the ADDED requirement "Fixed light theme")
+
+> Correction: the "OpenStreetMap / CARTO" caption requirement above is superseded. CARTO needs an API key (see design.md, Correction); the caption is now "© OpenStreetMap contributors" from `src/utils/mapTiles.ts`.

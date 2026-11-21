@@ -77,3 +77,7 @@ None. Nothing found that would force rework if the default is wrong and cannot b
 
 ## Resolved
 (none yet; no user answers required)
+
+## Correction (map tiles provider)
+
+The statement above, "Verified: no API key" for CARTO Voyager, was wrong: it was never checked at runtime. CARTO now serves a 2049-byte "API KEY REQUIRED" placeholder for every tile (HTTP 200). Replaced by OpenStreetMap standard tiles via `src/utils/mapTiles.ts` (env-overridable with `VITE_MAP_TILE_URL` / `VITE_MAP_TILE_ATTRIBUTION`); caption is now "© OpenStreetMap contributors". A CSP, if added, needs `img-src https://tile.openstreetmap.org` (or the configured provider).

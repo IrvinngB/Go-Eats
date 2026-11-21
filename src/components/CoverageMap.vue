@@ -8,6 +8,7 @@ import {
   getCoordenadasComercio,
   encontrarZonaMasCercana,
 } from '../utils/geo'
+import { TILE_URL, TILE_ATTRIBUTION } from '../utils/mapTiles'
 import { Navigation, Locate, Store, Bike, Home, CheckCircle2 } from '@lucide/vue'
 
 const props = defineProps({
@@ -114,10 +115,10 @@ function inicializarMapa() {
 
   if (!props.estatico) L.control.zoom({ position: 'bottomright' }).addTo(mapa)
 
-  // Capa base CartoDB Voyager: limpia, moderna y estética
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  // Capa base: ver utils/mapTiles.ts (OSM por defecto, configurable por env)
+  L.tileLayer(TILE_URL, {
     maxZoom: 19,
-    subdomains: 'abcd',
+    attribution: TILE_ATTRIBUTION,
   }).addTo(mapa)
 
   capaZonas = L.layerGroup().addTo(mapa)
@@ -428,7 +429,7 @@ onBeforeUnmount(() => {
       data-test="map-attribution"
       class="absolute bottom-0 right-0 z-[400] m-0 bg-white px-2 py-1 text-[11px] text-slatebody"
     >
-      © OpenStreetMap contributors © CARTO
+      {{ TILE_ATTRIBUTION }}
     </p>
 
     <div
