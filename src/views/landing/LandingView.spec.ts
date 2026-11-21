@@ -1,7 +1,13 @@
-import { describe, expect, it } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { describe, expect, it, vi } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import LandingView from './LandingView.vue'
+
+vi.mock('../../services/api', () => ({
+  default: {
+    get: vi.fn(() => Promise.reject(new Error('offline'))),
+  },
+}))
 
 async function mountView() {
   const router = createRouter({
@@ -57,13 +63,14 @@ describe('LandingView', () => {
     expect(w.findAll('main section:first-child a.lp-btn').map((a) => a.attributes('href'))).toEqual(['/tiendas', '/login'])
   })
 
-  it('orders the sections: hero, categories, steps, merchants, couriers', async () => {
+  it('orders the sections: hero, categories, steps, stores, merchants, couriers', async () => {
     const w = await mountView()
     const sections = w.findAll('main > section')
     expect(sections.map((s) => s.attributes('id') ?? s.attributes('aria-label') ?? s.attributes('aria-labelledby'))).toEqual([
       'lp-hero-title',
       'Tipos de comercio',
       'como-funciona',
+      'tiendas',
       'comercios',
       'repartidores',
     ])
@@ -76,6 +83,7 @@ describe('LandingView', () => {
     expect(levels.filter((l) => l === 'H1')).toHaveLength(1)
     expect(w.findAll('main h2').map((h) => h.text())).toEqual([
       'Así funciona',
+      'Comercios en Go Eats',
       'Vende a tu zona con Go Eats',
       'Reparte los pedidos que te asignan',
     ])
@@ -110,5 +118,15 @@ describe('LandingView', () => {
     const w = await mountView()
     expect(w.findAll('article')).toHaveLength(0)
     expect(w.html()).not.toMatch(/lp-tile|lp-icon-chip/)
+  })
+
+  it('falls back to static stores content when the API is down, with a single warn', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const w = await mountView()
+    await flushPromises()
+    expect(w.find('#tiendas [data-test="stores-fallback"]').exists()).toBe(true)
+    expect(w.findAll('main > section')).toHaveLength(6)
+    expect(warn).toHaveBeenCalledTimes(1)
+    warn.mockRestore()
   })
 })

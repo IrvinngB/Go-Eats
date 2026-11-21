@@ -352,3 +352,57 @@
 .landing main:focus {
   outline: none;
 }
+
+/* Stores: flat surface tiles, 24px tile around a 16px icon box, skeleton without motion. */
+.lp-store-tile {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.25rem;
+  border-radius: 24px;
+  background: var(--lp-surface);
+  color: var(--lp-ink);
+}
+
+@media (min-width: 640px) {
+  .lp-store-tile {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1.75rem;
+  }
+}
+
+.lp-store-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: var(--lp-bg);
+}
+
+.lp-store-bone {
+  display: block;
+  background: var(--lp-bg);
+}
+
+.lp-store-bone-line {
+  height: 1rem;
+  border-radius: 12px;
+}
+
+.lp-store-bone-short {
+  width: 60%;
+}
+
+.lp-store-fallback {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.75rem;
+  border-radius: 24px;
+  background: var(--lp-surface);
+  color: var(--lp-ink);
+}

@@ -102,3 +102,14 @@ export const ROLES: Record<'merchant' | 'courier', Role> = {
     ],
   },
 }
+
+/** Stores section copy. Neutral on purpose: no ranking words, no prices, times or claims (spec: Featured stores). */
+export const STORES_COPY = {
+  eyebrow: 'Tiendas de tu zona',
+  title: 'Comercios en Go Eats',
+  lead: 'Algunos de los comercios afiliados que puedes encontrar en la app.',
+  loading: 'Cargando comercios',
+  empty: 'Estamos sumando comercios a tu zona. Entra a la app para ver los disponibles.',
+  error: 'No pudimos mostrar los comercios en este momento. Puedes verlos directamente en la app.',
+  cta: 'Ver comercios',
+} as const
