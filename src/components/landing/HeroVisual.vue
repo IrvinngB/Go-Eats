@@ -3,7 +3,7 @@ import { Check, Store, Truck } from '@lucide/vue'
 import { ESTADO_LABELS } from '../../mockData'
 
 // Order progress shown in the mock: the third step is the current one.
-const steps = ['confirmado', 'en preparación', 'en camino', 'entregado'] as const
+const steps = ['confirmado', 'en_preparacion', 'en_camino', 'entregado'] as const
 const current = 2
 const label = (key: (typeof steps)[number]) => ESTADO_LABELS[key]
 </script>

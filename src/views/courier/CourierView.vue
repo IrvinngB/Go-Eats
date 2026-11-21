@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useGoEatsStore } from '../../stores/useGoEatsStore'
 import StatusBadge from '../../components/StatusBadge.vue'
 import CoverageMap from '../../components/CoverageMap.vue'
+import { ESTADOS_TERMINALES } from '../../mockData'
 import { Bike, Star, Inbox, Banknote, CheckCircle2, Map } from '@lucide/vue'
 
 const store = useGoEatsStore()
@@ -13,7 +14,7 @@ const yo = computed(() => store.repartidorPropio)
 const courierId = computed(() => yo.value?.id || null)
 
 const entregas = computed(() => (courierId.value ? store.pedidosAsignadosA(courierId.value) : []))
-const historial = computed(() => (courierId.value ? store.pedidos.filter((p) => p.repartidorId === courierId.value && ['entregado', 'cancelado'].includes(p.estado)) : []))
+const historial = computed(() => (courierId.value ? store.pedidos.filter((p) => p.repartidorId === courierId.value && ESTADOS_TERMINALES.includes(p.estado)) : []))
 
 const reportarModal = ref(null)
 const motivo = ref('')
@@ -28,7 +29,7 @@ function toggle() {
 }
 
 function enCamino(p) {
-  store.avanzarEstadoPedido(p.id, 'en camino')
+  store.avanzarEstadoPedido(p.id, 'en_camino')
   store.notificar(`Pedido ${p.id} marcado en camino.`)
 }
 
@@ -150,14 +151,14 @@ function reportar() {
         </div>
 
         <!-- Acciones rápidas -->
-        <div class="mt-4 pt-4 border-t border-line grid gap-2" :class="p.estado === 'en camino' ? 'grid-cols-2' : 'grid-cols-1'">
-          <button v-if="p.estado === 'listo para recoger'" class="btn-primary w-full !py-2.5 text-sm" @click="enCamino(p)">
+        <div class="mt-4 pt-4 border-t border-line grid gap-2" :class="p.estado === 'en_camino' ? 'grid-cols-2' : 'grid-cols-1'">
+          <button v-if="p.estado === 'listo_para_recoger'" class="btn-primary w-full !py-2.5 text-sm" @click="enCamino(p)">
             Marcar en camino
           </button>
-          <button v-if="p.estado === 'en camino'" class="btn-primary w-full !py-2.5 text-sm" @click="entregar(p)">
+          <button v-if="p.estado === 'en_camino'" class="btn-primary w-full !py-2.5 text-sm" @click="entregar(p)">
             Marcar entregado
           </button>
-          <button v-if="p.estado === 'listo para recoger' || p.estado === 'en camino'" class="btn-danger-ghost !py-2.5 text-sm" @click="reportarModal = p; motivo = ''">
+          <button v-if="p.estado === 'listo_para_recoger' || p.estado === 'en_camino'" class="btn-danger-ghost !py-2.5 text-sm" @click="reportarModal = p; motivo = ''">
             Reportar problema
           </button>
         </div>

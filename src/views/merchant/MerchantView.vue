@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { useGoEatsStore } from '../../stores/useGoEatsStore'
 import StatusBadge from '../../components/StatusBadge.vue'
+import { ESTADOS_TERMINALES } from '../../mockData'
 
 const store = useGoEatsStore()
 const tab = ref('pedidos')
@@ -10,8 +11,8 @@ const comercio = computed(() => store.comercioPropio)
 const productos = computed(() => (comercio.value ? store.productosDe(comercio.value.id) : []))
 const pedidos = computed(() => (comercio.value ? store.pedidosPorComercio(comercio.value.id) : []))
 
-const activos = computed(() => pedidos.value.filter((p) => !['entregado', 'cancelado'].includes(p.estado)))
-const historial = computed(() => pedidos.value.filter((p) => ['entregado', 'cancelado'].includes(p.estado)))
+const activos = computed(() => pedidos.value.filter((p) => !ESTADOS_TERMINALES.includes(p.estado)))
+const historial = computed(() => pedidos.value.filter((p) => ESTADOS_TERMINALES.includes(p.estado)))
 
 const rechazarModal = ref(null)
 const motivoRechazo = ref('')
@@ -24,12 +25,11 @@ const horarioGuardado = ref(false)
 function siguiente(p) {
   const s = store.siguienteEstado(p.estado)
   if (!s) return
-  if (s === 'listo para recoger') {
-    store.avanzarEstadoPedido(p.id, s)
-  } else {
-    store.avanzarEstadoPedido(p.id, s)
-  }
+  store.avanzarEstadoPedido(p.id, s)
 }
+
+// El comercio puede rechazar mientras el pedido no haya salido a la calle (motivo obligatorio).
+const RECHAZABLES = ['pendiente', 'confirmado', 'en_preparacion']
 
 function asignar(p, repartidorId) {
   store.asignarRepartidor(p.id, repartidorId)
@@ -125,15 +125,14 @@ function guardarHorario() {
             <div class="mt-4 pt-4 border-t border-line flex flex-wrap gap-2">
               <template v-if="p.estado === 'pendiente'">
                 <button class="btn-primary !py-2 text-xs" @click="siguiente(p)">Confirmar pedido</button>
-                <button class="btn-danger-ghost !py-2 text-xs" @click="rechazarModal = p; motivoRechazo = ''">Rechazar</button>
               </template>
               <template v-else-if="p.estado === 'confirmado'">
                 <button class="btn-primary !py-2 text-xs" @click="siguiente(p)">Empezar preparación</button>
               </template>
-              <template v-else-if="p.estado === 'en preparación'">
+              <template v-else-if="p.estado === 'en_preparacion'">
                 <button class="btn-primary !py-2 text-xs" @click="siguiente(p)">Marcar listo para recoger</button>
               </template>
-              <template v-else-if="p.estado === 'listo para recoger'">
+              <template v-else-if="p.estado === 'listo_para_recoger'">
                 <div v-if="!p.repartidorId" class="w-full">
                   <label class="label">Asignar repartidor disponible</label>
                   <select class="input" @change="asignar(p, $event.target.value); $event.target.value = ''">
@@ -149,9 +148,14 @@ function guardarHorario() {
                   Asignado a {{ store.repartidorPorId(p.repartidorId)?.nombre }}
                 </div>
               </template>
-              <template v-else-if="p.estado === 'en camino'">
+              <template v-else-if="p.estado === 'en_camino'">
                 <p class="text-xs text-blue-600 font-medium w-full">En camino con {{ store.repartidorPorId(p.repartidorId)?.nombre || 'repartidor' }}.</p>
               </template>
+              <button
+                v-if="RECHAZABLES.includes(p.estado)"
+                class="btn-danger-ghost !py-2 text-xs"
+                @click="rechazarModal = p; motivoRechazo = ''"
+              >Rechazar</button>
             </div>
           </div>
         </div>
@@ -170,7 +174,10 @@ function guardarHorario() {
                 <td class="td font-medium text-ink">{{ p.id }}</td>
                 <td class="td">{{ p.clienteNombre }}</td>
                 <td class="td">B/ {{ p.total.toFixed(2) }}</td>
-                <td class="td"><StatusBadge :estado="p.estado" /></td>
+                <td class="td">
+                  <StatusBadge :estado="p.estado" />
+                  <p v-if="p.motivoCancelacion && p.estado !== 'entregado'" class="mt-1 text-[11px] text-slatebody">{{ p.motivoCancelacion }}</p>
+                </td>
               </tr>
             </tbody>
           </table>

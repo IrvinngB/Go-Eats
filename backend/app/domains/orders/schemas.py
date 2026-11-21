@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -34,11 +35,21 @@ class OrderCreate(BaseModel):
     items: list[OrderItemCreate] = Field(..., min_length=1)
 
 
+OrderStatus = Literal[
+    "pendiente",
+    "confirmado",
+    "en_preparacion",
+    "listo_para_recoger",
+    "en_camino",
+    "entregado",
+    "rechazado",
+    "cancelado",
+]
+
+
 class OrderStatusUpdate(BaseModel):
-    status: str = Field(
-        ...,
-        description="pendiente | confirmado | en_preparacion | listo_para_recoger | en_camino | entregado | cancelado | rechazado",
-    )
+    # Canonical values only: spaced or accented variants are rejected with 422, never normalized.
+    status: OrderStatus
     reason: str | None = None
 
 

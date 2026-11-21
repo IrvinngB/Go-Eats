@@ -56,10 +56,10 @@ Every PR gate: `cd backend && .venv/bin/pytest`, `pnpm test`, `pnpm exec vue-tsc
 - [x] 4.6 Remove offline fake-login fallback (F6) and `c1`/`r2` fallbacks and name matching in MerchantView/CourierView; add `comercioPropio`/`repartidorPropio`, "Cuenta sin comercio/repartidor asignado" empty state (RED component specs).
 
 ## PR5: State machine + canonical states
-- [ ] 5.1 RED `test_status.py` parametrized transitions, spaced -> 422, blank reason 400, customer 403, merchant out of scope 404, role-target 403, rating non-owner 404, courier-assign scope; GREEN `Literal[8]`, matrix.
-- [ ] 5.2 Extend migration with status rewrite (3 UPDATEs, idempotency test); canonical seed + `rechazado` order with reason, fix seed line 369, history canonical.
-- [ ] 5.3 RED `test_reports_revenue_excludes_rechazado`; GREEN `reports/repository.py:18`.
-- [ ] 5.4 Canonical keys in `mockData.js` (incl. initial mock orders), MerchantView, CourierView, OrdersView, store; `rechazado` in every terminal list (MerchantView:22-23, CourierView:26, store L65, OrdersView:88) and `ESTADO_LABELS`; timeline renders reason (RED component specs).
+- [x] 5.1 RED `test_status.py` parametrized transitions, spaced -> 422, blank reason 400, customer 403, merchant out of scope 404, role-target 403, rating non-owner 404, courier-assign scope; GREEN `Literal[8]`, matrix.
+- [x] 5.2 Extend migration with status rewrite (3 UPDATEs, idempotency test); canonical seed + `rechazado` order with reason, fix seed line 369, history canonical.
+- [x] 5.3 RED `test_reports_revenue_excludes_rechazado`; GREEN `reports/repository.py:18`.
+- [x] 5.4 Canonical keys in `mockData.js` (incl. initial mock orders), MerchantView, CourierView, OrdersView, store; `rechazado` in every terminal list (MerchantView:22-23, CourierView:26, store L65, OrdersView:88) and `ESTADO_LABELS`; timeline renders reason (RED component specs).
 
 ## PR6: Pricing + codes + method (backend and frontend together)
 - [ ] 6.1 RED `test_pricing.py` (tampered price/fee ignored, promo, closed/unaffiliated 400, inactive/unavailable product 400, extra fields ignored); GREEN server recompute.

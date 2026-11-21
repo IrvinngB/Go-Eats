@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useGoEatsStore } from '../../stores/useGoEatsStore'
-import { ESTADOS_PEDIDO } from '../../mockData'
+import { ESTADOS_PEDIDO, ESTADO_LABELS } from '../../mockData'
 import StatusBadge from '../../components/StatusBadge.vue'
 import CoverageMap from '../../components/CoverageMap.vue'
 import { Bike, Star, MapPin, Map } from '@lucide/vue'
@@ -46,6 +46,15 @@ function enviarCalificacion() {
   modalCalificar.value = null
 }
 
+// Rechazado y cancelado cierran el pedido sin avance: se muestran como estado terminal con su motivo.
+const FALLIDOS = ['rechazado', 'cancelado']
+const SEGUIBLES = ['en_preparacion', 'listo_para_recoger', 'en_camino']
+
+function estadoPaso(p, i) {
+  const actual = indiceEstado(p)
+  return i < actual ? 'done' : i === actual ? 'current' : 'pending'
+}
+
 function progresoEstado(estado) {
   return Math.round((100 / pasos.length) * (pasos.indexOf(estado) + 1))
 }
@@ -85,12 +94,12 @@ function progresoEstado(estado) {
         </div>
 
         <!-- Línea de tiempo -->
-        <div v-if="p.estado !== 'cancelado'" class="mt-6">
+        <div v-if="!FALLIDOS.includes(p.estado)" class="mt-6">
           <div class="relative">
             <div class="absolute left-0 right-0 top-2.5 h-0.5 bg-line rounded" />
-            <div class="absolute left-0 top-2.5 h-0.5 bg-brand rounded transition-all duration-500" :style="{ width: progresoEstado(p.estado) + '%' }" />
+            <div data-test="timeline-progress" class="absolute left-0 top-2.5 h-0.5 bg-brand rounded transition-all duration-500" :style="{ width: progresoEstado(p.estado) + '%' }" />
             <div class="relative flex justify-between">
-              <div v-for="(paso, i) in pasos" :key="paso" class="flex flex-col items-center flex-1">
+              <div v-for="(paso, i) in pasos" :key="paso" data-test="timeline-step" :data-state="estadoPaso(p, i)" class="flex flex-col items-center flex-1">
                 <span
                   class="w-6 h-6 rounded-full border-2 grid place-items-center text-[10px] font-bold transition-colors duration-300"
                   :class="i <= indiceEstado(p) ? 'bg-brand border-brand text-white' : 'bg-white border-line text-slatebody/50'"
@@ -99,19 +108,17 @@ function progresoEstado(estado) {
                   <template v-else>{{ i + 1 }}</template>
                 </span>
                 <span class="mt-1.5 text-[9px] sm:text-[10px] text-center leading-tight max-w-[60px]" :class="i <= indiceEstado(p) ? 'text-ink font-medium' : 'text-slatebody/60'">
-                  {{ paso.charAt(0).toUpperCase() + paso.slice(1) }}
+                  {{ ESTADO_LABELS[paso] }}
                 </span>
               </div>
             </div>
           </div>
         </div>
 
-        <p v-else class="mt-4 text-sm text-coral bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-          Cancelado: {{ p.motivoCancelacion || 'Sin motivo registrado.' }}
-        </p>
+        <p v-else data-test="estado-terminal" class="mt-4 text-sm text-coral bg-red-50 border border-red-100 rounded-lg px-3 py-2">{{ ESTADO_LABELS[p.estado] }}: {{ p.motivoCancelacion || 'Sin motivo registrado.' }}</p>
 
         <!-- Botón para Ver Mapa de Seguimiento en Vivo -->
-        <div v-if="['en preparación', 'listo para recoger', 'en camino'].includes(p.estado)" class="mt-4">
+        <div v-if="SEGUIBLES.includes(p.estado)" class="mt-4">
           <button
             class="w-full flex items-center justify-center gap-2 rounded-xl py-2 px-3 text-xs font-semibold border transition-all"
             :class="pedidoEnMapa === p.id ? 'bg-brand text-white border-brand shadow-sm' : 'bg-canvas text-brand-dark border-brand/30 hover:bg-brand-light/50'"
@@ -132,7 +139,7 @@ function progresoEstado(estado) {
         </div>
 
         <!-- Repartidor asignado -->
-        <div v-if="p.repartidorId && p.estado === 'en camino'" class="mt-4 flex items-center gap-3 rounded-xl bg-canvas p-3 border border-line">
+        <div v-if="p.repartidorId && p.estado === 'en_camino'" class="mt-4 flex items-center gap-3 rounded-xl bg-canvas p-3 border border-line">
           <span class="grid place-items-center w-10 h-10 rounded-full bg-brand-light text-brand">
             <Bike class="w-5 h-5" />
           </span>

@@ -59,7 +59,7 @@ def legacy_engine():
             conn.execute(text("INSERT INTO merchants (code) VALUES (:c)"), {"c": code})
         for code in [*COURIER_EMAILS.values(), "r5"]:
             conn.execute(text("INSERT INTO couriers (code) VALUES (:c)"), {"c": code})
-        conn.execute(text("INSERT INTO orders (code, status) VALUES ('PED-1', 'en preparacion')"))
+        conn.execute(text("INSERT INTO orders (code, status) VALUES ('PED-1', 'en preparación')"))
         conn.execute(
             text(
                 "INSERT INTO order_status_history (previous_status, new_status) "
@@ -75,6 +75,18 @@ def _links(engine, table, col):
         rows = conn.execute(text(f"SELECT code, {col} FROM {table} ORDER BY id")).all()
         emails = dict(conn.execute(text("SELECT id, email FROM users")).all())
     return {code: emails.get(uid) for code, uid in rows}
+
+
+def _statuses(engine):
+    with engine.connect() as conn:
+        orders = [r[0] for r in conn.execute(text("SELECT status FROM orders ORDER BY id"))]
+        history = [
+            tuple(r)
+            for r in conn.execute(
+                text("SELECT previous_status, new_status FROM order_status_history ORDER BY id")
+            )
+        ]
+    return orders, history
 
 
 def _unique_index_names(engine, table):
@@ -102,12 +114,8 @@ def test_adds_columns_links_idempotent(legacy_engine):
     assert _links(legacy_engine, "merchants", "owner_user_id") == merchants
     assert _links(legacy_engine, "couriers", "user_id") == couriers
 
-    # statuses untouched (additive only)
-    with legacy_engine.connect() as conn:
-        assert conn.execute(text("SELECT status FROM orders")).scalar_one() == "en preparacion"
-        assert conn.execute(
-            text("SELECT previous_status, new_status FROM order_status_history")
-        ).one() == ("pendiente", "en camino")
+    # legacy statuses rewritten to canonical (PR5)
+    assert _statuses(legacy_engine) == (["en_preparacion"], [("pendiente", "en_camino")])
 
 
 def test_backfill_leaves_existing_links_alone(legacy_engine):
@@ -196,3 +204,144 @@ def test_seeded_users_have_consent_rows(db):
     consented = db.query(DataConsent).filter(DataConsent.accepted.is_(True)).count()
     assert users == 25
     assert consented == users
+
+
+LEGACY_ORDERS = [
+    ("PED-1", "en preparación"),
+    ("PED-2", "listo para recoger"),
+    ("PED-3", "en camino"),
+    ("PED-4", "en camino"),
+    ("PED-5", "entregado"),
+    ("PED-6", "cancelado"),
+]
+LEGACY_HISTORY = [
+    (None, "pendiente"),
+    ("pendiente", "en preparación"),
+    ("en preparación", "listo para recoger"),
+    ("listo para recoger", "en camino"),
+    ("en camino", "entregado"),
+    ("pendiente", "cancelado"),
+]
+
+
+def _load_legacy_statuses(engine, orders=LEGACY_ORDERS, history=LEGACY_HISTORY):
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM orders"))
+        conn.execute(text("DELETE FROM order_status_history"))
+        for code, st in orders:
+            conn.execute(text("INSERT INTO orders (code, status) VALUES (:c, :s)"), {"c": code, "s": st})
+        for prev, new in history:
+            conn.execute(
+                text("INSERT INTO order_status_history (previous_status, new_status) VALUES (:p, :n)"),
+                {"p": prev, "n": new},
+            )
+
+
+def test_status_rewrite_maps_orders_and_history(legacy_engine):
+    _load_legacy_statuses(legacy_engine)
+    run_startup_migrations(legacy_engine)
+    orders, history = _statuses(legacy_engine)
+    assert orders == ["en_preparacion", "listo_para_recoger", "en_camino", "en_camino", "entregado", "cancelado"]
+    assert history == [
+        (None, "pendiente"),
+        ("pendiente", "en_preparacion"),
+        ("en_preparacion", "listo_para_recoger"),
+        ("listo_para_recoger", "en_camino"),
+        ("en_camino", "entregado"),
+        ("pendiente", "cancelado"),
+    ]
+
+
+def test_status_rewrite_second_run_is_noop(legacy_engine, caplog):
+    _load_legacy_statuses(legacy_engine)
+    run_startup_migrations(legacy_engine)
+    after_first = _statuses(legacy_engine)
+    with caplog.at_level(logging.INFO, logger="app.core.migrations"):
+        run_startup_migrations(legacy_engine)
+    assert _statuses(legacy_engine) == after_first
+    assert "statuses rewritten: 0" in caplog.text
+
+
+def test_status_rewrite_logs_counts(legacy_engine, caplog):
+    _load_legacy_statuses(legacy_engine)
+    with caplog.at_level(logging.INFO, logger="app.core.migrations"):
+        run_startup_migrations(legacy_engine)
+    # 4 legacy orders + 6 legacy history cells (prev+new)
+    assert "statuses rewritten: 10" in caplog.text
+
+
+def test_already_canonical_data_untouched(legacy_engine):
+    canonical_orders = [("PED-1", "en_preparacion"), ("PED-2", "rechazado"), ("PED-3", "pendiente")]
+    canonical_history = [(None, "pendiente"), ("pendiente", "rechazado"), ("confirmado", "en_preparacion")]
+    _load_legacy_statuses(legacy_engine, canonical_orders, canonical_history)
+    run_startup_migrations(legacy_engine)
+    assert _statuses(legacy_engine) == (
+        ["en_preparacion", "rechazado", "pendiente"],
+        canonical_history,
+    )
+
+
+def test_status_rewrite_skipped_when_tables_missing():
+    engine = _engine()
+    with engine.begin() as conn:
+        conn.execute(text("CREATE TABLE users (id INTEGER PRIMARY KEY, email VARCHAR(255))"))
+    run_startup_migrations(engine)  # no orders/history tables: must not raise
+
+
+def test_fresh_seed_is_canonical_and_has_rechazado(db, db_engine):
+    seed_initial_data(db)
+    db.commit()
+    canonical = {
+        "pendiente", "confirmado", "en_preparacion", "listo_para_recoger",
+        "en_camino", "entregado", "rechazado", "cancelado",
+    }
+    with db_engine.connect() as conn:
+        order_values = {r[0] for r in conn.execute(text("SELECT status FROM orders"))}
+        hist_values = {
+            v
+            for row in conn.execute(text("SELECT previous_status, new_status FROM order_status_history"))
+            for v in row
+            if v is not None
+        }
+        rejected = conn.execute(
+            text("SELECT code, cancellation_reason, courier_code FROM orders WHERE status='rechazado'")
+        ).all()
+        rejected_hist = conn.execute(
+            text(
+                "SELECT h.reason FROM order_status_history h JOIN orders o ON o.code=h.order_code "
+                "WHERE o.status='rechazado' AND h.new_status='rechazado'"
+            )
+        ).all()
+    assert order_values <= canonical and hist_values <= canonical
+    assert "rechazado" in order_values
+    assert len(rejected) >= 1 and all(r[1] and r[1].strip() for r in rejected)
+    assert len(rejected_hist) == len(rejected) and all(r[0] for r in rejected_hist)
+
+
+def test_fresh_seed_assigns_courier_to_in_delivery_states(db, db_engine):
+    seed_initial_data(db)
+    db.commit()
+    with db_engine.connect() as conn:
+        with_courier = {
+            r[0]
+            for r in conn.execute(text("SELECT DISTINCT status FROM orders WHERE courier_code IS NOT NULL"))
+        }
+        without = {
+            r[0]
+            for r in conn.execute(text("SELECT DISTINCT status FROM orders WHERE courier_code IS NULL"))
+        }
+    assert with_courier == {"listo_para_recoger", "en_camino", "entregado"}
+    assert without.isdisjoint(with_courier)
+
+
+def test_seed_on_existing_db_does_not_add_rechazado(db, db_engine):
+    seed_initial_data(db)
+    db.commit()
+    with db_engine.begin() as conn:
+        conn.execute(text("DELETE FROM orders WHERE status='rechazado'"))
+        conn.execute(text("DELETE FROM order_status_history WHERE new_status='rechazado'"))
+    run_startup_migrations(db_engine)
+    seed_initial_data(db)  # >=40 orders: skipped, documented
+    db.commit()
+    with db_engine.connect() as conn:
+        assert conn.execute(text("SELECT COUNT(*) FROM orders WHERE status='rechazado'")).scalar_one() == 0

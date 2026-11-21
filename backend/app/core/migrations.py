@@ -1,7 +1,8 @@
 """Idempotent, additive startup migrations (no Alembic versions exist).
 
-Adds the user -> entity link columns, their unique indexes, and backfills links by
-email. Safe to run on every startup and from several workers at once.
+Adds the user -> entity link columns, their unique indexes, backfills links by email and
+rewrites legacy spaced order statuses to the canonical underscore spelling. Safe to run
+on every startup and from several workers at once.
 """
 
 import logging
@@ -19,6 +20,20 @@ ADVISORY_LOCK_ID = 724001
 _LINKS = {
     "merchants": ("owner_user_id", "ix_merchants_owner_user_id"),
     "couriers": ("user_id", "ix_couriers_user_id"),
+}
+
+
+# Legacy (spaced, accented) -> canonical. Order of keys is irrelevant: no target is a source.
+LEGACY_STATUS_MAP = {
+    "en preparación": "en_preparacion",
+    "listo para recoger": "listo_para_recoger",
+    "en camino": "en_camino",
+}
+
+# table -> status columns holding order states
+_STATUS_COLUMNS = {
+    "orders": ("status",),
+    "order_status_history": ("previous_status", "new_status"),
 }
 
 
@@ -55,6 +70,27 @@ def _backfill(conn: Connection, table: str, column: str, links: dict[str, str]) 
     return linked
 
 
+def _rewrite_statuses(conn: Connection, tables: set[str]) -> int:
+    """Rewrite legacy status strings. A plain UPDATE ... WHERE col = legacy is naturally
+    idempotent (a second run matches nothing) and safe under the advisory lock."""
+    inspector = inspect(conn)
+    rewritten = 0
+    for table, columns in _STATUS_COLUMNS.items():
+        if table not in tables:
+            continue
+        present = {c["name"] for c in inspector.get_columns(table)}
+        for column in columns:
+            if column not in present:
+                continue
+            for legacy, canonical in LEGACY_STATUS_MAP.items():
+                result = conn.execute(
+                    text(f"UPDATE {table} SET {column} = :new WHERE {column} = :old"),
+                    {"new": canonical, "old": legacy},
+                )
+                rewritten += result.rowcount or 0
+    return rewritten
+
+
 def run_startup_migrations(engine: Engine) -> None:
     with engine.begin() as conn:
         if conn.dialect.name == "postgresql":
@@ -71,3 +107,4 @@ def run_startup_migrations(engine: Engine) -> None:
             )
             linked = _backfill(conn, table, column, ENTITY_LINKS[table])
             logger.info("migration: %s linked: %d", table, linked)
+        logger.info("migration: statuses rewritten: %d", _rewrite_statuses(conn, tables))
