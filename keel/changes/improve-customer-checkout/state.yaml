@@ -1,0 +1,8 @@
+current_phase: proposal
+completed: []
+open_questions: []
+decisions: [lean path (proposal + tasks, skip spec/clarify/design ceremony) but Strict TDD and stacked PRs into develop with merge commits; 3 units in order: (1) delivery address in profile + map pin + per-order override (new nullable columns users.address/lat/lng and orders.delivery_lat/lng with startup migration), (2) full simulated payment gateway flow (card data NEVER leaves the browser, backend still receives only order_code+method; decline simulation only in demo build + DEV_SIMULATE_FAILURE), (3) customer catalog browsing: search, category filter, promo badges, open/closed state, NO images; do not touch catalog backend schemas (merchant-role session owns category/promo_price changes), frontend reads fields already exposed; wait for improve-customer-role PR10 to merge before editing code]
+updated: 2026-11-20
+status: active
+mode: automatic
+depends_on: [improve-customer-role PR10]
