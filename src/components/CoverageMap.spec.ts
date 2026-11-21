@@ -75,14 +75,24 @@ describe('CoverageMap default (coverage mode)', () => {
     expect(w.text()).not.toContain('OpenStreetMap')
   })
 
-  it('draws one circle per static zone and the CARTO Voyager tile layer', () => {
+  it('draws one circle per static zone and the OSM tile layer', () => {
     const { map } = mountMap()
     expect(circleCount(map)).toBe(Object.keys(COORDENADAS_ZONAS).length)
     const urls: string[] = []
     map.eachLayer((l) => {
       if (l instanceof L.TileLayer) urls.push((l as unknown as { _url: string })._url)
     })
-    expect(urls).toEqual(['https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'])
+    expect(urls).toEqual(['https://tile.openstreetmap.org/{z}/{x}/{y}.png'])
+  })
+
+  it('never uses a cartocdn tile URL', () => {
+    const { map } = mountMap()
+    const urls: string[] = []
+    map.eachLayer((l) => {
+      if (l instanceof L.TileLayer) urls.push((l as unknown as { _url: string })._url)
+    })
+    expect(urls).toHaveLength(1)
+    expect(urls.join(' ')).not.toContain('cartocdn')
   })
 
   it('shows the Mi ubicación and Centrar buttons in the control bar', () => {
@@ -216,7 +226,7 @@ describe('CoverageMap estatico', () => {
 
   it('shows the visible attribution caption', () => {
     const { w } = mountMap({ estatico: true })
-    expect(w.find('[data-test="map-attribution"]').text()).toBe('© OpenStreetMap contributors © CARTO')
+    expect(w.find('[data-test="map-attribution"]').text()).toBe('© OpenStreetMap contributors')
   })
 
   it('fits the zone circles without animation and never flies', () => {

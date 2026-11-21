@@ -102,3 +102,7 @@ Total about 2,500 added, 275 deleted.
 - [ ] Footer/CTA wordmark variants `sobre-turquesa`/`sobre-ambar` are parked: their rect color (`#00C2A8`) conflicts with landing `#00B19D` (steering gap 9). Confirm.
 - [ ] Add Nunito 400 (offline-safe) or keep Inter body from the Google Fonts CDN per desing.md?
 - [ ] Section title scale (32/40px) deviates from desing.md; confirm.
+
+## Correction (map tiles provider)
+
+The caption and tile references above to CARTO Voyager are superseded. CARTO's `basemaps.cartocdn.com` raster endpoint now requires an API key: it answers HTTP 200 with a placeholder image reading "API KEY REQUIRED" for every tile. The tile source is now `src/utils/mapTiles.ts` (`TILE_URL`, `TILE_ATTRIBUTION`), defaulting to OpenStreetMap standard tiles (`https://tile.openstreetmap.org/{z}/{x}/{y}.png`, caption "© OpenStreetMap contributors"), overridable at build time with `VITE_MAP_TILE_URL` and `VITE_MAP_TILE_ATTRIBUTION`. OSM's tile policy is for light, non-commercial use; production should set a keyed provider or its own tile server.

@@ -23,7 +23,7 @@ const zones = [
 ]
 
 async function mockTiles(page: Page) {
-  await page.route(/basemaps\.cartocdn\.com/, (route) => route.fulfill({ contentType: 'image/png', body: TILE_PNG }))
+  await page.route(/tile\.openstreetmap\.org/, (route) => route.fulfill({ contentType: 'image/png', body: TILE_PNG }))
 }
 
 async function mockApi(page: Page) {
@@ -114,13 +114,16 @@ test.describe('coverage map', () => {
     await expect(page.locator('[data-test="store-tile"]')).toHaveCount(6)
 
     expect(requests.filter((u) => /CoverageMap/.test(u))).toEqual([])
-    expect(requests.filter((u) => /cartocdn\.com/.test(u))).toEqual([])
+    expect(requests.filter((u) => /tile\.openstreetmap\.org/.test(u))).toEqual([])
 
     await page.locator('#cobertura').scrollIntoViewIfNeeded()
     await expect.poll(() => requests.some((u) => /CoverageMap/.test(u))).toBe(true)
-    await expect.poll(() => requests.some((u) => /cartocdn\.com/.test(u))).toBe(true)
+    await expect.poll(() => requests.some((u) => /tile\.openstreetmap\.org/.test(u))).toBe(true)
     await expect(page.locator('[data-test="map-attribution"]')).toContainText('OpenStreetMap')
-    await expect(page.locator('[data-test="map-attribution"]')).toContainText('CARTO')
+    await expect(page.locator('[data-test="map-attribution"]')).not.toContainText('CARTO')
+    const tileHosts = requests.filter((u) => /\/\d+\/\d+\/\d+\.png/.test(u)).map((u) => new URL(u).host)
+    expect(tileHosts.length).toBeGreaterThan(0)
+    expect([...new Set(tileHosts)]).toEqual(['tile.openstreetmap.org'])
     await expect(page.locator('[data-test="map-attribution"]')).toBeVisible()
     expect(dialogs).toEqual([])
   })

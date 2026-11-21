@@ -312,3 +312,11 @@ Not verified: an actual update from the previous build on a returning client (ne
 
 ### Gates
 pnpm test 25 files / 268 tests; vue-tsc -b OK; pnpm build OK (39 entries, 688.78 KiB); pnpm test:e2e 19 passed (~15 s). tsconfig.app.tsbuildinfo restored; dist, test-results, playwright-report not staged.
+
+## Map tiles fix
+
+Correction: earlier notes in this file saying CARTO tiles need no API key (and "real CARTO tiles (mocked)" / "CARTO tiles are fulfilled with a 1x1 PNG") were wrong. `basemaps.cartocdn.com` now returns HTTP 200 with a 2049-byte "API KEY REQUIRED" placeholder for every tile, which broke every map (landing CoverageSection, StoresView, OrdersView, CourierView). Mocked tiles hid it.
+
+Fix (strict TDD, specs first, red for the right reason, then green): new `src/utils/mapTiles.ts` (`TILE_URL`, `TILE_ATTRIBUTION`, default OSM `https://tile.openstreetmap.org/{z}/{x}/{y}.png`, overridable via `VITE_MAP_TILE_URL` / `VITE_MAP_TILE_ATTRIBUTION`, typed in `src/vite-env.d.ts`; no `.env.example` exists so none created). `CoverageMap.vue` uses the constants for the tile layer (maxZoom 19, `attribution` kept consistent) and the static caption (CARTO credit dropped). Specs: `src/utils/mapTiles.spec.ts` (defaults, override, empty-string fallback), `CoverageMap.spec.ts` (URL, caption, no `cartocdn`), e2e now routes `tile.openstreetmap.org` and asserts every requested tile host is exactly `tile.openstreetmap.org`.
+
+Real-network verification (tiles NOT mocked; only `/merchants` and `/zones` mocked, throwaway script in the session scratchpad, preview on :4180, stopped by PID): landing `#cobertura` at 1440x900 and 360x800 loaded 6 tiles each from tile.openstreetmap.org, all HTTP 200; screenshots show a real OSM map (street names, Panama sea and land, "Panama" label, zone circles, caption "© OpenStreetMap contributors") and no "API KEY REQUIRED" watermark. `/tiendas` "Mapa en Vivo" (API aborted, store falls back to mockData, no session needed) at both widths: all tile responses 200, real street/sea labels (Corredor Sur, San Francisco, Bella Vista), no watermark. Screenshots: scratchpad `real-landing-1440.png`, `real-landing-360.png`, `real-tiendas-1440.png`, `real-tiendas-360.png`. Not verified: OrdersView and CourierView in a real browser (same component and layer code path).
