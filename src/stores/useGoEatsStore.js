@@ -27,6 +27,7 @@ function mapPedidoApi(o) {
     id: o.code,
     comercioId: o.merchant_code,
     comercioNombre: o.merchant_name,
+    clienteId: o.customer_id ?? null,
     clienteNombre: o.customer_name,
     clienteTelefono: o.customer_phone,
     zona: o.zone_slug,
@@ -111,7 +112,7 @@ export const useGoEatsStore = defineStore('goeats', {
   state: () => ({
     rol: 'customer',
     autenticado: false,
-    usuario: { nombre: '', email: '', telefono: '', consentimientoLey81: null, direccion: '', lat: null, lng: null }, // consent null = unknown until GET /users/me/consent; direccion/lat/lng = default delivery address
+    usuario: { id: null, nombre: '', email: '', telefono: '', consentimientoLey81: null, direccion: '', lat: null, lng: null }, // consent null = unknown until GET /users/me/consent; direccion/lat/lng = default delivery address
     zonas: ZONAS,
     zonaSeleccionada: 'san-francisco',
     comercios: comercios.map((c) => ({ ...c })),
@@ -145,7 +146,13 @@ export const useGoEatsStore = defineStore('goeats', {
     repartidorPropio: (s) => (s.repartidorPropioId ? s.repartidores.find((r) => r.id === s.repartidorPropioId) || null : null),
     carritoComercio: (s) => (s.carritoComercioId ? s.comercios.find((c) => c.id === s.carritoComercioId) : null),
 
-    pedidosComoCliente: (s) => s.pedidos.filter((p) => p.clienteNombre === s.usuario.nombre || p.clienteEmail === s.usuario.email),
+    pedidosComoCliente: (s) =>
+      s.pedidos.filter((p) =>
+        // Identity is the account id; name/email only match local demo orders that carry no customer id.
+        p.clienteId != null && s.usuario.id != null
+          ? p.clienteId === s.usuario.id
+          : p.clienteId == null && (p.clienteNombre === s.usuario.nombre || p.clienteEmail === s.usuario.email),
+      ),
     pedidosPorComercio: (s) => (comercioId) => s.pedidos.filter((p) => p.comercioId === comercioId),
     pedidosAsignadosA: (s) => (repartidorId) => s.pedidos.filter((p) => p.repartidorId === repartidorId && !ESTADOS_TERMINALES.includes(p.estado)),
 
@@ -215,7 +222,7 @@ export const useGoEatsStore = defineStore('goeats', {
     cerrarSesion(mensaje = 'Has cerrado sesión.') {
       tokenStorage.clear()
       this.autenticado = false
-      this.usuario = { nombre: 'Invitado', email: '', telefono: '', consentimientoLey81: false, direccion: '', lat: null, lng: null }
+      this.usuario = { id: null, nombre: 'Invitado', email: '', telefono: '', consentimientoLey81: false, direccion: '', lat: null, lng: null }
       this.rol = 'customer'
       this.comercioPropioId = null
       this.repartidorPropioId = null
@@ -241,6 +248,7 @@ export const useGoEatsStore = defineStore('goeats', {
         const { data } = await api.post(endpoint, payload)
         tokenStorage.setTokens(data.access_token, data.refresh_token)
         this.usuario = {
+          id: data.user.id ?? null,
           nombre: data.user.full_name,
           email: data.user.email,
           telefono: data.user.phone || '6123-4567',
@@ -265,6 +273,7 @@ export const useGoEatsStore = defineStore('goeats', {
       try {
         const { data } = await api.get('/users/me')
         this.usuario = {
+          id: data.id ?? null,
           nombre: data.full_name,
           email: data.email,
           telefono: data.phone || '',
