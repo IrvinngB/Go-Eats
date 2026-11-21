@@ -84,8 +84,8 @@ WU5a (5.1, 5.2, stores wiring) and WU5b (5.3-5.6, coverage) done.
 - [x] 8.3 Create `docs/landing-image-briefs.md`.
 - [x] 8.4 Verify precache: 2 wordmarks (not 22) in `pnpm build` output.
 - [x] 8.5 `docker compose build web`, then confirm SW update on a returning client.
-- [ ] 8.6 User visual review in a real browser at 360px and desktop.
+- [ ] 8.6 User visual review in a real browser at 360px and desktop. (Not recorded; accepted by the user's decision to archive, 2026-11-21.)
 
 ## Cleanup
-- [ ] 9.1 Archive merge into `keel/specs/landing-page/spec.md` (sdd-archive).
+- [x] 9.1 Archive merge into `keel/specs/landing-page/spec.md` (sdd-archive).
 Resolved 2026-11-20: user accepted stacked PRs into develop (merge commits), WU3 as size-exception (~600 added), WU5 split with CoverageMap in its own PR. Auto mode: run WU1..WU8 in order.
