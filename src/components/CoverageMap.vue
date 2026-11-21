@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, onBeforeUnmount, watch, ref } from 'vue'
 import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 import {
   COORDENADAS_ZONAS,
   CENTRO_PANAMA,
@@ -29,6 +30,11 @@ const props = defineProps({
   altura: {
     type: String,
     default: '420px',
+  },
+  // Static, read-only rendering for the public landing: no interaction, controls or geolocation.
+  estatico: {
+    type: Boolean,
+    default: false,
   },
 })
 
@@ -96,9 +102,17 @@ function inicializarMapa() {
   mapa = L.map(contenedorMapa.value, {
     zoomControl: false,
     attributionControl: false,
+    ...(props.estatico && {
+      dragging: false,
+      touchZoom: false,
+      scrollWheelZoom: false,
+      doubleClickZoom: false,
+      boxZoom: false,
+      keyboard: false,
+    }),
   }).setView([CENTRO_PANAMA.lat, CENTRO_PANAMA.lng], 13)
 
-  L.control.zoom({ position: 'bottomright' }).addTo(mapa)
+  if (!props.estatico) L.control.zoom({ position: 'bottomright' }).addTo(mapa)
 
   // Capa base CartoDB Voyager: limpia, moderna y estética
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
@@ -110,7 +124,10 @@ function inicializarMapa() {
   capaComercios = L.layerGroup().addTo(mapa)
   capaTracking = L.layerGroup().addTo(mapa)
 
-  if (props.modo === 'coverage') {
+  if (props.estatico) {
+    renderizarZonas()
+    mapa.fitBounds(capaZonas.getLayers().map((c) => c.getBounds()).reduce((a, b) => a.extend(b)), { animate: false })
+  } else if (props.modo === 'coverage') {
     renderizarZonas()
     renderizarComercios()
   } else if (props.modo === 'tracking') {
@@ -130,6 +147,7 @@ function renderizarZonas() {
       fillColor: z.color,
       fillOpacity: esSeleccionada ? 0.25 : 0.08,
       weight: esSeleccionada ? 2.5 : 1,
+      interactive: !props.estatico,
     })
 
     circulo.bindTooltip(
@@ -384,7 +402,7 @@ onBeforeUnmount(() => {
     <div ref="contenedorMapa" class="w-full" :style="{ height: altura }" />
 
     <!-- Barra de Controles Flotante Superior -->
-    <div class="absolute top-3 left-3 z-[400] flex items-center gap-2">
+    <div v-if="!estatico" class="absolute top-3 left-3 z-[400] flex items-center gap-2">
       <button
         v-if="modo === 'coverage'"
         class="inline-flex items-center gap-1.5 bg-white/95 backdrop-blur px-3 py-1.5 rounded-full text-xs font-semibold text-ink border border-line shadow-sm hover:border-brand transition-colors"
@@ -405,8 +423,16 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- Badge Informativo Inferior -->
+    <p
+      v-if="estatico"
+      data-test="map-attribution"
+      class="absolute bottom-0 right-0 z-[400] m-0 bg-white px-2 py-1 text-[11px] text-slatebody"
+    >
+      © OpenStreetMap contributors © CARTO
+    </p>
+
     <div
-      v-if="modo === 'tracking' && pedido"
+      v-else-if="modo === 'tracking' && pedido"
       class="absolute bottom-3 left-3 right-3 z-[400] bg-white/95 backdrop-blur border border-line rounded-xl p-3 shadow-lg flex items-center justify-between gap-3 text-xs"
     >
       <div class="flex items-center gap-2.5">

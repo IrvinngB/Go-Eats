@@ -58,12 +58,12 @@ Note: ~700 words on purpose, given the scope. Stacked means each PR targets `dev
 ## WU5: Data layer, stores, coverage (base: WU4)
 - [x] 5.1 RED/GREEN: `useLandingData.spec.ts` (`vi.mock` api: filter `activo`, cap 6, `/merchants/` and `/zones/` with `timeout: 5000`, abort on unmount, errors, one `console.warn`) then `useLandingData.ts`.
 - [x] 5.2 RED/GREEN: `StoresSection` spec (title "Comercios en Go Eats", loading/empty/error fallback, no toast, no price/rating/ETA) then component.
-- [ ] 5.3 RED/GREEN: `CoverageSection` spec (chips, stubbed `CoverageMap`, stubbed `IntersectionObserver`, no observer means chips only, fallback) then component with `defineAsyncComponent`.
-- [ ] 5.4 Add `estatico` Boolean prop (default false) to `CoverageMap.vue`: interactions off, no controls or geolocation, `fitBounds` animate false, attribution caption.
-- [ ] 5.5 Manual check CoverageMap unchanged in `StoresView`, `OrdersView`, `CourierView` (no spec exists).
-- [ ] 5.6 (StoresSection already wired in WU5a; coverage wiring remains) Wire into `LandingView`; three gates; confirm Leaflet in its own chunk.
+- [x] 5.3 RED/GREEN: `CoverageSection` spec (chips, stubbed `CoverageMap`, stubbed `IntersectionObserver`, no observer means chips only, fallback) then component with `defineAsyncComponent`.
+- [x] 5.4 Add `estatico` Boolean prop (default false) to `CoverageMap.vue`: interactions off, no controls or geolocation, `fitBounds` animate false, attribution caption.
+- [x] 5.5 Manual check CoverageMap unchanged in `StoresView`, `OrdersView`, `CourierView` (no spec exists).
+- [x] 5.6 (StoresSection already wired in WU5a; coverage wiring remains) Wire into `LandingView`; three gates; confirm Leaflet in its own chunk.
 
-WU5a (5.1, 5.2 and the stores wiring of 5.6) done; 5.3-5.6 remain for WU5b (coverage).
+WU5a (5.1, 5.2, stores wiring) and WU5b (5.3-5.6, coverage) done.
 
 ## WU6: Install prompt (base: WU5)
 - [ ] 6.1 RED/GREEN: `useInstallPrompt.spec.ts` (`vi.resetModules`; event before mount, iOS UA, standalone, `install()`) then composable.

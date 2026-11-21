@@ -113,3 +113,14 @@ export const STORES_COPY = {
   error: 'No pudimos mostrar los comercios en este momento. Puedes verlos directamente en la app.',
   cta: 'Ver comercios',
 } as const
+
+/** Coverage section copy. Only what the zones list supports: no delivery times, fees or distances. */
+export const COVERAGE_COPY = {
+  eyebrow: 'Cobertura',
+  title: 'Zonas donde opera Go Eats',
+  lead: 'Go Eats trabaja por zonas: al entrar a la app ves los comercios de la tuya.',
+  chipsLabel: 'Zonas activas',
+  mapLabel: 'Mapa de las zonas activas de Go Eats en la ciudad de Panamá',
+  empty: 'Estamos activando zonas de cobertura. Entra a la app para ver los comercios disponibles.',
+  error: 'No pudimos mostrar las zonas en este momento. Puedes consultarlas directamente en la app.',
+} as const
