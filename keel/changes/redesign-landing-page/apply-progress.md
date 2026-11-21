@@ -224,3 +224,59 @@ Preview server stopped; tsconfig.app.tsbuildinfo restored.
 
 ### Gates
 pnpm test 22 files / 244 tests, vue-tsc -b OK, pnpm build OK (precache 39 entries, 682.61 KiB), pnpm test:e2e 1 passed.
+
+## WU7: FAQ, CTA band, footer, copy (7.1-7.5) DONE
+
+### TDD Cycle Evidence
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 7.1 | src/components/landing/FaqSection.spec.ts | component | n/a (new) | file failed to resolve `./FaqSection.vue` (also `FAQ_ITEMS` missing from content) | 9/9 | open, switch (one open), close open, none open, collapsed start, aria-controls/labelledby, no key handlers, unique ids | none |
+| 7.2 | CtaBand.spec.ts, LandingFooter.spec.ts | component | n/a (new) | both files failed to resolve their component | 3/3 and 6/6 | primary vs secondary, hrefs only /tiendas, /login, #anchors, no nav/headings, no legal/social/contact, no digits | footer /tiendas and /login use RouterLink (no full reload), anchors plain `<a>` |
+| 7.3, 7.4 | src/views/landing/LandingView.spec.ts | view | 16 pass | 11 failed with the view unwired (order, h2 list, 10 sections, primaries, route names, anchors, copy scan, shipping x2) | 22/22 | router.resolve names against the real `routes`, anchors of nav and footer, copy scan with API down and with API data, digits only in step numerals | 3 test-side fixes (`visa` matched `revisa`; `contenido` is the skip link, not header/footer; the FAQ question names "costo de envío") |
+
+### Files
+New: FaqSection.vue (50), FaqSection.spec.ts (79), CtaBand.vue (22), CtaBand.spec.ts (45), LandingFooter.vue (40), LandingFooter.spec.ts (70). Modified: content.ts (+FAQ, CTA, footer copy), landing.css (+FAQ and footer rules), LandingView.vue (+FaqSection, CtaBand, LandingFooter; minimal footer and WU comment removed), LandingView.spec.ts, tasks.md.
+
+### Decisions and deviations
+- Footer copyright is `© Go Eats`: no year (digit rule) and no legal entity (the S.A. is the client, ownership not verified).
+- Footer does not link `#instalar` (the section hides itself once installed, so the anchor could be dead). Footer groups use `p` labels with `aria-labelledby` lists, no headings and no nav.
+- Two solid primaries exist in the DOM (hero, band), never in the same viewport; the previous "only hero" test now asserts exactly hero + band, both `/tiendas`.
+- FAQ: single-open, panels in the DOM with `hidden`, 64px triggers, no transition, icon flips when open. Left column sticky on lg.
+- Shipping sentence appears exactly twice (step 3 and FAQ); the scan asserts nothing else talks about cost.
+
+### 7.5 Copy checklist (every claim on the page)
+| Claim | RF |
+|---|---|
+| Hero: "Pide a los comercios de tu zona", tiendas que llegan a tu dirección | RF-04 |
+| Hero: elige lo que necesitas, sigue el estado | RF-05, RF-16 |
+| Hero note: "Pagas en efectivo al recibir tu pedido" | RF-10 |
+| Phone mock states Confirmado, En preparación, En camino, Entregado | RF-16 |
+| Category chips (tipos de comercio) | RF-04 (catalogue types of the app) |
+| Step 1 Elige un comercio | RF-04 |
+| Step 2 Arma tu carrito, catálogo, productos | RF-05, RF-06, RF-14 |
+| Step 3 Confirma y paga al recibir | RF-14, RF-10 |
+| Shipping sentence (step 3 and FAQ) | RF-15 (qualitative only; distance not claimed) |
+| Step 4 Sigue el estado | RF-16 |
+| Stores section: names, category and zone from the API | RF-04 |
+| Coverage: zones from the API, static map, "trabaja por zonas" | RF-04 |
+| Merchants: catálogo, horarios, disponibilidad, promociones | RF-13 |
+| Merchants: asignar pedido listo a repartidor | RF-01 |
+| Merchants/couriers: actualizar estado y notificación | RF-16 |
+| Couriers: disponibilidad en línea, ocupado, desconectado | RF-02 |
+| Couriers: datos de recogida, entrega y observaciones | RF-19 |
+| Install section and FAQ "instalar" (PWA from the browser) | none (PWA stack fact, no RF) |
+| FAQ cómo pedir (comercio, carrito, dirección de entrega) | RF-04, RF-05, RF-14 |
+| FAQ cómo se paga (contra entrega) | RF-10 |
+| FAQ estado del pedido (sección de pedidos, 4 estados) | RF-16 |
+| FAQ unirse como comercio o repartidor (crear cuenta o iniciar sesión en la página de ingreso) | RF-01/RF-13 (merchant), RF-02/RF-19 (courier); registration itself is LoginView `modoRegistro` (verified in clarifications Q5) |
+| FAQ zona (comercios que llegan a tu zona) | RF-04 |
+| CTA band "Elige un comercio... paga al recibir" | RF-04, RF-10 |
+| Footer tagline "Comercios de tu zona, en tu puerta" | RF-04 (positioning; no measurable claim) |
+
+Unmapped, flagged: (1) the install/PWA claims have no RF (stack fact, vite-plugin-pwa); (2) the tagline and hero eyebrow "Delivery de comercios locales" are positioning copy, not a functional claim; (3) "el comercio avisa al cliente con una notificación" relies on RF-16 push, whose live end-to-end behaviour is unverified per steering/product.md. Nothing on the page states prices, ETAs, ratings, stats, testimonials, partner brands, gateways, card payments, live tracking or contact data.
+
+### Visual self-review (360x800 and 1440x900, API mocked, throwaway script in scratchpad)
+No horizontal overflow, no dead anchors. Keyboard walk on the accordion: Enter opens, Tab then Space opens the next and closes the previous, Space closes, 3px focus ring, triggers 64-79px high. Page top to bottom: rhythm 64/96px consistent, bands alternate flat tones, FAQ is hairline rows (no cards), CTA band centered with one primary, footer 3 columns on desktop and stacked on mobile. Remaining: the lg footer wordmark sits 8px right of the text edge (padding baked into the sobre-indigo SVG, not recolored or cropped); the stores tiles and the install visual are still the "tile" look from earlier units. Preview server stopped; tsconfig.app.tsbuildinfo restored.
+
+### Gates
+pnpm test 25 files / 268 tests, vue-tsc -b OK, pnpm build OK (precache 39 entries, 688.78 KiB), pnpm test:e2e 1 passed.
