@@ -29,11 +29,11 @@ Estimated changed lines: ~3,500-4,000 total · Delivery strategy: stacked PRs in
 Every PR gate: `cd backend && .venv/bin/pytest`, `pnpm test`, `pnpm exec vue-tsc -b`, `pnpm build`. Each task below: write the named failing test (RED) first, then implement (GREEN).
 
 ## PR1: Harness
-- [ ] 1.1 Run `python3.12 -m venv backend/.venv` (NOT default 3.14); create `backend/requirements-dev.txt` (`-r requirements.txt`, `pytest>=8`); pip install into the venv.
-- [ ] 1.2 Create `backend/.dockerignore` (`.venv`, `tests`, `requirements-dev.txt`, `__pycache__`, `.pytest_cache`); add `.pytest_cache/` and `backend/.venv` to `.gitignore`. Verify prod Dockerfile still installs only requirements.txt.
-- [ ] 1.3 RED `test_smoke.py::test_health_ok`; create `pytest.ini` (`pythonpath=.`), `tests/conftest.py` (`DATABASE_URL=sqlite://` before importing app, StaticPool + `check_same_thread=False`, `get_db` override, `TestClient(app)` without context manager, `import app.init_db`).
-- [ ] 1.4 Create `tests/factories.py` (`make_user/merchant/courier/zone/product`, `auth_headers`, precomputed bcrypt hash).
-- [ ] 1.5 GREEN: `test_smoke.py::test_login_with_factory_user`, `test_no_goeats_db_created`.
+- [x] 1.1 Run `python3.12 -m venv backend/.venv` (NOT default 3.14); create `backend/requirements-dev.txt` (`-r requirements.txt`, `pytest>=8`); pip install into the venv.
+- [x] 1.2 Create `backend/.dockerignore` (`.venv`, `tests`, `requirements-dev.txt`, `__pycache__`, `.pytest_cache`); add `.pytest_cache/` and `backend/.venv` to `.gitignore`. Verify prod Dockerfile still installs only requirements.txt.
+- [x] 1.3 RED `test_smoke.py::test_health_ok`; create `pytest.ini` (`pythonpath=.`), `tests/conftest.py` (`DATABASE_URL=sqlite://` before importing app, StaticPool + `check_same_thread=False`, `get_db` override, `TestClient(app)` without context manager, `import app.init_db`).
+- [x] 1.4 Create `tests/factories.py` (`make_user/merchant/courier/zone/product`, `auth_headers`, precomputed bcrypt hash).
+- [x] 1.5 GREEN: `test_smoke.py::test_login_with_factory_user`, `test_no_goeats_db_created`.
 
 ## PR2: Migration + link (additive only; no status rewrite, no `rechazado`)
 - [ ] 2.1 RED `test_migrations.py::test_adds_columns_links_idempotent` (legacy DDL, run twice, 8 links by email, views' statuses untouched); GREEN: create `core/migrations.py` (advisory lock 724001 on PG, inspect add-column, `CREATE UNIQUE INDEX IF NOT EXISTS`, duplicate-column catch, backfill map, INFO counts).
@@ -89,3 +89,5 @@ Every PR gate: `cd backend && .venv/bin/pytest`, `pnpm test`, `pnpm exec vue-tsc
 - [ ] V.1 Before merging PR2 and PR5: `docker compose up` against the EXISTING Postgres volume; confirm columns, links, advisory lock path, 4 workers no-op, statuses rewritten (PG-only, untested in SQLite).
 - [ ] V.2 `docker compose build api web`; confirm `.venv`/tests absent in api image.
 - [ ] V.3 Real-browser guard check on compose (all 5 demo logins).
+
+Resolved 2026-11-20 (user): size exceptions for PR4, PR5 and PR6 ACCEPTED; auto mode for all 10 PRs (stacked into develop, merge commits); failed simulated electronic payment auto-cancels the order (default, covered by a PR7 test).

@@ -1,4 +1,4 @@
-current_phase: tasks
+current_phase: apply
 completed: [explore, proposal, spec, clarify, design, blast-radius]
 open_questions: []
 decisions: [scope=medium (~7 units): pytest bootstrap, backend authz (critical+high), route guards + persisted session, store write error handling, server-side pricing and fee (RF-14/15), payments wired (RF-10), consent/ARCO real (RF-07/09), state-string normalization (underscore, en_preparacion); defer RF-03 live tracking, RF-06 detail, RF-04 polygons, a11y, customer e2e; login role override and demo switcher kept DEV-ONLY behind a flag; role-scoped listing endpoints required so merchant/courier/admin/accountant panels keep working; Strict TDD; stacked PRs into develop auto mode]
