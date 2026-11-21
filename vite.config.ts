@@ -6,6 +6,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     include: ['src/**/*.spec.ts'],
+    // Let `landing.css?raw` return real text so specs can assert on the source.
+    css: { include: [/landing\.css/] },
   },
   server: {
     proxy: {

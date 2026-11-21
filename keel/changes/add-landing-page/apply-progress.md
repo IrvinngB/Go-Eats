@@ -61,3 +61,33 @@ Verification: `pnpm test` 4 files / 7 tests pass; `pnpm exec vue-tsc -b` exit 0 
 
 ## Remaining
 WU3-WU5. PR boundary: WU2 = router.ts, App.vue, placeholder view, 3 specs.
+
+## WU3: Tokens and contrast (PR3 -> main) - COMPLETE
+Tasks 3.1-3.4 done. Not committed.
+
+### Files changed
+- src/components/landing/tokens.spec.ts (64), tokens.ts (78), landing.spec.ts (69), landing.css (109): new
+- vite.config.ts: +2, `test.css.include: [/landing\.css/]`
+
+### Final values and ratios (all design hexes passed; none adjusted)
+Light: primary #00B19D, on-primary #0B2B33 (5.52), primary-hover #00A491 (4.77 with on-primary; #009C8A rejected, asserted < 4.5), primary-text #00796B (5.32 on white, 4.92 surface, 4.61 on tint #D6F5F0), lip #008F7D (4.02 vs bg, UI >= 3), ink 14.92 bg / 13.80 surface / 12.91 tint, ink-soft 7.49, ink-faint 5.06 bg / 4.68 surface.
+Dark: bg #0A171B, primary #2DE0C8, on-primary #062A2F (9.14), hover #5BEAD6 (10.28), primary-text #2DE0C8 (10.95 bg, 7.64 on tint #10383B), lip #14A895 (6.14), ink 16.81 / 14.47 / 11.72, ink-soft 10.38, ink-faint 6.78.
+Thresholds: 4.5 text, 3 UI. Not weakened.
+
+### Deviations
+- Design hover hex #00A491 kept (passes 4.77).
+- `primary` fill on white (2.70) is NOT a required pair: it is a fill only; button edge is the lip (4.02) and label is dark. An initial "primary on bg >= 3" pair I added failed and was removed as out of spec (spec only demands text pairs + hover); documented in tokens.ts.
+- vitest returns empty string for `*.css?raw` by default (css processing off), so vite.config.ts got `test.css.include` for landing.css. Without it landing.spec.ts cannot read source.
+- Fonts: landing.css references 'Nunito' / 'JetBrains Mono' families only; the `@fontsource` imports go in LandingView (WU4) so they load only on the landing. Inter untouched. tailwind.config.js and style.css untouched.
+- landing.css also ships `.lp-btn`/`.lp-btn-secondary` (lip, 44px, focus ring, 150ms transition) required by 3.3.
+
+### TDD Cycle Evidence
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|-----------|-----|-------|-------------|----------|
+| 3.1-3.2 | src/components/landing/tokens.spec.ts | Unit | 7/7 existing | suite failed: ./tokens missing | 37 passed (after dropping out-of-spec pair) | light+dark x 13 pairs, WCAG refs (21, 1, 4.48), hover rejected #009C8A | None |
+| 3.3-3.4 | src/components/landing/landing.spec.ts | Unit (CSS text) | 7/7 | 6 of 7 failed (css missing/empty) | 7 passed after landing.css + vite css.include | 3 theme blocks equal to tokens.ts, reduced-motion, 44px, focus, no gradient/blur, 150ms | None |
+
+Verification: `pnpm test` 6 files / 49 tests pass; `pnpm exec vue-tsc -b` exit 0 (tsbuildinfo restored).
+
+## Remaining
+WU4-WU5. PR boundary: WU3 = components/landing/{tokens,landing}.{ts,css} + 2 specs + vite.config.ts css include.

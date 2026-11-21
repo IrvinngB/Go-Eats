@@ -37,10 +37,10 @@ Each task is RED (failing test) then GREEN (minimal code). Tests import from `vi
 - [x] 2.5 RED/GREEN: App test with the store mock whose `sincronizarConBackend` rejects; assert no notification at `/` (blast: store sync for anonymous).
 
 ## WU3: Tokens and contrast
-- [ ] 3.1 RED: `src/components/landing/tokens.spec.ts`: every light/dark pair >= 4.5 (button, hover, primary-text on tint); hover must pass (`#009C8A` rejected).
-- [ ] 3.2 GREEN: `tokens.ts` with `contrast()` and pairs from design.
-- [ ] 3.3 RED: `landing.spec.ts` reading `landing.css?raw`: hex sync with tokens.ts; dark blocks (media, `.dark`, `[data-theme="dark"]`) equal; no `gradient|backdrop-filter|blur`; reduced-motion block; `min-height:44px`/`min-width:44px`; `.lp-btn:focus-visible`.
-- [ ] 3.4 GREEN: create `landing.css` satisfying 3.3.
+- [x] 3.1 RED: `src/components/landing/tokens.spec.ts`: every light/dark pair >= 4.5 (button, hover, primary-text on tint); hover must pass (`#009C8A` rejected).
+- [x] 3.2 GREEN: `tokens.ts` with `contrast()` and pairs from design.
+- [x] 3.3 RED: `landing.spec.ts` reading `landing.css?raw`: hex sync with tokens.ts; dark blocks (media, `.dark`, `[data-theme="dark"]`) equal; no `gradient|backdrop-filter|blur`; reduced-motion block; `min-height:44px`/`min-width:44px`; `.lp-btn:focus-visible`.
+- [x] 3.4 GREEN: create `landing.css` satisfying 3.3.
 
 ## WU4: Components and LandingView
 - [ ] 4.1 RED/GREEN: `HeroVisual.spec.ts` / `HeroVisual.vue`: slot fallback `Bike` icon, `aria-hidden`.
