@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import Base, SessionLocal, engine
@@ -15,6 +16,7 @@ from app.domains.reports.router import router as reports_router
 from app.domains.users.router import router as users_router
 from app.domains.zones.router import router as zones_router
 from app.seed import seed_initial_data
+from app.shared.codes import CodeGenerationError
 
 
 @asynccontextmanager
@@ -40,6 +42,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(CodeGenerationError)
+def code_generation_failed(_: Request, __: CodeGenerationError) -> JSONResponse:
+    # Heavy contention on the code sequence: ask the client to retry, never a bare 500.
+    return JSONResponse(status_code=503, content={"detail": "Could not allocate a code. Please retry."})
+
 
 for domain_router in (
     auth_router,

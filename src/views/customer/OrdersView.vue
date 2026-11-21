@@ -89,7 +89,7 @@ function progresoEstado(estado) {
           </div>
           <div class="text-right">
             <p class="text-lg font-bold text-ink">B/ {{ p.total.toFixed(2) }}</p>
-            <p class="text-[11px] text-slatebody">{{ p.metodoPago === 'contr_entrega' ? 'Contra entrega' : 'Pago electrónico' }}</p>
+            <p class="text-[11px] text-slatebody">{{ p.metodoPago === 'contr_entrega' ? 'Contra entrega' : 'Pago electrónico (simulado)' }}</p>
           </div>
         </div>
 

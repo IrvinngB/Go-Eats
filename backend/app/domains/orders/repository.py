@@ -1,7 +1,24 @@
+import logging
+from dataclasses import dataclass
+
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 from app.domains.orders.models import Order, OrderItem, OrderRating, OrderStatusHistory
 from app.domains.orders.schemas import OrderCreate, OrderRatingCreate
+from app.shared import codes
+from app.shared.codes import CodeGenerationError
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class PricedItem:
+    product_code: str
+    name: str
+    unit_price: float
+    quantity: int
+    notes: str
 
 
 class OrderRepository:
@@ -35,53 +52,69 @@ class OrderRepository:
         )
         return self.db.scalars(stmt).first()
 
-    def create(self, customer_id: int, payload: OrderCreate,actor: str) -> Order:
-        subtotal = round(sum(item.unit_price * item.quantity for item in payload.items), 2)
-        total = round(subtotal + payload.delivery_fee, 2)
-        seq = len(self.list_orders()) + 1001
-        code = f"PED-{seq}"
+    def create(
+        self,
+        customer_id: int,
+        customer_name: str,
+        customer_phone: str,
+        merchant_name: str,
+        payload: OrderCreate,
+        priced_items: list[PricedItem],
+        delivery_fee: float,
+        actor: str,
+    ) -> Order:
+        """Persist an already-priced order. Prices and fee come from the service, never the client."""
+        subtotal = round(sum(i.unit_price * i.quantity for i in priced_items), 2)
+        total = round(subtotal + delivery_fee, 2)
 
-        order = Order(
-            code=code,
-            merchant_code=payload.merchant_code,
-            merchant_name=payload.merchant_name,
-            customer_id=customer_id,
-            customer_name=payload.customer_name,
-            customer_phone=payload.customer_phone,
-            zone_slug=payload.zone_slug,
-            delivery_address=payload.delivery_address,
-            notes=payload.notes,
-            payment_method=payload.payment_method,
-            status="pendiente",
-            subtotal=subtotal,
-            delivery_fee=payload.delivery_fee,
-            total=total,
-        )
-        self.db.add(order)
-        self.db.flush()
+        for attempt in range(1, codes.MAX_ATTEMPTS + 1):
+            code = codes.next_code(self.db, Order.code, "PED-", 1001)
+            order = Order(
+                code=code,
+                merchant_code=payload.merchant_code,
+                merchant_name=merchant_name,
+                customer_id=customer_id,
+                customer_name=customer_name,
+                customer_phone=customer_phone,
+                zone_slug=payload.zone_slug,
+                delivery_address=payload.delivery_address,
+                notes=payload.notes,
+                payment_method=payload.payment_method,
+                status="pendiente",
+                subtotal=subtotal,
+                delivery_fee=delivery_fee,
+                total=total,
+            )
+            self.db.add(order)
+            try:
+                self.db.flush()
+            except IntegrityError:
+                self.db.rollback()
+                logger.warning("order code collision: code=%s attempt=%s", code, attempt)
+                continue
 
-        for item in payload.items:
+            for item in priced_items:
+                self.db.add(
+                    OrderItem(
+                        order_id=order.id,
+                        product_code=item.product_code,
+                        name=item.name,
+                        unit_price=item.unit_price,
+                        quantity=item.quantity,
+                        notes=item.notes,
+                    )
+                )
             self.db.add(
-                OrderItem(
-                    order_id=order.id,
-                    product_code=item.product_code,
-                    name=item.name,
-                    unit_price=item.unit_price,
-                    quantity=item.quantity,
-                    notes=item.notes,
+                OrderStatusHistory(
+                    order_code=order.code,
+                    previous_status=None,
+                    new_status="pendiente",
+                    actor=actor,
                 )
             )
-
-        self.db.add(
-            OrderStatusHistory(
-                order_code=order.code,
-                previous_status=None,
-                new_status="pendiente",
-                actor=actor,
-            )
-        )
-        self.db.commit()
-        return self.get_by_code(order.code)  # type: ignore[return-value]
+            self.db.commit()
+            return self.get_by_code(code)  # type: ignore[return-value]
+        raise CodeGenerationError("Could not allocate a unique order code.")
 
     def update_status(
         self, order: Order, new_status: str, actor: str, reason: str | None = None

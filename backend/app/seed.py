@@ -348,7 +348,7 @@ def seed_initial_data(db: Session) -> None:
         "pendiente",
         "cancelado",
     ]
-    methods_cycle = ["tarjeta", "contr_entrega", "yappy"]
+    methods_cycle = ["yappy", "contr_entrega"]
     active_merchants = [m for m in merchants_seed if m[7] == "activo"]
     active_couriers = ["r1", "r2", "r4", "r5", "r6", "r7", "r8", "r10"]
 

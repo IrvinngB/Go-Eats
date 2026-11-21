@@ -181,3 +181,41 @@ backend pytest 252 passed; `pnpm test` 337 passed (32 files; router/App/App.sync
 - Write failures are still silent in the store (`.catch(() => {})`, PR8): e.g. a 403 target error would leave the optimistic local state.
 
 ### Remaining: PR6..PR10 (and V.1/V.2/V.3)
+
+
+## PR6 (tasks 6.1-6.4) - DONE, not committed
+Branch: feat/customer-pr6-pricing. Size exception (backend + frontend together) accepted.
+
+### Files
+Backend: NEW shared/codes.py (`next_sequence`/`next_code` = max numeric suffix + 1 with floor, `MAX_ATTEMPTS=3`, `CodeGenerationError`); MOD orders/{schemas,repository,service}.py (OrderCreate = merchant_code, zone_slug, delivery_address, notes, `payment_method: Literal["contr_entrega","yappy"]`, items [{product_code, quantity 1..50, notes}]; extras dropped; service validates merchant/zone/products and recomputes price, name, fee, names, phone; repository inserts with 3x retry on IntegrityError), payments/{schemas,repository,providers}.py (Literal; TX- generation + REC number from same seq with retry; default channel `yappy`), catalog/repository.py (`get_by_code`), main.py (`CodeGenerationError` -> 503), seed.py (methods_cycle `["yappy","contr_entrega"]`). Tests: NEW tests/test_pricing.py, test_codes.py, test_payment_method.py.
+Frontend: MOD store (sync maps effective `precio` = promo_price>0 else price, keeps `precioRegular`; `crearPedido` payload trimmed, wire `yappy`/`contr_entrega`), StoreDetailView.vue (label "Pago electrónico (simulado)", effective price + struck-through regular price with data-test hooks), OrdersView.vue (label). Tests: store spec (+6), NEW StoreDetailView.spec.ts (3).
+
+### Decisions / deviations
+- Delivery fee uses the tariff of the ORDER's `zone_slug` (spec "order's zone", and it is what the UI shows via zonaActual), not the merchant's zone; zone must exist and be active. `calculate_delivery_fee` (distance ignored) is reused.
+- Nonexistent merchant is 400 (spec) not 404 (design table).
+- Exhausted retries (3 collisions) return 503 "Could not allocate a code" through an app exception handler, never a bare 500.
+- Seed: max seeded order is PED-1099 and payment TX-9060, so first real codes are PED-1100 / TX-9061. Existing DB rows with `tarjeta` are untouched (no data migration); seed methods now cycle only the two valid ones.
+- Payments create still takes client amounts (PR7 rewrites it); only the method Literal and unique code changed there. Provider ref prefix PGF is now only reachable for unknown legacy channels.
+- Frontend UI id stays `electronico`; only the wire value is `yappy`. No payments call (PR7) and error surface / rollback unchanged (PR8).
+- Product lookup by exact `code` (new `get_by_code`), not `get_by_id_or_code`, so a numeric string never matches a row id.
+
+### TDD evidence
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|---|
+| 6.1 | tests/test_pricing.py | integration | 252 green | 19 failed: 422 on missing name/unit_price/fee (client fields required), inactive checks absent, price not from catalog | 295 pass | tamper price/fee/totals/names, promo >0, promo 0 fallback, distance 99km ignored, price change later, multi item totals, closed, 3 affiliation states, schedule ignored, unknown merchant/zone/inactive zone/product, other merchant product, unavailable, qty 0/-1/51, empty items, stored rows | none |
+| 6.2 | tests/test_codes.py | integration | - | collection ImportError (`app.shared.codes` missing); then 6 failed | pass | empty DB 1001, seeded PED-1100, gaps (1005,1003 -> 1006), non-numeric suffix ignored, monkeypatched collision retried -> PED-1002 (2 calls), exhausted -> 503 and no extra row, TX max+1 with REC match, TX floor, TX collision retry | none |
+| 6.3 | tests/test_payment_method.py | integration | - | `POST /payments/` with `tarjeta` returned 201; valid order bodies 422; seed produced `tarjeta` | pass | tarjeta/paypal/empty/YAPPY 422 on order, both valid methods, payment Literal x3, legacy tarjeta order and payment still 200, fresh seed only 2 methods | none |
+| 6.4 | useGoEatsStore.spec.ts, StoreDetailView.spec.ts | store + component | 337 green | 7 failed: payload had names/prices/fee and `tarjeta`, precio stayed 5 with promo 4, no `precioRegular`, label lacked "(simulado)", no price hooks | pass (346) | electronic and cash payloads exact (toEqual / key list), promo 4, null and 0 promo, struck-through only when regular > effective | none |
+
+### Real verification (throwaway sqlite scratchpad/pr6.db seeded via init_db; uvicorn :8768; vite :5203 with VITE_API_URL; Playwright scratchpad/pr6.mjs; real login as carlos@ejemplo.pa; goeats.db never created)
+Promo p1 of c1 set to 5.50 (regular 6.50) and merchant c7 closed directly in the scratch DB (seed has no promos). Through the real UI: menu shows B/ 5.50 with B/ 6.50 struck through; 2 x p1 with cash on delivery -> PED-1100, then electronic (simulated approval) -> PED-1101; both 201, no 4xx/5xx, no pageerror. Request bodies captured by Playwright: no name/price/fee fields, `yappy` and `contr_entrega` on the wire. Stored: subtotal 11.00, fee 2.50, total 13.50 (checkout panel showed the same 11.00 / 2.50 / 13.50). curl: tampered (price 1, fee 0, total 0.01, fake names) -> PED-1102 with real price 8.25, fee 2.50, total 10.75, names Carlos Andrade / Restaurante Diablicos; `tarjeta` -> 422; closed c7 and unaffiliated c8 -> 400 "Merchant is not accepting orders (closed or not active)."; product of another merchant -> 400. Screenshots read: scratchpad/pr6-menu-promo.png, pr6-checkout-electronico.png. Servers stopped by PID.
+
+### Gates
+backend pytest 295 passed; `pnpm test` 346 passed (33 files; router/App/App.sync/LandingView and PR4/PR5 suites untouched and green); vue-tsc clean; `pnpm build` ok; `pnpm test:e2e` 19 passed; tsbuildinfo restored.
+
+### Not verified
+- PostgreSQL / project docker volume (SQLite only). The retry path uses the generic IntegrityError; real concurrent collisions were simulated by monkeypatch, not by parallel requests.
+- Payments call and payment modal outcome are still local (PR7); the order created in the UI is local-first and the POST error is still swallowed (PR8).
+- No mobile viewport screenshots.
+
+### Remaining: PR7..PR10 (and V.1/V.2/V.3)

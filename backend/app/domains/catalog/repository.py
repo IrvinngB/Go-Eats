@@ -20,6 +20,9 @@ class ProductRepository:
         )
         return list(self.db.scalars(stmt).all())
 
+    def get_by_code(self, code: str) -> Product | None:
+        return self.db.scalars(select(Product).where(Product.code == code)).first()
+
     def get_by_id_or_code(self, identifier: str) -> Product | None:
         if identifier.isdigit():
             product = self.db.get(Product, int(identifier))

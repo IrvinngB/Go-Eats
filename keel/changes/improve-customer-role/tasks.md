@@ -62,10 +62,10 @@ Every PR gate: `cd backend && .venv/bin/pytest`, `pnpm test`, `pnpm exec vue-tsc
 - [x] 5.4 Canonical keys in `mockData.js` (incl. initial mock orders), MerchantView, CourierView, OrdersView, store; `rechazado` in every terminal list (MerchantView:22-23, CourierView:26, store L65, OrdersView:88) and `ESTADO_LABELS`; timeline renders reason (RED component specs).
 
 ## PR6: Pricing + codes + method (backend and frontend together)
-- [ ] 6.1 RED `test_pricing.py` (tampered price/fee ignored, promo, closed/unaffiliated 400, inactive/unavailable product 400, extra fields ignored); GREEN server recompute.
-- [ ] 6.2 RED first order after seed is `PED-1100`, collision retry via monkeypatched `next_code`; GREEN max+1 for `PED-`/`TX-`, retry 3x.
-- [ ] 6.3 RED `tarjeta` 422; GREEN `Literal["contr_entrega","yappy"]`; seed cycle.
-- [ ] 6.4 Store: send `yappy`, drop price/fee/name fields, map `promo_price`, label "Pago electrónico (simulado)" (RED store spec).
+- [x] 6.1 RED `test_pricing.py` (tampered price/fee ignored, promo, closed/unaffiliated 400, inactive/unavailable product 400, extra fields ignored); GREEN server recompute.
+- [x] 6.2 RED first order after seed is `PED-1100`, collision retry via monkeypatched `next_code`; GREEN max+1 for `PED-`/`TX-`, retry 3x.
+- [x] 6.3 RED `tarjeta` 422; GREEN `Literal["contr_entrega","yappy"]`; seed cycle.
+- [x] 6.4 Store: send `yappy`, drop price/fee/name fields, map `promo_price`, label "Pago electrónico (simulado)" (RED store spec).
 
 ## PR7: Payments
 - [ ] 7.1 RED `test_payments.py` (amounts from order, duplicate 409, other's order 404, flag-off ignores `simulate_failure`, legacy `tarjeta` readable, fallido cancels order, receipt owner); GREEN.

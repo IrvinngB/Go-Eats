@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -6,7 +7,7 @@ class PaymentCreate(BaseModel):
     order_code: str
     merchant_name: str
     customer_name: str
-    method: str = Field(..., description="contr_entrega | tarjeta | yappy")
+    method: Literal["contr_entrega", "yappy"]
     subtotal: float = Field(..., ge=0)
     delivery_fee: float = Field(..., ge=0)
     simulate_failure: bool = False
