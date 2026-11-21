@@ -81,10 +81,11 @@ Every PR gate: `cd backend && .venv/bin/pytest`, `pnpm test`, `pnpm exec vue-tsc
 - [x] 9.3 (extra, PR8 risk) RED store spec: `crearPedido` retry-safe (POST /orders once across a failed payment and its retry); GREEN remembered order code, cleared on success/cart change/cancel/logout.
 
 ## PR10: Guards, flag, Docker, e2e
-- [ ] 10.1 RED `guards.spec.ts` (anon redirect, wrong role, `//evil.com`/`https:` rejected, login-page redirect); GREEN `guards.ts`, `main.ts` install, `setSessionExpiredHandler`.
-- [ ] 10.2 RED `TopBar.spec.ts` (`vi.stubEnv`); GREEN `config.ts` `DEMO_SWITCHER`, TopBar, "Iniciar sesión".
-- [ ] 10.3 `vite-env.d.ts` typing, root Dockerfile `ARG/ENV` before build, `docker-compose.override.yml`, `.env.development`; document override vs `-f docker-compose.yml`.
-- [ ] 10.4 `e2e/guards.spec.ts` real-browser: anonymous `/panel-admin` -> `/login?redirect=%2Fpanel-admin`; mocked login returns to target; landing e2e stays green.
+- [x] 10.1 RED `guards.spec.ts` (anon redirect, wrong role, `//evil.com`/`https:` rejected, login-page redirect); GREEN `guards.ts`, `main.ts` install, `setSessionExpiredHandler`.
+- [x] 10.2 RED `TopBar.spec.ts` (`vi.stubEnv`); GREEN `config.ts` `DEMO_SWITCHER`, TopBar, "Iniciar sesión".
+- [ ] 10.3 (PARTIAL: everything done except `.env.development`, whose creation is denied by this environment's permission rules; user must create it, see apply-progress) `vite-env.d.ts` typing, root Dockerfile `ARG/ENV` before build, `docker-compose.override.yml`, `.env.development`; document override vs `-f docker-compose.yml`.
+- [x] 10.4 `e2e/guards.spec.ts` real-browser: anonymous `/panel-admin` -> `/login?redirect=/panel-admin` (vue-router leaves the slash unescaped; `%2F` is equivalent); mocked login returns to target; landing e2e stays green.
+- [x] 10.5 (extra, Q4) RED `test_orders_customer_only.py` (admin POST /orders -> 403, customer 201); GREEN `orders/router.py` `require_roles(UserRole.CUSTOMER)`.
 
 ## Verification (one-time, after PR10 or per-PR as noted)
 - [ ] V.1 Before merging PR2 and PR5: `docker compose up` against the EXISTING Postgres volume; confirm columns, links, advisory lock path, 4 workers no-op, statuses rewritten (PG-only, untested in SQLite).

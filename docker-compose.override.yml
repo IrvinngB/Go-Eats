@@ -1,0 +1,13 @@
+# LOCAL DEMO ONLY. `docker compose up` / `docker compose build` merge this file automatically.
+# It bakes the demo account switcher into the web bundle (build-time flag, see the root Dockerfile).
+#
+# Production / CI must NOT load it:  docker compose -f docker-compose.yml up --build
+# (naming the base file explicitly disables the override; the switcher then stays OFF).
+#
+# The backend flags DEV_ROLE_OVERRIDE / DEV_SIMULATE_FAILURE stay unset (OFF): the switcher uses the
+# normal login, so it does not need them (clarifications Q7; there is no Q11 in the clarifications).
+services:
+  web:
+    build:
+      args:
+        VITE_ENABLE_DEMO_SWITCHER: "true"

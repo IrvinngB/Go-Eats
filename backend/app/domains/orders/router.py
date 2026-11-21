@@ -40,7 +40,7 @@ def get_order(
 def create_order(
     payload: OrderCreate,
     background_tasks: BackgroundTasks,
-    current_user: CurrentUser = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN)),
+    current_user: CurrentUser = Depends(require_roles(UserRole.CUSTOMER)),
     _consent: CurrentUser = Depends(require_active_consent),
     db: Session = Depends(get_db),
 ) -> OrderRead:
