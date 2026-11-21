@@ -75,15 +75,15 @@ Each PR must pass `cd backend && .venv/bin/pytest -q`, `pnpm test`, `pnpm exec v
 
 ## Unit C (PR 5): catalog browsing (frontend only)
 
-- [ ] 5.1 **Rebase on `develop` after improve-merchant-role merges, before starting.**
-- [ ] 5.2 RED `src/utils/catalog.spec.ts`: name search (case/accent-insensitive), category filter, sort, promo detection from `precioRegular > precio`.
-- [ ] 5.3 GREEN `src/utils/catalog.ts`.
-- [ ] 5.4 RED `src/stores/useGoEatsStore.spec.ts`: mapper keeps `precio` (effective) and `precioRegular` (list), `categoria`.
-- [ ] 5.5 RED `src/views/customer/StoresView.spec.ts` (new): search, `category_type` chips, sort, empty state, closed merchants visibly disabled with label; GREEN `StoresView.vue`.
-- [ ] 5.6 RED/GREEN `StoreDetailView.spec.ts`: product search, category filter, promo badge, closed merchant disables add-to-cart and shows notice.
+- [x] 5.1 **Rebase on `develop` after improve-merchant-role merges, before starting.** (Backend and store mapper already expose `category_type`, `is_open`, `category`, `price`, `promo_price` on current `develop`).
+- [x] 5.2 RED `src/utils/catalog.spec.ts`: name search (case/accent-insensitive), category filter, sort, promo detection from `precioRegular > precio`.
+- [x] 5.3 GREEN `src/utils/catalog.ts`.
+- [x] 5.4 RED `src/stores/useGoEatsStore.spec.ts`: mapper keeps `precio` (effective) and `precioRegular` (list), `categoria`.
+- [x] 5.5 RED `src/views/customer/StoresView.spec.ts` (new): search, `category_type` chips, sort, empty state, closed merchants visibly disabled with label; GREEN `StoresView.vue`.
+- [x] 5.6 RED/GREEN `StoreDetailView.spec.ts`: product search, category filter, promo badge, closed merchant disables add-to-cart and shows notice.
 - [ ] 5.7 Real-browser check on throwaway backend with seeded closed merchant and promo product.
 
 ## Final
 
-- [ ] 6.1 Update `keel/steering/tech.md` (new columns, migration helper, gateway/card data rules, DEMO_SWITCHER use, coverage helper) and `changelog.md` (Added/Changed/Security per unit).
-- [ ] 6.2 Confirm no `goeats.db`, project docker volume, or scratchpad leftovers committed.
+- [x] 6.1 Update `keel/steering/tech.md` (new columns, migration helper, gateway/card data rules, DEMO_SWITCHER use, coverage helper) and `changelog.md` (Added/Changed/Security per unit).
+- [x] 6.2 Confirm no `goeats.db`, project docker volume, or scratchpad leftovers committed.

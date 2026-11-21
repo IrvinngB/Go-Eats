@@ -1,14 +1,38 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useGoEatsStore } from '../../stores/useGoEatsStore'
 import { useRouter } from 'vue-router'
 import CommerceIcon from '../../components/CommerceIcon.vue'
 import CoverageMap from '../../components/CoverageMap.vue'
-import { MapPin, LayoutGrid, Map, Locate } from '@lucide/vue'
+import { MapPin, LayoutGrid, Map } from '@lucide/vue'
+import { extraerCategorias, filtrarYOrdenarComercios } from '../../utils/catalog'
 
 const store = useGoEatsStore()
 const router = useRouter()
 const vistaActiva = ref('grid') // 'grid' | 'mapa'
+const busqueda = ref('')
+const categoriaSeleccionada = ref('')
+const orden = ref('relevancia') // 'relevancia' | 'rating' | 'nombre'
+
+const categoriasZona = computed(() => extraerCategorias(store.comerciosPorZona, 'tipo'))
+const comerciosFiltrados = computed(() =>
+  filtrarYOrdenarComercios(store.comerciosPorZona, {
+    busqueda: busqueda.value,
+    categoria: categoriaSeleccionada.value,
+    orden: orden.value,
+  }),
+)
+
+function limpiarFiltros() {
+  busqueda.value = ''
+  categoriaSeleccionada.value = ''
+  orden.value = 'relevancia'
+}
+
+function seleccionarZona(slug) {
+  store.seleccionarZona(slug)
+  categoriaSeleccionada.value = ''
+}
 
 function abrirTienda(c) {
   if (!c.activo || c.estadoAfiliacion !== 'activo') return
@@ -21,7 +45,7 @@ function abrirTienda(c) {
 }
 
 function alSeleccionarZonaDesdeMapa(slug) {
-  store.seleccionarZona(slug)
+  seleccionarZona(slug)
 }
 </script>
 
@@ -60,7 +84,7 @@ function alSeleccionarZonaDesdeMapa(slug) {
         v-for="z in store.zonas" :key="z.id"
         class="shrink-0 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-150"
         :class="store.zonaSeleccionada === z.id ? 'bg-brand text-white border-brand shadow-sm' : 'bg-white text-ink border-line hover:border-brand/50'"
-        @click="store.seleccionarZona(z.id)"
+        @click="seleccionarZona(z.id)"
       >
         {{ z.nombre }}
         <span class="ml-1.5 text-xs opacity-80">B/ {{ z.tarifa.toFixed(2) }}</span>
@@ -78,6 +102,50 @@ function alSeleccionarZonaDesdeMapa(slug) {
       <div class="text-sm"><span class="text-slatebody">Comercios activos: </span><span class="font-semibold text-ink">{{ store.comerciosPorZona.filter((c) => c.activo).length }}</span></div>
     </div>
 
+    <!-- Buscador, filtro por categoría y orden -->
+    <div v-show="vistaActiva === 'grid'" class="mt-5 space-y-3">
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="flex-1 min-w-[220px]">
+          <label for="stores-search" class="sr-only">Buscar comercios</label>
+          <input
+            id="stores-search"
+            v-model="busqueda"
+            data-test="stores-search"
+            type="search"
+            class="input"
+            placeholder="Buscar comercio o tipo de comida…"
+          />
+        </div>
+        <div>
+          <label for="stores-sort" class="sr-only">Ordenar comercios</label>
+          <select id="stores-sort" v-model="orden" data-test="stores-sort" class="input !w-auto">
+            <option value="relevancia">Ordenar: Relevancia</option>
+            <option value="rating">Ordenar: Mejor calificados</option>
+            <option value="nombre">Ordenar: Nombre (A-Z)</option>
+          </select>
+        </div>
+      </div>
+
+      <div v-if="categoriasZona.length > 0" class="flex flex-wrap gap-2">
+        <button
+          type="button"
+          data-test="stores-category"
+          class="rounded-full border px-3 py-1 text-xs font-medium transition-colors"
+          :class="categoriaSeleccionada === '' ? 'bg-brand text-white border-brand' : 'bg-white text-ink border-line hover:border-brand/50'"
+          @click="categoriaSeleccionada = ''"
+        >Todos</button>
+        <button
+          v-for="cat in categoriasZona"
+          :key="cat"
+          type="button"
+          data-test="stores-category"
+          class="rounded-full border px-3 py-1 text-xs font-medium transition-colors"
+          :class="categoriaSeleccionada === cat ? 'bg-brand text-white border-brand' : 'bg-white text-ink border-line hover:border-brand/50'"
+          @click="categoriaSeleccionada = cat"
+        >{{ cat }}</button>
+      </div>
+    </div>
+
     <!-- Vista Mapa Interactivo -->
     <div v-if="vistaActiva === 'mapa'" class="mt-6 space-y-4">
       <CoverageMap
@@ -89,44 +157,51 @@ function alSeleccionarZonaDesdeMapa(slug) {
         @seleccionar-zona="alSeleccionarZonaDesdeMapa"
       />
       <p class="text-xs text-slatebody text-center">
-        💡 Hacé clic en los polígonos de zona para filtrar comercios o en los pines para ver su menú y calificación.
+        Haz clic en los polígonos de zona para filtrar comercios o en los pines para ver su menú y calificación.
       </p>
     </div>
 
     <!-- Grid de comercios -->
-    <div v-show="vistaActiva === 'grid'" class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <button
-        v-for="c in store.comerciosPorZona" :key="c.id"
-        class="card p-5 text-left transition-all duration-200 hover:shadow-md hover:border-brand/40 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
-        :disabled="!c.activo"
-        @click="abrirTienda(c)"
-      >
-        <div class="flex items-start justify-between">
-          <span class="grid place-items-center w-12 h-12 rounded-xl bg-brand-light text-brand">
-            <CommerceIcon :name="c.icono" class="w-6 h-6" />
-          </span>
-          <span
-            v-if="!c.activo"
-            class="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
-            :class="c.estadoAfiliacion === 'en_revision' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-red-50 text-red-600 border-red-200'"
-          >
-            {{ c.estadoAfiliacion === 'en_revision' ? 'En revisión' : 'Cerrado' }}
-          </span>
-        </div>
-        <h3 class="mt-3 font-semibold text-ink">{{ c.nombre }}</h3>
-        <p class="text-xs text-slatebody mt-0.5">{{ c.tipo }}</p>
-        <p class="text-xs text-slatebody mt-2 line-clamp-2">{{ c.descripcion }}</p>
-        <div class="mt-3 pt-3 border-t border-line flex items-center gap-3 text-xs text-slatebody">
-          <span class="flex items-center gap-1 text-amber-600 font-semibold">
-            <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 20 20"><path d="M9.05 2.93c.3-.92 1.6-.92 1.9 0l1.1 3.4a1 1 0 00.95.7h3.6c.97 0 1.37 1.24.59 1.81l-2.9 2.1a1 1 0 00-.36 1.12l1.1 3.4c.3.92-.75 1.69-1.54 1.12l-2.9-2.1a1 1 0 00-1.18 0l-2.9 2.1c-.79.57-1.84-.2-1.54-1.12l1.1-3.4a1 1 0 00-.36-1.12L2.8 8.84c-.78-.57-.38-1.81.59-1.81h3.6a1 1 0 00.95-.7l1.1-3.4z"/></svg>
-            {{ c.rating }}
-          </span>
-          <span class="flex items-center gap-1">
-            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            {{ c.tiempoEntrega }}
-          </span>
-        </div>
-      </button>
+    <div v-show="vistaActiva === 'grid'" class="mt-6">
+      <div v-if="comerciosFiltrados.length > 0" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <button
+          v-for="c in comerciosFiltrados" :key="c.id"
+          data-test="merchant-card"
+          class="card p-5 text-left transition-all duration-200 hover:shadow-md hover:border-brand/40 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+          :disabled="!c.activo"
+          @click="abrirTienda(c)"
+        >
+          <div class="flex items-start justify-between">
+            <span class="grid place-items-center w-12 h-12 rounded-xl bg-brand-light text-brand">
+              <CommerceIcon :name="c.icono" class="w-6 h-6" />
+            </span>
+            <span
+              data-test="merchant-status"
+              class="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
+              :class="c.activo ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : c.estadoAfiliacion === 'en_revision' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-red-50 text-red-600 border-red-200'"
+            >
+              {{ c.activo ? 'Abierto' : c.estadoAfiliacion === 'en_revision' ? 'En revisión' : 'Cerrado' }}
+            </span>
+          </div>
+          <h3 class="mt-3 font-semibold text-ink">{{ c.nombre }}</h3>
+          <p class="text-xs text-slatebody mt-0.5">{{ c.tipo }}</p>
+          <p class="text-xs text-slatebody mt-2 line-clamp-2">{{ c.descripcion }}</p>
+          <div class="mt-3 pt-3 border-t border-line flex items-center gap-3 text-xs text-slatebody">
+            <span class="flex items-center gap-1 text-amber-600 font-semibold">
+              <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 20 20"><path d="M9.05 2.93c.3-.92 1.6-.92 1.9 0l1.1 3.4a1 1 0 00.95.7h3.6c.97 0 1.37 1.24.59 1.81l-2.9 2.1a1 1 0 00-.36 1.12l1.1 3.4c.3.92-.75 1.69-1.54 1.12l-2.9-2.1a1 1 0 00-1.18 0l-2.9 2.1c-.79.57-1.84-.2-1.54-1.12l1.1-3.4a1 1 0 00-.36-1.12L2.8 8.84c-.78-.57-.38-1.81.59-1.81h3.6a1 1 0 00.95-.7l1.1-3.4z"/></svg>
+              {{ c.rating }}
+            </span>
+            <span class="flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              {{ c.tiempoEntrega }}
+            </span>
+          </div>
+        </button>
+      </div>
+      <div v-else data-test="stores-empty" class="card p-8 text-center">
+        <p class="text-sm font-medium text-ink">No encontramos comercios con esos filtros.</p>
+        <button type="button" data-test="stores-clear-filters" class="btn-secondary mt-3 text-xs" @click="limpiarFiltros">Limpiar filtros</button>
+      </div>
     </div>
   </div>
 </template>

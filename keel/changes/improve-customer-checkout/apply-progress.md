@@ -102,3 +102,22 @@ src/utils/card.ts (new), src/utils/card.spec.ts (new), src/components/PaymentGat
 
 ### Remaining
 C (catalog browsing), Final.
+
+## Unit C (PR 5) + Final: catalog browsing & steering/changelog — DONE
+
+Branch `feat/checkout-pr5-catalog-browsing`. Tasks 5.1-5.6 and 6.1-6.2 complete.
+
+### TDD Cycle Evidence
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|-----------|-----|-------|-------------|----------|
+| 5.2/5.3 | src/utils/catalog.spec.ts | unit | n/a (new) | module `./catalog` missing | 5 passed | accent/case-insensitive search, promo detection, unique category extraction, merchant filter+sort (relevance/rating/name), product filter | none |
+| 5.4 | src/stores/useGoEatsStore.spec.ts | store | 42 passed | extended promo price test to assert `categoria` | 42 passed | effective `precio`, `precioRegular`, `categoria` | none |
+| 5.5 | src/views/customer/StoresView.spec.ts | component | n/a (new) | 3 failed (`merchant-card`, `stores-category`, `merchant-status` absent) | 3 passed | accent-insensitive search, empty state + clear filters, category chips, sort by name/rating, `Abierto`/`Cerrado` badge and disabled closed cards | neutral Spanish copy in map caption |
+| 5.6 | src/views/customer/StoreDetailView.spec.ts | component | 31 passed | 3 failed (`promo-badge`, `product-card`/`products-category`, `closed-merchant-notice` absent) | 33 passed | promo badge when `precioRegular > precio`, product search & category chips, empty state, closed merchant notice & disabled add-to-cart | avoided `.input` class on menu search input so existing checkout `.input` selector stays unambiguous |
+
+### Totals
+`pnpm test` 641 passed (48 files); `vue-tsc -b` 0; `pnpm build` OK; `pnpm test:e2e` 33 passed; backend `pytest -q` 386 passed. `tsconfig.app.tsbuildinfo` restored.
+
+### Files
+src/utils/catalog.ts (new), src/utils/catalog.spec.ts (new), src/views/customer/StoresView.vue, src/views/customer/StoresView.spec.ts (new), src/views/customer/StoreDetailView.vue, src/views/customer/StoreDetailView.spec.ts, src/stores/useGoEatsStore.spec.ts, keel/steering/tech.md, changelog.md.
