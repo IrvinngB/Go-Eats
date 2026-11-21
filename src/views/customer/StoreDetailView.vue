@@ -6,6 +6,7 @@ import CommerceIcon from '../../components/CommerceIcon.vue'
 import PaymentGatewayModal from '../../components/PaymentGatewayModal.vue'
 import { puntoEnCobertura } from '../../utils/geo'
 import { extraerCategorias, filtrarProductos, tienePromocion } from '../../utils/catalog'
+import { Search, Clock, Bike, Utensils, Sparkles } from '@lucide/vue'
 
 // Leaflet only loads when the user chooses to change the address for this order.
 const AddressPickerMap = defineAsyncComponent(() => import('../../components/AddressPickerMap.vue'))
@@ -37,7 +38,6 @@ const refDireccion = ref(null)
 const refCambiar = ref(null)
 const observaciones = ref('')
 const metodoPago = ref('contr_entrega')
-const pagoEstado = ref(null) // null | 'procesando' | 'aprobado' | 'rechazado' | 'error'
 const pedidoCreado = ref(null)
 const totalAPagar = ref(0)
 const modalPago = ref(false)
@@ -49,6 +49,11 @@ const mostrandoGuardada = computed(() => direccionGuardada.value !== '' && !edit
 const fueraDeCobertura = computed(() => punto.value !== null && !puntoEnCobertura(punto.value.lat, punto.value.lng))
 
 const total = computed(() => store.carritoSubtotal + (checkoutPaso.value ? store.zonaActual.tarifa : 0))
+
+function porcentajeDescuento(p) {
+  if (!tienePromocion(p) || !p.precioRegular) return 0
+  return Math.round(((p.precioRegular - p.precio) / p.precioRegular) * 100)
+}
 
 function agregar(p) {
   if (!p.disponible || !comercioAbierto.value) return
@@ -139,7 +144,6 @@ async function confirmarPedido() {
     // Nothing is created until the user pays: the modal's single action does both calls.
     totalAPagar.value = total.value
     pedidoCreado.value = null
-    pagoEstado.value = null
     carritoAbierto.value = false
     modalPago.value = true
     return
@@ -182,34 +186,52 @@ function verPedido() {
 </script>
 
 <template>
-  <div v-if="comercio" class="mx-auto max-w-6xl px-4 py-8 pb-32">
-    <button class="text-sm text-slatebody hover:text-ink flex items-center gap-1.5 mb-5" @click="router.push('/tiendas')">
+  <div v-if="comercio" class="mx-auto max-w-6xl px-4 py-6 pb-32">
+    <button class="text-sm font-medium text-slatebody hover:text-ink flex items-center gap-1.5 mb-4" @click="router.push('/tiendas')">
       <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
       Volver a comercios
     </button>
 
-    <!-- Encabezado -->
-    <div class="card p-6 flex flex-wrap items-center gap-5">
-      <span class="grid place-items-center w-16 h-16 rounded-2xl bg-brand-light text-brand">
-        <CommerceIcon :name="comercio.icono" class="w-8 h-8" />
-      </span>
-      <div class="flex-1 min-w-[200px]">
-        <h1 class="text-2xl font-bold">{{ comercio.nombre }}</h1>
-        <p class="text-sm text-slatebody">{{ comercio.tipo }} · {{ store.zonaActual.nombre }}</p>
-        <p class="text-sm text-slatebody mt-1">{{ comercio.descripcion }}</p>
+    <!-- Portada tipo Uber Eats / PedidosYa -->
+    <div class="card overflow-hidden p-0">
+      <div class="relative h-36 sm:h-44 bg-emerald-500/15 border-b border-line/60 px-6 py-4 flex items-end justify-between">
+        <div class="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2 opacity-20">
+          <CommerceIcon :name="comercio.icono" class="w-28 h-28 text-brand-dark" />
+        </div>
+        <div class="flex items-center gap-4 z-10">
+          <span class="grid place-items-center w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-white text-brand shadow-md border border-line">
+            <CommerceIcon :name="comercio.icono" class="w-9 h-9" />
+          </span>
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <span
+                class="rounded-full border px-2.5 py-0.5 text-[11px] font-bold"
+                :class="comercioAbierto ? 'bg-white text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'"
+              >
+                {{ comercioAbierto ? 'Abierto ahora' : 'Cerrado' }}
+              </span>
+              <span class="text-xs font-semibold text-brand-dark">{{ comercio.tipo }} · {{ store.zonaActual.nombre }}</span>
+            </div>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-ink mt-1">{{ comercio.nombre }}</h1>
+          </div>
+        </div>
       </div>
-      <div class="flex gap-6 text-center">
-        <div>
-          <p class="text-lg font-bold text-ink">{{ comercio.rating }}</p>
-          <p class="text-[11px] text-slatebody">Calificación</p>
-        </div>
-        <div>
-          <p class="text-lg font-bold text-ink">{{ comercio.tiempoEntrega }}</p>
-          <p class="text-[11px] text-slatebody">Entrega</p>
-        </div>
-        <div>
-          <p class="text-lg font-bold text-ink">B/ {{ store.zonaActual.tarifa.toFixed(2) }}</p>
-          <p class="text-[11px] text-slatebody">Envío</p>
+
+      <div class="px-6 py-4 flex flex-wrap items-center justify-between gap-4 bg-white">
+        <p class="text-sm text-slatebody max-w-2xl">{{ comercio.descripcion }}</p>
+        <div class="flex flex-wrap items-center gap-2.5 text-xs font-bold">
+          <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-3 py-1.5 text-amber-700">
+            ★ {{ comercio.rating }}
+            <span class="font-normal text-slatebody">Calificación</span>
+          </span>
+          <span class="inline-flex items-center gap-1.5 rounded-full bg-canvas border border-line px-3 py-1.5 text-ink">
+            <Clock class="h-3.5 w-3.5 text-brand" />
+            {{ comercio.tiempoEntrega }}
+          </span>
+          <span class="inline-flex items-center gap-1.5 rounded-full bg-canvas border border-line px-3 py-1.5 text-ink">
+            <Bike class="h-3.5 w-3.5 text-brand" />
+            Envío B/ {{ store.zonaActual.tarifa.toFixed(2) }}
+          </span>
         </div>
       </div>
     </div>
@@ -219,75 +241,97 @@ function verPedido() {
       v-if="!comercioAbierto"
       data-test="closed-merchant-notice"
       role="status"
-      class="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+      class="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800"
     >
       Este comercio se encuentra cerrado en este momento. Puedes explorar su menú, pero no es posible agregar productos al carrito.
     </div>
 
-    <!-- Buscador y filtros del menú -->
-    <div class="mt-6 space-y-3">
-      <div>
-        <label for="products-search" class="sr-only">Buscar en el menú</label>
-        <input
-          id="products-search"
-          v-model="busquedaProducto"
-          data-test="products-search"
-          type="search"
-          class="w-full max-w-md rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm text-ink placeholder:text-slatebody/70 focus:border-brand focus:outline-none"
-          placeholder="Buscar producto en el menú…"
-        />
-      </div>
-      <div v-if="categoriasMenu.length > 0" class="flex flex-wrap gap-2">
-        <button
-          type="button"
-          data-test="products-category"
-          class="rounded-full border px-3 py-1 text-xs font-medium transition-colors"
-          :class="categoriaProducto === '' ? 'bg-brand text-white border-brand' : 'bg-white text-ink border-line hover:border-brand/50'"
-          @click="categoriaProducto = ''"
-        >Todos</button>
-        <button
-          v-for="cat in categoriasMenu"
-          :key="cat"
-          type="button"
-          data-test="products-category"
-          class="rounded-full border px-3 py-1 text-xs font-medium transition-colors"
-          :class="categoriaProducto === cat ? 'bg-brand text-white border-brand' : 'bg-white text-ink border-line hover:border-brand/50'"
-          @click="categoriaProducto = cat"
-        >{{ cat }}</button>
+    <!-- Barra sticky de búsqueda y categorías del menú estilo PedidosYa / Uber Eats -->
+    <div class="sticky top-16 z-20 mt-6 rounded-2xl border border-line bg-white/95 p-3.5 shadow-sm">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="relative flex-1 min-w-[220px] max-w-md">
+          <label for="products-search" class="sr-only">Buscar en el menú</label>
+          <Search class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slatebody" />
+          <input
+            id="products-search"
+            v-model="busquedaProducto"
+            data-test="products-search"
+            type="search"
+            class="w-full rounded-full border border-line bg-canvas pl-10 pr-4 py-2 text-sm text-ink placeholder:text-slatebody/70 focus:border-brand focus:bg-white focus:outline-none transition-colors"
+            placeholder="Buscar plato o bebida en el menú…"
+          />
+        </div>
+
+        <div v-if="categoriasMenu.length > 0" class="flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            data-test="products-category"
+            class="rounded-full border px-3.5 py-1.5 text-xs font-bold transition-all"
+            :class="categoriaProducto === '' ? 'bg-ink text-white border-ink shadow-sm' : 'bg-canvas text-ink border-line hover:border-brand/50'"
+            @click="categoriaProducto = ''"
+          >Todos</button>
+          <button
+            v-for="cat in categoriasMenu"
+            :key="cat"
+            type="button"
+            data-test="products-category"
+            class="rounded-full border px-3.5 py-1.5 text-xs font-bold transition-all"
+            :class="categoriaProducto === cat ? 'bg-ink text-white border-ink shadow-sm' : 'bg-canvas text-ink border-line hover:border-brand/50'"
+            @click="categoriaProducto = cat"
+          >{{ cat }}</button>
+        </div>
       </div>
     </div>
 
-    <!-- Productos -->
-    <h2 class="mt-6 mb-4 text-lg font-semibold">Menú</h2>
-    <div v-if="productosFiltrados.length > 0" class="grid gap-3 sm:grid-cols-2">
+    <!-- Productos estilo tarjetas horizontales Uber Eats / PedidosYa -->
+    <h2 class="mt-6 mb-4 text-lg font-extrabold text-ink">Menú</h2>
+    <div v-if="productosFiltrados.length > 0" class="grid gap-4 sm:grid-cols-2">
       <div
         v-for="p in productosFiltrados" :key="p.id"
         data-test="product-card"
-        class="card p-4 flex items-start gap-4"
+        class="card p-4 flex items-stretch justify-between gap-4 transition-all hover:border-brand/40 hover:shadow-md"
         :class="{ 'opacity-55': !p.disponible || !comercioAbierto }"
       >
-        <div class="flex-1">
-          <div class="flex items-center gap-2 flex-wrap">
-            <h3 class="font-medium text-ink text-sm">{{ p.nombre }}</h3>
-            <span
-              v-if="tienePromocion(p)"
-              data-test="promo-badge"
-              class="text-[10px] font-semibold uppercase text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5"
-            >Promo</span>
-            <span v-if="!p.disponible" class="text-[10px] font-semibold uppercase text-red-500 bg-red-50 border border-red-100 rounded-full px-2 py-0.5">Agotado</span>
+        <div class="flex-1 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center gap-1.5 flex-wrap mb-1">
+              <span v-if="p.categoria" class="text-[11px] font-semibold text-slatebody">{{ p.categoria }}</span>
+              <span
+                v-if="tienePromocion(p)"
+                data-test="promo-badge"
+                class="inline-flex items-center gap-0.5 text-[10px] font-extrabold uppercase text-emerald-800 bg-emerald-100 border border-emerald-200 rounded-full px-2 py-0.5"
+              >Promo</span>
+              <span
+                v-if="porcentajeDescuento(p) > 0"
+                class="text-[10px] font-extrabold text-amber-800 bg-amber-100 rounded-full px-2 py-0.5"
+              >-{{ porcentajeDescuento(p) }}%</span>
+              <span v-if="!p.disponible" class="text-[10px] font-semibold uppercase text-red-500 bg-red-50 border border-red-100 rounded-full px-2 py-0.5">Agotado</span>
+            </div>
+            <h3 class="font-bold text-ink text-base leading-snug">{{ p.nombre }}</h3>
+            <p class="text-xs text-slatebody mt-1 line-clamp-2">{{ p.descripcion }}</p>
           </div>
-          <p class="text-xs text-slatebody mt-0.5">{{ p.descripcion }}</p>
-          <p class="mt-2 flex items-baseline gap-2">
-            <span class="text-sm font-bold text-brand-dark" data-test="precio-efectivo">B/ {{ p.precio.toFixed(2) }}</span>
+
+          <p class="mt-3 flex items-baseline gap-2">
+            <span class="text-base font-extrabold text-ink" data-test="precio-efectivo">B/ {{ p.precio.toFixed(2) }}</span>
             <span v-if="p.precioRegular > p.precio" class="text-xs text-slatebody line-through" data-test="precio-regular">B/ {{ p.precioRegular.toFixed(2) }}</span>
           </p>
         </div>
-        <button class="btn-primary !px-3 !py-2" :disabled="!p.disponible || !comercioAbierto" @click="agregar(p)">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-        </button>
+
+        <!-- Thumbnail visual del plato con botón "+" flotante tipo Uber Eats -->
+        <div class="relative shrink-0 w-24 h-24 rounded-2xl bg-canvas border border-line grid place-items-center">
+          <Sparkles v-if="tienePromocion(p)" class="w-8 h-8 text-amber-500/70" />
+          <Utensils v-else class="w-8 h-8 text-brand/50" />
+          <button
+            class="btn-primary !p-2 !rounded-full absolute -bottom-2 -right-2 shadow-md"
+            :disabled="!p.disponible || !comercioAbierto"
+            @click="agregar(p)"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+          </button>
+        </div>
       </div>
     </div>
-    <div v-else data-test="products-empty" class="card p-6 text-center text-sm text-slatebody">
+    <div v-else data-test="products-empty" class="card p-8 text-center text-sm text-slatebody">
       No hay productos que coincidan con tu búsqueda.
     </div>
 
@@ -323,19 +367,18 @@ function verPedido() {
                     class="input mt-2 !py-1.5 !text-xs"
                     placeholder="Observación (ej. sin cebolla)"
                     :value="item.observacion"
-                    @change="store.carrito[idx].observacion = $event.target.value"
+                    @input="store.actualizarItemCarrito(idx, { observacion: $event.target.value })"
                   />
                 </div>
-                <div class="flex items-center gap-2">
-                  <button class="w-7 h-7 rounded-lg border border-line text-slatebody hover:bg-canvas" @click="store.actualizarCantidad(idx, -1)">−</button>
-                  <span class="w-6 text-center text-sm font-semibold text-ink">{{ item.cantidad }}</span>
-                  <button class="w-7 h-7 rounded-lg border border-line text-slatebody hover:bg-canvas" @click="store.actualizarCantidad(idx, 1)">+</button>
+                <div class="flex items-center gap-1.5">
+                  <button class="w-7 h-7 rounded-lg border border-line grid place-items-center text-sm hover:bg-canvas" @click="store.actualizarItemCarrito(idx, { cantidad: item.cantidad - 1 })">−</button>
+                  <span class="w-6 text-center text-sm font-medium">{{ item.cantidad }}</span>
+                  <button class="w-7 h-7 rounded-lg border border-line grid place-items-center text-sm hover:bg-canvas" @click="store.actualizarItemCarrito(idx, { cantidad: item.cantidad + 1 })">+</button>
                 </div>
               </div>
-              <button class="text-xs text-coral mt-4 hover:underline" @click="store.vaciarCarrito()">Vaciar carrito</button>
             </div>
 
-            <!-- Checkout -->
+            <!-- Paso checkout -->
             <div v-else class="space-y-4">
               <div v-if="store.consentimientoRequerido" data-test="consent-required" class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
                 <p>Debes aceptar el tratamiento de tus datos para continuar. Tu pedido no se creó y tu carrito se conserva.</p>
@@ -371,7 +414,7 @@ function verPedido() {
               </div>
               <div>
                 <label class="label">Método de pago</label>
-                <div class="grid gap-2">
+                <div class="space-y-2">
                   <label class="flex items-center gap-3 rounded-lg border p-3 cursor-pointer" :class="metodoPago === 'contr_entrega' ? 'border-brand bg-brand-light' : 'border-line'" >
                     <input v-model="metodoPago" type="radio" value="contr_entrega" class="accent-[#00B19D]" />
                     <span>

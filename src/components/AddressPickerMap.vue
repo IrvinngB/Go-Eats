@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 // @ts-expect-error geo.js ships no type declarations
-import { CENTRO_PANAMA, COORDENADAS_ZONAS, puntoEnCobertura } from '../utils/geo'
+import { CENTRO_PANAMA, puntoEnCobertura } from '../utils/geo'
 import { TILE_URL, TILE_ATTRIBUTION } from '../utils/mapTiles'
 
 type Pin = { lat: number; lng: number }
@@ -148,11 +148,6 @@ onMounted(() => {
   L.control.zoom({ position: 'bottomright' }).addTo(mapa)
   // Capa base: ver utils/mapTiles.ts. Es la unica peticion de red del selector (sin geocodificacion ni claves).
   L.tileLayer(TILE_URL, { maxZoom: 19, attribution: TILE_ATTRIBUTION }).addTo(mapa)
-
-  // Cobertura de referencia, solo visual (no interactiva): el aviso nunca bloquea.
-  for (const z of Object.values(COORDENADAS_ZONAS) as { lat: number; lng: number; radioM: number; color: string }[]) {
-    L.circle([z.lat, z.lng], { radius: z.radioM, color: z.color, fillColor: z.color, fillOpacity: 0.08, weight: 1, interactive: false }).addTo(mapa)
-  }
 
   mapa.on('click', (e: L.LeafletMouseEvent) => {
     if (props.disabled) return
