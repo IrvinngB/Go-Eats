@@ -7,8 +7,8 @@ export default defineConfig({
     environment: 'jsdom',
     // tests/build runs real `vite build`s (not type-checked by tsc: no @types/node in this project).
     include: ['src/**/*.spec.ts', 'tests/**/*.spec.ts'],
-    // Let `landing.css?raw` return real text so specs can assert on the source.
-    css: { include: [/landing\.css/] },
+    // Let `landing.css?raw` and `catalog.css?raw` return real text so specs can assert on the source.
+    css: { include: [/landing\.css/, /catalog\.css/] },
   },
   server: {
     proxy: {

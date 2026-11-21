@@ -116,7 +116,7 @@ async function loginAndOpenStore(page: Page) {
 
 async function addFirstProductAndOpenCheckout(page: Page) {
   await expect(page.getByRole('heading', { name: 'Menú' })).toBeVisible()
-  await page.locator('h2:has-text("Menú") + div button.btn-primary').first().click()
+  await page.locator('[data-test="add-to-cart"]').first().click()
   await page.getByRole('button', { name: 'Continuar' }).click()
 }
 

@@ -133,4 +133,47 @@ describe('StoresView catalog browsing', () => {
     await closedCard.trigger('click')
     expect(router.currentRoute.value.fullPath).toBe('/tiendas')
   })
+
+  it('closed merchant is visibly disabled and announces it: disabled + aria-disabled, icon and text', async () => {
+    const { w } = await setupStores()
+    const closedCard = w.findAll('[data-test="merchant-card"]').find((c) => c.text().includes('Verde Bistro'))!
+    const openCard = w.findAll('[data-test="merchant-card"]').find((c) => c.text().includes('Fonda La Istmeña'))!
+
+    expect(closedCard.attributes('aria-disabled')).toBe('true')
+    expect(closedCard.attributes('disabled')).toBeDefined()
+    expect(closedCard.classes()).toContain('cx-tile')
+    const status = closedCard.find('[data-test="merchant-status"]')
+    expect(status.classes()).toContain('cx-badge-closed')
+    expect(status.find('svg').exists()).toBe(true)
+    expect(status.text()).toBe('Cerrado')
+
+    expect(openCard.attributes('aria-disabled')).toBeUndefined()
+    expect(openCard.find('[data-test="merchant-status"]').classes()).toContain('cx-badge-open')
+    expect(openCard.find('[data-test="merchant-status"] svg').exists()).toBe(true)
+  })
+
+  it('empty state: tinted icon circle, title, one line and exactly one primary button', async () => {
+    const { w } = await setupStores()
+    await w.find('[data-test="stores-search"]').setValue('sushi inexistente')
+    const empty = w.find('[data-test="stores-empty"]')
+    expect(empty.classes()).toContain('cx-empty')
+    expect(empty.find('.cx-empty-icon svg').exists()).toBe(true)
+    expect(empty.find('h3').text()).toBe('No encontramos comercios con esos filtros')
+    expect(empty.findAll('p')).toHaveLength(1)
+    const buttons = empty.findAll('button')
+    expect(buttons).toHaveLength(1)
+    expect(buttons[0].classes()).toContain('cx-btn')
+    expect(buttons[0].text()).toBe('Limpiar filtros')
+  })
+
+  it('selected category chip is marked with check icon, fill and aria-pressed (not color alone)', async () => {
+    const { w } = await setupStores()
+    const chips = w.findAll('[data-test="stores-category"]')
+    expect(chips[0].classes()).toContain('cx-chip-selected')
+    expect(chips[0].attributes('aria-pressed')).toBe('true')
+    expect(chips[0].find('svg').exists()).toBe(true)
+    expect(chips[1].classes()).not.toContain('cx-chip-selected')
+    expect(chips[1].attributes('aria-pressed')).toBe('false')
+    expect(chips[1].find('svg').exists()).toBe(false)
+  })
 })
