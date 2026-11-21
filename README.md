@@ -26,6 +26,23 @@ The TopBar account switcher is gated by `VITE_ENABLE_DEMO_SWITCHER` (only the ex
 
 The flag is baked into the bundle at build time, so changing it requires rebuilding the web image.
 
+### Demo catalog (opt-in, demo only)
+
+The base seed creates 16 merchants, which looks empty next to real coverage. To fill the catalog with fictional demo data:
+
+```bash
+# local
+cd backend && .venv/bin/python -m app.seed_demo_catalog --yes
+# docker
+docker compose exec api python -m app.seed_demo_catalog --yes
+```
+
+- Creates 150 fictional merchants (`DM-001`..) spread over the active zones (about 15 per zone) with about 10 products each (`DP-001-01`..): varied categories, open/closed and `en_revision` states, promo prices and sold-out items. Names are invented word-list combinations, not real businesses.
+- Options: `--merchants N`, `--products-per-merchant M`, `--seed S` (default 2026), `--dry-run` (writes nothing). It prints the target database (password masked) and refuses to write without `--yes`.
+- Idempotent and deterministic: re-running creates nothing new; a larger `--merchants` only adds the missing ones. It never modifies or deletes existing rows and never touches users, orders, payments or consent. Generated merchants have no owner account.
+- Never runs automatically (not wired into startup, `init_db` or reseed). Demo and local use only: do not run it in production.
+- The frontend loads all merchants and products in one request each, so keep the volume moderate (150 merchants is about 54 KB and 308 KB of JSON).
+
 ## Details
 
 | Area | Decision |
