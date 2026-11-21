@@ -64,7 +64,7 @@ describe('LandingView', () => {
     expect(w.findAll('main section:first-child a.lp-btn').map((a) => a.attributes('href'))).toEqual(['/tiendas', '/login'])
   })
 
-  it('orders the sections: hero, categories, steps, stores, coverage, merchants, couriers', async () => {
+  it('orders the sections: hero, categories, steps, stores, coverage, merchants, couriers, install', async () => {
     const w = await mountView()
     const sections = w.findAll('main > section')
     expect(sections.map((s) => s.attributes('id') ?? s.attributes('aria-label') ?? s.attributes('aria-labelledby'))).toEqual([
@@ -75,6 +75,7 @@ describe('LandingView', () => {
       'cobertura',
       'comercios',
       'repartidores',
+      'instalar',
     ])
   })
 
@@ -89,6 +90,7 @@ describe('LandingView', () => {
       'Zonas donde opera Go Eats',
       'Vende a tu zona con Go Eats',
       'Reparte los pedidos que te asignan',
+      'Lleva Go Eats en tu pantalla de inicio',
     ])
     expect(levels.slice(0, 3)).toEqual(['H1', 'H2', 'H3'])
   })
@@ -135,7 +137,7 @@ describe('LandingView', () => {
     await flushPromises()
     expect(w.find('#tiendas [data-test="stores-fallback"]').exists()).toBe(true)
     expect(w.find('#cobertura [data-test="coverage-fallback"]').exists()).toBe(true)
-    expect(w.findAll('main > section')).toHaveLength(7)
+    expect(w.findAll('main > section')).toHaveLength(8)
     expect(warn).toHaveBeenCalledTimes(1)
     warn.mockRestore()
   })

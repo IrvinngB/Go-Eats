@@ -66,10 +66,10 @@ Note: ~700 words on purpose, given the scope. Stacked means each PR targets `dev
 WU5a (5.1, 5.2, stores wiring) and WU5b (5.3-5.6, coverage) done.
 
 ## WU6: Install prompt (base: WU5)
-- [ ] 6.1 RED/GREEN: `useInstallPrompt.spec.ts` (`vi.resetModules`; event before mount, iOS UA, standalone, `install()`) then composable.
-- [ ] 6.2 RED/GREEN: `InstallSection` spec (button, neutral text, iOS text, hidden when installed) then component.
-- [ ] 6.3 Modify `PwaStatus.vue`: consume composable, local `dismissed`, hide on route `landing`; offline and update banners stay.
-- [ ] 6.4 Manual check PwaStatus banner on non-landing routes; stubs in `App.spec.ts` and `App.sync.spec.ts` still pass.
+- [x] 6.1 RED/GREEN: `useInstallPrompt.spec.ts` (`vi.resetModules`; event before mount, iOS UA, standalone, `install()`) then composable.
+- [x] 6.2 RED/GREEN: `InstallSection` spec (button, neutral text, iOS text, hidden when installed) then component.
+- [x] 6.3 Modify `PwaStatus.vue`: consume composable, local `dismissed`, hide on route `landing`; offline and update banners stay.
+- [x] 6.4 Manual check PwaStatus banner on non-landing routes; stubs in `App.spec.ts` and `App.sync.spec.ts` still pass.
 
 ## WU7: FAQ, CTA band, footer, copy (base: WU6)
 - [ ] 7.1 RED/GREEN: `FaqSection` spec (`aria-expanded`, `aria-controls`, one open, close open, Enter/Space) then component.

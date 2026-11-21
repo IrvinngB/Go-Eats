@@ -187,3 +187,40 @@ pnpm test 19 files / 203 tests, vue-tsc -b OK, pnpm build OK, pnpm test:e2e 1 pa
 
 ### Visual self-review (360x800 and 1440x900, API mocked, ok / error / empty; previews stopped)
 No horizontal overflow, 8 chips, static map with caption visible, touch-action auto (no scroll trap), no dialogs, no controls, map in a 32px flat frame around a 24px map. Fixed: with the fallback the right half was an empty grid column; the section now collapses to one column. Remaining flaws: the real CARTO basemap was replaced by a plain mock tile in screenshots; zone circles cluster in the south-west because the coordinates are real; the lead leaves a one-word orphan ("tuya.") at 1440 in the fallback layout; no imagery beyond the map.
+
+## WU6: Install prompt (6.1-6.4) DONE
+
+### TDD Cycle Evidence
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 6.1 | src/composables/useInstallPrompt.spec.ts | unit (jsdom, `vi.resetModules`) | n/a (new) | file failed to resolve `./useInstallPrompt`; after the composable, 3 tests failed on a test-helper bug (jsdom has no `maxTouchPoints`, `spyOn` threw), fixed in the test | 15/15 | event before consumer, singleton, prompt once, accepted/dismissed/unavailable, re-arm, appinstalled, iPhone/iPadOS/Mac/Android UA, matchMedia + navigator.standalone | none |
+| 6.3 pre (characterization) | src/components/PwaStatus.spec.ts | component | none existed | n/a: written against the UNEDITED component, 11 pass | 11/11 | install (show, prevent default, prompt once, dismissed outcome, close), offline (mount, events, unmount), update (apply, close, precedence) | none |
+| 6.3 | same, `on the landing route` block | component | 11 pass | 2 failed for the right reason (banner still shown on `landing`, and the "reappears after leaving landing" case) | 15/15, plus App.spec and App.sync.spec 3/3 | landing hides only install; offline and update stay; banner returns on /tiendas | none |
+| 6.2 | src/components/landing/InstallSection.spec.ts | component | n/a (new) | file failed to resolve `./InstallSection.vue` | 11/11 | prompt, none, iOS, standalone, appinstalled, event before mount, copy scan, no img/a | phone visual redone after visual review (looked like a squat box) |
+| 6.2 wiring | src/views/landing/LandingView.spec.ts, content.spec.ts | view | 16 pass | 3 failed with the wiring stashed (order, h2 list, section count 8) | 16/16 | n/a | none |
+
+### Files
+New: useInstallPrompt.ts (57), useInstallPrompt.spec.ts (156), PwaStatus.spec.ts (182), InstallSection.vue (62), InstallSection.spec.ts (137).
+Modified: PwaStatus.vue (script only, template same except the install `v-else-if` and close handler), content.ts (+INSTALL_COPY), content.spec.ts (INSTALL_COPY in the prohibited-claims scan), LandingView.vue (+InstallSection after RolePanels), LandingView.spec.ts, tasks.md.
+
+### Decisions and deviations
+- Composable exports `{ canInstall, installed, isIos, install }`. `install()` returns `'accepted' | 'dismissed' | 'unavailable'` and clears the deferred event always (prompt() is single use).
+- `canInstall` = event present AND not installed. iOS has no event, so iOS shows instructions; a real prompt event still wins over the instructions.
+- PwaStatus: the module-level listener replaced the component-level one. Behavior difference, deliberate: `dismissed` is local and sticky for the component lifetime, so a second `beforeinstallprompt` after a close no longer re-shows the banner (old code re-showed it). Browsers rarely fire it twice per page load.
+- Section hides entirely when installed (standalone or `appinstalled`). Neutral copy deliberately does not claim the browser "cannot" install (it also shows after the user dismissed the dialog).
+- Band: `lp-band-surface` per the design band order (install `surface`); sits after RolePanels (merchants indigo, couriers amber-tint in the as-built page, so the design's "couriers bg" differs from WU4; not touched).
+- Install CTA is `lp-btn lp-btn-secondary` with a white background override (the secondary default equals the surface band, same trick RolePanels uses). Still exactly one solid primary on the page (hero).
+- iOS instruction rendered as "Compartir > Agregar a pantalla de inicio" with a chevron icon (labelled "y luego" for assistive tech).
+
+### 6.4 Manual verification (real Chromium, throwaway script in scratchpad, `pnpm preview --port 4173`, API mocked/aborted, SW blocked)
+Synthetic `beforeinstallprompt` dispatched via `addInitScript` on `DOMContentLoaded` (after the app module registered, before the lazy landing mounted; a dispatch at timeout 0 fires BEFORE the module script exists and is lost, which a real browser does not do since the event needs the page loaded):
+- `/`: install button present (1), neutral text absent, floating banner absent, 1 `main`, button 161x44, focus ring solid 3px, click -> `prompt()` called once and the button disappears.
+- `/tiendas` (hard load with the event): floating banner shown as before. SPA navigation `/tiendas` -> `/`: banner gone, section button shown.
+- Offline on `/`: "Sin conexión" banner still shows.
+- iPhone 13 emulation: iOS text "Compartir > Agregar a pantalla de inicio", 0 buttons.
+- 360x800: scrollWidth 360 == innerWidth. Screenshots (360/1440, iOS, neutral) reviewed. Fixed: the first phone visual was a squat box; now a tall phone with a 3x3 home screen, the Go Eats tile and a dock.
+Not verifiable here: the real browser install prompt (Playwright cannot trigger it; `prompt()` was a stub, `appinstalled` after a real install and standalone mode in an installed PWA were only covered by jsdom), iOS Safari itself (only UA emulation in Chromium), and the SW-controlled path (SW blocked).
+Preview server stopped; tsconfig.app.tsbuildinfo restored.
+
+### Gates
+pnpm test 22 files / 244 tests, vue-tsc -b OK, pnpm build OK (precache 39 entries, 682.61 KiB), pnpm test:e2e 1 passed.
