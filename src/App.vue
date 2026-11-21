@@ -32,7 +32,9 @@ onMounted(() => {
     <transition name="modal">
       <div
         v-if="store.notificacion"
-        class="fixed bottom-5 left-1/2 -translate-x-1/2 z-[60] bg-ink text-white text-sm font-medium px-5 py-3 rounded-xl shadow-lg max-w-[90vw] text-center"
+        :class="store.notificacion.tipo === 'error' ? 'bg-red-600' : 'bg-ink'"
+        :data-tipo="store.notificacion.tipo || 'info'"
+        class="fixed bottom-5 left-1/2 -translate-x-1/2 z-[60] text-white text-sm font-medium px-5 py-3 rounded-xl shadow-lg max-w-[90vw] text-center"
       >
         {{ store.notificacion.texto }}
       </div>

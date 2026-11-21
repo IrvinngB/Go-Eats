@@ -72,8 +72,8 @@ Every PR gate: `cd backend && .venv/bin/pytest`, `pnpm test`, `pnpm exec vue-tsc
 - [x] 7.2 RED vitest `crearPedido` calls orders then payments, anonymous redirect keeps cart; GREEN async; modal single "Pagar (simulado)".
 
 ## PR8: Writes
-- [ ] 8.1 RED `errors.spec` `toWriteError`; GREEN `services/errors.ts`.
-- [ ] 8.2 RED store specs failed write restores snapshot + toast, success path, cart cleared on success only; GREEN helper for all writes; fix F5 auto-dismiss; no `.catch(()=>{})`.
+- [x] 8.1 RED `errors.spec` `toWriteError`; GREEN `services/errors.ts`.
+- [x] 8.2 RED store specs failed write restores snapshot + toast, success path, cart cleared on success only; GREEN helper for all writes; fix F5 auto-dismiss; no `.catch(()=>{})`.
 
 ## PR9: Consent/ARCO
 - [ ] 9.1 RED `test_consent.py` (latest by id, revoke -> 403 `consent_required` on both POSTs, re-grant, ARCO own list, Literal 422); GREEN `require_active_consent`, endpoints.

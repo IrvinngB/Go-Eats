@@ -20,12 +20,13 @@ function guardarPerfil() {
   store.guardarPerfil({ ...form.value })
 }
 
-function enviarARCO() {
+async function enviarARCO() {
   if (!detalleARCO.value.trim()) {
     store.notificar('Describe tu solicitud para continuar.')
     return
   }
-  store.enviarSolicitudARCO(tipoARCO.value, detalleARCO.value)
+  const r = await store.enviarSolicitudARCO(tipoARCO.value, detalleARCO.value)
+  if (!r.ok) return // the typed error was already toasted; the text stays in the form
   detalleARCO.value = ''
   enviado.value = true
   setTimeout(() => (enviado.value = false), 3500)

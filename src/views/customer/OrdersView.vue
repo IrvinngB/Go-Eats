@@ -38,13 +38,14 @@ function abrirCalificar(p) {
   comentarioCalificacion.value = p.comentarioCalificacion || ''
 }
 
-function enviarCalificacion() {
-  store.calificarPedido(
+async function enviarCalificacion() {
+  const r = await store.calificarPedido(
     modalCalificar.value.id,
     estrellas.value,
     estrellasRepartidor.value,
     comentarioCalificacion.value,
   )
+  if (!r.ok) return // modal stays open; the store already showed the error
   store.notificar('¡Gracias por calificar tu pedido!')
   modalCalificar.value = null
 }
