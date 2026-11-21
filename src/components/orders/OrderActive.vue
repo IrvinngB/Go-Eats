@@ -71,7 +71,7 @@ const rating = computed(() => formatRating(props.repartidor?.rating, ''))
               @click="emit('toggle-mapa')"
             >
               <MapIcon :size="20" aria-hidden="true" />
-              <span>{{ mapaAbierto ? 'Ocultar mapa en vivo' : 'Ver seguimiento en mapa en vivo' }}</span>
+              <span>{{ mapaAbierto ? 'Ocultar mapa' : 'Ver recorrido en el mapa' }}</span>
             </button>
           </div>
         </section>

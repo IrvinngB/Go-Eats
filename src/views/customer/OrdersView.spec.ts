@@ -80,10 +80,10 @@ describe('OrdersView timeline with canonical states', () => {
 
   it('live tracking is offered for the three in-progress canonical states only', () => {
     for (const e of ['en_preparacion', 'listo_para_recoger', 'en_camino']) {
-      expect(setup(pedido(e)).text()).toContain('Ver seguimiento en mapa en vivo')
+      expect(setup(pedido(e)).text()).toContain('Ver recorrido en el mapa')
     }
     for (const e of ['pendiente', 'entregado', 'rechazado', 'cancelado', 'en camino']) {
-      expect(setup(pedido(e)).text()).not.toContain('Ver seguimiento en mapa en vivo')
+      expect(setup(pedido(e)).text()).not.toContain('Ver recorrido en el mapa')
     }
   })
 

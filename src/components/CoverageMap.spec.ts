@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import L from 'leaflet'
 import CoverageMap from './CoverageMap.vue'
+import source from './CoverageMap.vue?raw'
 // @ts-expect-error geo.js ships no type declarations
 import { CENTRO_PANAMA, COORDENADAS_ZONAS as ZONAS_RAW } from '../utils/geo'
 
@@ -203,6 +204,44 @@ describe('CoverageMap default (tracking mode)', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('CoverageMap tracking honesty (no invented data, no blur)', () => {
+  it('invents no ETA: the overlay never shows a minutes range', () => {
+    const { w } = mountMap({ modo: 'tracking', pedido: PEDIDO })
+    expect(w.text()).not.toMatch(/Estimado|\d+\s*[-–]\s*\d+\s*min/)
+    expect(source).not.toMatch(/Estimado/)
+  })
+
+  it('says the courier position is simulated and keeps the store name', () => {
+    const { w } = mountMap({ modo: 'tracking', pedido: PEDIDO })
+    const note = w.find('[data-test="map-simulated"]')
+    expect(note.text()).toBe('Posición simulada (demo)')
+    expect(w.text()).toContain('Fonda Doña Rosa')
+  })
+
+  it('does not claim live tracking anywhere in the component', () => {
+    expect(source).not.toMatch(/en vivo|tiempo real|live/i)
+  })
+
+  it('has no blur, translucency or large shadow in any overlay or control', () => {
+    expect(source).not.toMatch(/backdrop-|bg-white\/|shadow-lg|\bblur\b/)
+  })
+
+  it('Centrar is at least 44px tall and wide (both modes)', () => {
+    for (const props of [{ modo: 'tracking', pedido: PEDIDO }, {}]) {
+      const { w } = mountMap(props)
+      const centrar = w.findAll('button').find((b) => b.text() === 'Centrar')!
+      expect(centrar.classes(), JSON.stringify(props)).toEqual(expect.arrayContaining(['min-h-[44px]', 'min-w-[44px]']))
+    }
+  })
+
+  it('keeps the in-transit chip with an icon and text, not color alone', () => {
+    const { w } = mountMap({ modo: 'tracking', pedido: PEDIDO })
+    const chip = w.find('[data-test="map-transit"]')
+    expect(chip.text()).toBe('En tránsito')
+    expect(chip.find('svg').exists()).toBe(true)
   })
 })
 
