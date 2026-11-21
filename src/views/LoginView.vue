@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useGoEatsStore } from '../stores/useGoEatsStore'
 import { rutaPorRol, safeRedirect } from '../guards'
+import { DEMO_SWITCHER } from '../config'
 
 const store = useGoEatsStore()
 const router = useRouter()
@@ -10,8 +11,17 @@ const route = useRoute()
 
 const modoRegistro = ref(false)
 const aceptaPolitica = ref(false)
-const email = ref('carlos@ejemplo.pa')
-const password = ref('demo1234')
+const email = ref('')
+const password = ref('')
+// Demo prefill only in flag-on builds; the dynamic import keeps the credentials out of the flag-off bundle.
+if (DEMO_SWITCHER) {
+  import('../demoAccounts').then(({ DEMO_LOGIN }) => {
+    if (!email.value && !password.value) {
+      email.value = DEMO_LOGIN.email
+      password.value = DEMO_LOGIN.password
+    }
+  })
+}
 const nombre = ref('')
 const error = ref('')
 
@@ -78,7 +88,7 @@ async function entrar() {
           </div>
           <div>
             <label class="label">Correo electrónico</label>
-            <input v-model="email" type="email" class="input" placeholder="tucorreo@ejemplo.pa" />
+            <input v-model="email" type="email" class="input" placeholder="tucorreo@correo.com" />
           </div>
           <div>
             <label class="label">Contraseña</label>

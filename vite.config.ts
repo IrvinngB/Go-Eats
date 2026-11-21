@@ -5,7 +5,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig({
   test: {
     environment: 'jsdom',
-    include: ['src/**/*.spec.ts'],
+    // tests/build runs real `vite build`s (not type-checked by tsc: no @types/node in this project).
+    include: ['src/**/*.spec.ts', 'tests/**/*.spec.ts'],
     // Let `landing.css?raw` return real text so specs can assert on the source.
     css: { include: [/landing\.css/] },
   },

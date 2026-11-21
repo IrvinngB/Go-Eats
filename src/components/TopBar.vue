@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useGoEatsStore, CUENTAS_DEMO } from '../stores/useGoEatsStore'
+import { useGoEatsStore } from '../stores/useGoEatsStore'
 import { rutaPorRol } from '../guards'
 import { DEMO_SWITCHER } from '../config'
 import {
@@ -17,6 +17,13 @@ import {
 } from '@lucide/vue'
 
 const store = useGoEatsStore()
+// Demo accounts are loaded lazily and only in flag-on builds (keeps them out of the production bundle).
+const CUENTAS_DEMO = ref([])
+if (DEMO_SWITCHER) {
+  import('../demoAccounts').then((m) => {
+    CUENTAS_DEMO.value = m.CUENTAS_DEMO
+  })
+}
 const router = useRouter()
 const route = useRoute()
 
