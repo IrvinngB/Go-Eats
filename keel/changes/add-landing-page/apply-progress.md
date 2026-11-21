@@ -91,3 +91,35 @@ Verification: `pnpm test` 6 files / 49 tests pass; `pnpm exec vue-tsc -b` exit 0
 
 ## Remaining
 WU4-WU5. PR boundary: WU3 = components/landing/{tokens,landing}.{ts,css} + 2 specs + vite.config.ts css include.
+
+## WU4: Components and LandingView (PR4 -> main) - COMPLETE
+Tasks 4.1-4.5 done. Not committed. App specs (2.3) re-run green.
+
+### Files changed
+- src/components/landing/HeroVisual.vue (13), HeroTile.vue (20), BentoTile.vue (18), BentoGrid.vue (10), tiles.ts (64): new
+- src/components/landing/landing.css: +56 (.lp-display, .lp-hero 32px, .lp-tile 24px, .lp-tile-brand, .lp-icon-chip, .lp-link; flat, no gradient)
+- src/views/landing/LandingView.vue: placeholder replaced (28 lines); header (brand + nav aria-label "Principal"), one main, footer; imports landing.css and @fontsource latin-only Nunito 700/800, JetBrains Mono 400/500
+- Specs: HeroVisual (22), HeroTile (62), BentoTile (25), BentoGrid (54), LandingView (69)
+
+### Decisions / deviations
+- Font imports use `latin-<weight>.css`: full imports pulled cyrillic/greek/vietnamese/latin-ext into precache (757.97 KiB, 48 entries). Latin-only: 618.39 KiB, 34 entries. Remaining font cost about 172 KiB (4 woff2 + 4 woff), roughly +38% over the pre-WU4 precache (~447 KiB). Dropping woff fallbacks needs a vite-plugin-pwa globPatterns change (out of scope).
+- Class names `.lp-display`/`.lp-hero` instead of global `.text-display` (tokens are landing-scoped; style.css untouched).
+- Brand tiles: how it works and app download (max two). Others use --lp-surface.
+- Grid 2/4/12 cols, gap-3 / md:gap-4; desktop rows 5+4+3 and 3+4+5.
+- Copy has no digits, amounts, minutes or payment brand names (asserted in BentoGrid.spec).
+- Hero visual decorative (Bike, aria-hidden); slot allows `<img alt>`.
+- jsdom has no layout: 44px/focus asserted at CSS-text level (landing.spec); 360px no-overflow is a manual gate.
+
+### TDD Cycle Evidence
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|-----------|-----|-------|-------------|----------|
+| 4.1 | HeroVisual.spec.ts | Component | 7 files green | missing component | 3 passed | default icon vs slot img, no gradient | None |
+| 4.2 | HeroTile.spec.ts | Component | same | missing component | 5 passed | one h1, primary href, secondary href, click navigation both ways | None |
+| 4.3 | BentoTile.spec.ts | Component | same | missing component | 3 passed | neutral vs brand, span forward | None |
+| 4.4 | BentoGrid.spec.ts | Component | same | missing component | 7 passed | six topics in order, columns, rows=12, brand<=2, copy guard | None |
+| 4.5 | LandingView.spec.ts | Component | same | placeholder lacked nav/h1/tiles | 7 passed | landmarks, nav, containment, heading order, CTAs, aria-hidden | font imports narrowed to latin |
+
+Verification: `pnpm test` 11 files / 74 tests pass; `pnpm exec vue-tsc -b` clean; `pnpm build` ok. Largest chunks: index 221.74 kB, CoverageMap 161.35 kB (unchanged); LandingView JS 6.14 kB, CSS 3.81 kB (lazy). tsbuildinfo restored.
+
+## Remaining
+WU5 (manual gates 5.3, 5.4).
