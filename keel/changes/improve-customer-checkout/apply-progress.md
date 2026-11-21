@@ -121,3 +121,50 @@ Branch `feat/checkout-pr5-catalog-browsing`. Tasks 5.1-5.6 and 6.1-6.2 complete.
 
 ### Files
 src/utils/catalog.ts (new), src/utils/catalog.spec.ts (new), src/views/customer/StoresView.vue, src/views/customer/StoresView.spec.ts (new), src/views/customer/StoreDetailView.vue, src/views/customer/StoreDetailView.spec.ts, src/stores/useGoEatsStore.spec.ts, keel/steering/tech.md, changelog.md.
+
+## Catalog design-system restyle (branch style/catalog-design-system)
+
+Goal: customer catalog (StoresView + browsing part of StoreDetailView) follows desing.md "Friendly Bento". No behavior change; search/filter/sort/promo/closed logic and src/utils/catalog.ts untouched.
+
+### Approach
+- New scoped stylesheet `src/components/catalog/catalog.css` under `.cx` (light only, `--cx-*` tokens) + `src/components/catalog/tokens.ts` (`extra` tokens, `catalogTheme = light + extra`, `catalogPairs()`). landing.css, landing tests, tokens.ts `light/dark`, tailwind.config.js, style.css untouched. `vite.config.ts`: `css.include` now also `/catalog\.css/` so specs can read it raw.
+- Fonts: Nunito 400/700/800 imported by the two lazy views only. Headings/buttons/chips Nunito, body Inter.
+- Rule `.cx :is(h1,h2,h3,h4)` re-scopes the global heading color (same cascade bug as the landing).
+- Layout: bento header (hero tile radius 32 primary-tint + indigo supporting tile), 12-col on lg, merchant tiles 24px with concentric 16px cover, compact 16px product tiles, flat (no border/shadow), lip only on `.cx-btn`. One solid primary per view (cart FAB / empty-state button); "Agregar" uses the secondary variant.
+
+### TDD Cycle Evidence
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|-----------|-----|-------|-------------|----------|
+| token sync CSS vs tokens.ts | src/components/catalog/catalog.spec.ts | unit (raw CSS) | n/a (new) | import of missing catalog.css failed | 39 passed | exact equality light+extra; every landing key keeps its value; no dark values/scheme rules; radii scale; shadow whitelist; no gradient/blur | reworded 2 CSS comments that tripped the "no prefers-color-scheme" assertion |
+| no white on primary, dark on-primary | catalogDesign.spec.ts + catalog.spec.ts | unit (raw SFC/CSS) | n/a (new) | 7 failed against old Tailwind views | 8 passed | both views, template only (drawer excluded for Tailwind-class checks) | regex narrowed after `merchant-card`/`cx-btn-secondary` false positives |
+| contrast of new pairs | catalog.spec.ts (`catalogPairs`) | unit | n/a | n/a (data-driven) | 26 pairs pass | text >= 4.5, UI >= 3; plus test documenting that desing.md success/danger on their tints fail 4.5 | status text tokens darkened |
+| empty state, closed merchant, promo, chips | StoresView.spec.ts, StoreDetailView.spec.ts | component | 6 + 33 passed | new tests failed on old markup | 193 passed in src/views + catalog | open vs closed, promo vs no promo, selected vs unselected chip, filters vs clear action | none |
+| real browser | e2e/catalog-design.spec.ts (17 tests) | e2e | n/a | - | 17 passed | 360x800 and 1440x900; light/dark scheme/html.dark | selector + fab-close fixes |
+
+Cascade proof: removed the `.cx :is(h1,h2,h3,h4)` rule, rebuilt, heading tests failed (Expected rgb(11, 43, 51), Received rgb(44, 62, 80), the global `text-ink`), rule restored, green again.
+Real bug found by the e2e "no white text on primary" scan: the cart drawer's "Continuar"/"Realizar pedido" buttons (`btn-primary` = white on turquoise) sit inside `.cx`; swapped to `cx-btn cx-btn-lg` (class only, handlers untouched).
+
+### Edited existing tests
+- src/views/customer/StoreDetailView.spec.ts: `button.btn-primary` -> `[data-test="add-to-cart"]` (openCheckout helper and closed-merchant test); added 4 tests.
+- src/views/customer/StoresView.spec.ts: appended 3 tests (no existing assertion changed).
+- e2e/checkout-address.spec.ts line 119: `h2:has-text("Menú") + div button.btn-primary` -> `[data-test="add-to-cart"]` (button class changed; flow identical).
+- Not edited: landing specs, guards.spec.ts, PaymentGatewayModal specs.
+
+### Visual self-review (vite preview of the build, API mocked with page.route, screenshots in the session scratchpad: list, list+filter, list empty, detail promo, detail closed, detail empty, detail+cart at 1440 and 360)
+Fixed after review: zone chips stacked in 3 rows on mobile (now a horizontal scroller with room for the focus ring); sort select now full width on mobile.
+Remaining flaws (honest):
+- Merchant covers cycle three pale tints (primary/secondary/amber) so a grid shows many tonal tiles; with hero + indigo tile that is more than "two brand tones per viewport" on desktop. Calm enough but arguably a bit "pile of tiles".
+- No hero among the merchant tiles (all equal size); the bento hero is the header only. Merchants have no photos, so covers are icon-on-tint, a placeholder until real imagery exists.
+- Mobile uses 1 column for merchant tiles (desing.md says 2); the tiles carry too much text for 170px.
+- Product thumbs are the same Utensils icon: monotone until product images exist.
+- Focused search input shows border + outline (double ring).
+- Drawer, checkout form, PaymentGatewayModal, TopBar (blur) and the global toast still use the old Tailwind look: out of scope.
+- Contrast deviations from desing.md: success/warning/danger text on their tints are 4.30/4.48/3.98 (< 4.5) so text uses `*-text` steps; `ink-faint` on `surface-strong` is 4.27 so disabled text uses `ink-soft`.
+- Dark theme not implemented (future change add-theme-mode).
+
+### Verification
+`pnpm test` 697 passed (50 files); `pnpm exec vue-tsc -b` 0; `pnpm build` OK; `pnpm test:e2e` 50 passed (33 previous + 17 new; checkout-address needed the selector edit above); backend `pytest -q` 386 passed (untouched). `tsconfig.app.tsbuildinfo` restored. Own preview server (port 4174) stopped by PID.
+
+### Earlier real-browser tasks never executed
+Tasks 3.4, 4.7 and 5.7 were merged without their real-browser checks. Only 5.7 was addressed here, partially: closed merchant + promo product were verified in real Chromium against a MOCKED API (not a seeded throwaway backend), see the closed/promo e2e tests and screenshots. 5.7 is marked in tasks.md as such; 3.4 and 4.7 remain open (they need a throwaway backend, including DEV_SIMULATE_FAILURE for 4.7).

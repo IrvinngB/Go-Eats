@@ -6,7 +6,11 @@ import CommerceIcon from '../../components/CommerceIcon.vue'
 import PaymentGatewayModal from '../../components/PaymentGatewayModal.vue'
 import { puntoEnCobertura } from '../../utils/geo'
 import { extraerCategorias, filtrarProductos, tienePromocion } from '../../utils/catalog'
-import { Search, Clock, Bike, Utensils, Sparkles } from '@lucide/vue'
+import '@fontsource/nunito/latin-400.css'
+import '@fontsource/nunito/latin-700.css'
+import '@fontsource/nunito/latin-800.css'
+import '../../components/catalog/catalog.css'
+import { Search, SearchX, Bike, Utensils, Sparkles, Star, ArrowLeft, Plus, Lock, Ban, CircleCheck, ShoppingBag, Check } from '@lucide/vue'
 
 // Leaflet only loads when the user chooses to change the address for this order.
 const AddressPickerMap = defineAsyncComponent(() => import('../../components/AddressPickerMap.vue'))
@@ -54,6 +58,13 @@ function porcentajeDescuento(p) {
   if (!tienePromocion(p) || !p.precioRegular) return 0
   return Math.round(((p.precioRegular - p.precio) / p.precioRegular) * 100)
 }
+
+function limpiarFiltrosMenu() {
+  busquedaProducto.value = ''
+  categoriaProducto.value = ''
+}
+
+const hayFiltrosMenu = computed(() => busquedaProducto.value.trim() !== '' || categoriaProducto.value !== '')
 
 function agregar(p) {
   if (!p.disponible || !comercioAbierto.value) return
@@ -186,163 +197,179 @@ function verPedido() {
 </script>
 
 <template>
-  <div v-if="comercio" class="mx-auto max-w-6xl px-4 py-6 pb-32">
-    <button class="text-sm font-medium text-slatebody hover:text-ink flex items-center gap-1.5 mb-4" @click="router.push('/tiendas')">
-      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
-      Volver a comercios
-    </button>
+  <div v-if="comercio" class="cx" data-test="catalog-root">
+    <div class="cx-page">
+      <button type="button" class="cx-btn cx-btn-ghost" style="margin-left: -16px" @click="router.push('/tiendas')">
+        <ArrowLeft :size="20" aria-hidden="true" />
+        Volver a comercios
+      </button>
 
-    <!-- Portada tipo Uber Eats / PedidosYa -->
-    <div class="card overflow-hidden p-0">
-      <div class="relative h-36 sm:h-44 bg-emerald-500/15 border-b border-line/60 px-6 py-4 flex items-end justify-between">
-        <div class="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2 opacity-20">
-          <CommerceIcon :name="comercio.icono" class="w-28 h-28 text-brand-dark" />
-        </div>
-        <div class="flex items-center gap-4 z-10">
-          <span class="grid place-items-center w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-white text-brand shadow-md border border-line">
-            <CommerceIcon :name="comercio.icono" class="w-9 h-9" />
-          </span>
-          <div>
-            <div class="flex flex-wrap items-center gap-2">
-              <span
-                class="rounded-full border px-2.5 py-0.5 text-[11px] font-bold"
-                :class="comercioAbierto ? 'bg-white text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'"
-              >
-                {{ comercioAbierto ? 'Abierto ahora' : 'Cerrado' }}
-              </span>
-              <span class="text-xs font-semibold text-brand-dark">{{ comercio.tipo }} · {{ store.zonaActual.nombre }}</span>
+      <!-- Bento header: one hero tile (the store) + one supporting tile (delivery) -->
+      <section class="cx-bento" style="margin-top: 8px" aria-label="Información del comercio">
+        <div class="cx-tile cx-tile-hero cx-tile-brand cx-span-8 cx-stack" style="gap: 16px">
+          <div class="cx-row" style="gap: 16px; flex-wrap: nowrap; align-items: flex-start">
+            <span class="cx-icon-disc"><CommerceIcon :name="comercio.icono" class="w-7 h-7" /></span>
+            <div class="cx-stack" style="gap: 8px">
+              <div class="cx-row">
+                <span
+                  data-test="store-status"
+                  class="cx-badge"
+                  :class="comercioAbierto ? 'cx-badge-open' : 'cx-badge-closed'"
+                >
+                  <component :is="comercioAbierto ? CircleCheck : Lock" :size="16" aria-hidden="true" />
+                  {{ comercioAbierto ? 'Abierto ahora' : 'Cerrado' }}
+                </span>
+                <span class="cx-small cx-soft" style="font-weight: 600">{{ comercio.tipo }} · {{ store.zonaActual.nombre }}</span>
+              </div>
+              <h1 class="cx-h1">{{ comercio.nombre }}</h1>
             </div>
-            <h1 class="text-2xl sm:text-3xl font-extrabold text-ink mt-1">{{ comercio.nombre }}</h1>
+          </div>
+          <p v-if="comercio.descripcion" class="cx-lead" style="max-width: 40rem">{{ comercio.descripcion }}</p>
+        </div>
+
+        <div class="cx-tile cx-tile-indigo cx-span-4 cx-stack" style="gap: 12px; justify-content: space-between" data-test="store-summary">
+          <p class="cx-overline">Entrega estimada</p>
+          <p class="cx-eta" style="font-size: 2rem">{{ comercio.tiempoEntrega }}</p>
+          <div class="cx-row">
+            <span class="cx-badge cx-badge-promo">
+              <Star :size="16" aria-hidden="true" />
+              {{ comercio.rating }} calificación
+            </span>
+            <span class="cx-badge cx-badge-info">
+              <Bike :size="16" aria-hidden="true" />
+              Envío B/ {{ store.zonaActual.tarifa.toFixed(2) }}
+            </span>
           </div>
         </div>
+      </section>
+
+      <!-- Aviso de comercio cerrado -->
+      <div
+        v-if="!comercioAbierto"
+        data-test="closed-merchant-notice"
+        role="status"
+        class="cx-alert"
+        style="margin-top: 16px"
+      >
+        <Lock :size="20" aria-hidden="true" />
+        <p>Este comercio se encuentra cerrado en este momento. Puedes explorar su menú, pero no es posible agregar productos al carrito.</p>
       </div>
 
-      <div class="px-6 py-4 flex flex-wrap items-center justify-between gap-4 bg-white">
-        <p class="text-sm text-slatebody max-w-2xl">{{ comercio.descripcion }}</p>
-        <div class="flex flex-wrap items-center gap-2.5 text-xs font-bold">
-          <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-3 py-1.5 text-amber-700">
-            ★ {{ comercio.rating }}
-            <span class="font-normal text-slatebody">Calificación</span>
-          </span>
-          <span class="inline-flex items-center gap-1.5 rounded-full bg-canvas border border-line px-3 py-1.5 text-ink">
-            <Clock class="h-3.5 w-3.5 text-brand" />
-            {{ comercio.tiempoEntrega }}
-          </span>
-          <span class="inline-flex items-center gap-1.5 rounded-full bg-canvas border border-line px-3 py-1.5 text-ink">
-            <Bike class="h-3.5 w-3.5 text-brand" />
-            Envío B/ {{ store.zonaActual.tarifa.toFixed(2) }}
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Aviso de comercio cerrado -->
-    <div
-      v-if="!comercioAbierto"
-      data-test="closed-merchant-notice"
-      role="status"
-      class="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800"
-    >
-      Este comercio se encuentra cerrado en este momento. Puedes explorar su menú, pero no es posible agregar productos al carrito.
-    </div>
-
-    <!-- Barra sticky de búsqueda y categorías del menú estilo PedidosYa / Uber Eats -->
-    <div class="sticky top-16 z-20 mt-6 rounded-2xl border border-line bg-white/95 p-3.5 shadow-sm">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <div class="relative flex-1 min-w-[220px] max-w-md">
-          <label for="products-search" class="sr-only">Buscar en el menú</label>
-          <Search class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slatebody" />
+      <!-- Barra sticky de búsqueda y categorías del menú -->
+      <div class="cx-sticky cx-stack" style="margin-top: 16px">
+        <div class="cx-field" style="max-width: 32rem; flex: none; width: 100%">
+          <label for="products-search" class="cx-sr-only">Buscar en el menú</label>
+          <Search :size="20" aria-hidden="true" />
           <input
             id="products-search"
             v-model="busquedaProducto"
             data-test="products-search"
             type="search"
-            class="w-full rounded-full border border-line bg-canvas pl-10 pr-4 py-2 text-sm text-ink placeholder:text-slatebody/70 focus:border-brand focus:bg-white focus:outline-none transition-colors"
-            placeholder="Buscar plato o bebida en el menú…"
+            class="cx-input"
+            placeholder="Busca un plato o una bebida"
           />
         </div>
 
-        <div v-if="categoriasMenu.length > 0" class="flex flex-wrap gap-1.5">
+        <div v-if="categoriasMenu.length > 0" role="group" aria-label="Filtrar el menú por categoría" class="cx-scroll-x">
           <button
             type="button"
             data-test="products-category"
-            class="rounded-full border px-3.5 py-1.5 text-xs font-bold transition-all"
-            :class="categoriaProducto === '' ? 'bg-ink text-white border-ink shadow-sm' : 'bg-canvas text-ink border-line hover:border-brand/50'"
+            class="cx-chip"
+            :class="{ 'cx-chip-selected': categoriaProducto === '' }"
+            :aria-pressed="categoriaProducto === ''"
             @click="categoriaProducto = ''"
-          >Todos</button>
+          >
+            <Check v-if="categoriaProducto === ''" :size="16" aria-hidden="true" />Todos
+          </button>
           <button
             v-for="cat in categoriasMenu"
             :key="cat"
             type="button"
             data-test="products-category"
-            class="rounded-full border px-3.5 py-1.5 text-xs font-bold transition-all"
-            :class="categoriaProducto === cat ? 'bg-ink text-white border-ink shadow-sm' : 'bg-canvas text-ink border-line hover:border-brand/50'"
+            class="cx-chip"
+            :class="{ 'cx-chip-selected': categoriaProducto === cat }"
+            :aria-pressed="categoriaProducto === cat"
             @click="categoriaProducto = cat"
-          >{{ cat }}</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Productos estilo tarjetas horizontales Uber Eats / PedidosYa -->
-    <h2 class="mt-6 mb-4 text-lg font-extrabold text-ink">Menú</h2>
-    <div v-if="productosFiltrados.length > 0" class="grid gap-4 sm:grid-cols-2">
-      <div
-        v-for="p in productosFiltrados" :key="p.id"
-        data-test="product-card"
-        class="card p-4 flex items-stretch justify-between gap-4 transition-all hover:border-brand/40 hover:shadow-md"
-        :class="{ 'opacity-55': !p.disponible || !comercioAbierto }"
-      >
-        <div class="flex-1 flex flex-col justify-between">
-          <div>
-            <div class="flex items-center gap-1.5 flex-wrap mb-1">
-              <span v-if="p.categoria" class="text-[11px] font-semibold text-slatebody">{{ p.categoria }}</span>
-              <span
-                v-if="tienePromocion(p)"
-                data-test="promo-badge"
-                class="inline-flex items-center gap-0.5 text-[10px] font-extrabold uppercase text-emerald-800 bg-emerald-100 border border-emerald-200 rounded-full px-2 py-0.5"
-              >Promo</span>
-              <span
-                v-if="porcentajeDescuento(p) > 0"
-                class="text-[10px] font-extrabold text-amber-800 bg-amber-100 rounded-full px-2 py-0.5"
-              >-{{ porcentajeDescuento(p) }}%</span>
-              <span v-if="!p.disponible" class="text-[10px] font-semibold uppercase text-red-500 bg-red-50 border border-red-100 rounded-full px-2 py-0.5">Agotado</span>
-            </div>
-            <h3 class="font-bold text-ink text-base leading-snug">{{ p.nombre }}</h3>
-            <p class="text-xs text-slatebody mt-1 line-clamp-2">{{ p.descripcion }}</p>
-          </div>
-
-          <p class="mt-3 flex items-baseline gap-2">
-            <span class="text-base font-extrabold text-ink" data-test="precio-efectivo">B/ {{ p.precio.toFixed(2) }}</span>
-            <span v-if="p.precioRegular > p.precio" class="text-xs text-slatebody line-through" data-test="precio-regular">B/ {{ p.precioRegular.toFixed(2) }}</span>
-          </p>
-        </div>
-
-        <!-- Thumbnail visual del plato con botón "+" flotante tipo Uber Eats -->
-        <div class="relative shrink-0 w-24 h-24 rounded-2xl bg-canvas border border-line grid place-items-center">
-          <Sparkles v-if="tienePromocion(p)" class="w-8 h-8 text-amber-500/70" />
-          <Utensils v-else class="w-8 h-8 text-brand/50" />
-          <button
-            class="btn-primary !p-2 !rounded-full absolute -bottom-2 -right-2 shadow-md"
-            :disabled="!p.disponible || !comercioAbierto"
-            @click="agregar(p)"
           >
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+            <Check v-if="categoriaProducto === cat" :size="16" aria-hidden="true" />{{ cat }}
           </button>
         </div>
       </div>
-    </div>
-    <div v-else data-test="products-empty" class="card p-8 text-center text-sm text-slatebody">
-      No hay productos que coincidan con tu búsqueda.
+
+      <div class="cx-row cx-row-between" style="margin: 16px 0 12px">
+        <h2 class="cx-h2">Menú</h2>
+        <p class="cx-small cx-soft" role="status">
+          {{ productosFiltrados.length }} {{ productosFiltrados.length === 1 ? 'producto' : 'productos' }}
+        </p>
+      </div>
+
+      <div v-if="productosFiltrados.length > 0" class="cx-cards">
+        <div
+          v-for="p in productosFiltrados" :key="p.id"
+          data-test="product-card"
+          class="cx-tile cx-tile-compact cx-product"
+          :data-unavailable="!p.disponible || !comercioAbierto ? 'true' : undefined"
+        >
+          <div class="cx-product-main">
+            <div class="cx-stack" style="gap: 6px; min-width: 0">
+              <div v-if="p.categoria || tienePromocion(p) || !p.disponible" class="cx-row" style="gap: 4px">
+                <span v-if="p.categoria" class="cx-badge">{{ p.categoria }}</span>
+                <span v-if="tienePromocion(p)" data-test="promo-badge" class="cx-badge cx-badge-promo">
+                  <Sparkles :size="16" aria-hidden="true" />Promo
+                </span>
+                <span v-if="porcentajeDescuento(p) > 0" data-test="descuento" class="cx-badge cx-badge-accent">-{{ porcentajeDescuento(p) }}%</span>
+                <span v-if="!p.disponible" class="cx-badge cx-badge-closed">
+                  <Ban :size="16" aria-hidden="true" />Agotado
+                </span>
+              </div>
+              <h3 class="cx-h3" style="font-size: 1.0625rem">{{ p.nombre }}</h3>
+              <p v-if="p.descripcion" class="cx-small cx-soft cx-clamp-2">{{ p.descripcion }}</p>
+            </div>
+            <span class="cx-thumb" :class="{ 'cx-thumb-promo': tienePromocion(p) }" aria-hidden="true">
+              <Sparkles v-if="tienePromocion(p)" :size="32" />
+              <Utensils v-else :size="32" />
+            </span>
+          </div>
+
+          <div class="cx-product-foot">
+            <p class="cx-row" style="gap: 8px; align-items: baseline">
+              <span class="cx-price" data-test="precio-efectivo">B/ {{ p.precio.toFixed(2) }}</span>
+              <del v-if="p.precioRegular > p.precio" class="cx-price-old" data-test="precio-regular">B/ {{ p.precioRegular.toFixed(2) }}</del>
+            </p>
+            <button
+              type="button"
+              data-test="add-to-cart"
+              class="cx-btn cx-btn-secondary"
+              :disabled="!p.disponible || !comercioAbierto"
+              :aria-disabled="!p.disponible || !comercioAbierto ? 'true' : undefined"
+              :aria-label="p.disponible && comercioAbierto ? `Agregar ${p.nombre}` : undefined"
+              @click="agregar(p)"
+            >
+              <Lock v-if="!comercioAbierto" :size="20" aria-hidden="true" />
+              <Ban v-else-if="!p.disponible" :size="20" aria-hidden="true" />
+              <Plus v-else :size="20" aria-hidden="true" />
+              {{ !comercioAbierto ? 'Cerrado' : !p.disponible ? 'Agotado' : 'Agregar' }}
+            </button>
+          </div>
+        </div>
+      </div>
+      <div v-else data-test="products-empty" class="cx-tile cx-empty">
+        <span class="cx-empty-icon"><SearchX :size="32" aria-hidden="true" /></span>
+        <h3 class="cx-h3">No hay productos que coincidan</h3>
+        <p>Prueba con otro nombre o cambia la categoría.</p>
+        <button type="button" data-test="products-clear-filters" class="cx-btn" @click="limpiarFiltrosMenu">Limpiar filtros</button>
+      </div>
     </div>
 
-    <!-- Botón flotante del carrito -->
+    <!-- Botón flotante del carrito: the one primary action of the view -->
     <button
       v-if="store.carritoTotalItems > 0 && !carritoAbierto"
-      class="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 bg-brand text-white rounded-full shadow-lg px-6 py-3.5 flex items-center gap-3 text-sm font-semibold hover:bg-brand-dark transition-colors"
+      type="button"
+      class="cx-btn cx-btn-lg cx-fab"
       @click="carritoAbierto = true"
     >
-      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.3 2.3c-.6.6-.2 1.7.7 1.7H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-      Ver pedido · {{ store.carritoTotalItems }} item(s) · B/ {{ store.carritoSubtotal.toFixed(2) }}
+      <ShoppingBag :size="20" aria-hidden="true" />
+      <span style="font-variant-numeric: tabular-nums">Ver pedido · {{ store.carritoTotalItems }} item(s) · B/ {{ store.carritoSubtotal.toFixed(2) }}</span>
     </button>
 
     <!-- Carrito lateral -->
@@ -445,8 +472,8 @@ function verPedido() {
             <div class="flex justify-between text-base font-bold text-ink pt-1">
               <span>Total</span><span>B/ {{ total.toFixed(2) }}</span>
             </div>
-            <button v-if="!checkoutPaso" class="btn-primary w-full !py-3" @click="irACheckout">Continuar</button>
-            <button v-else class="btn-primary w-full !py-3" @click="confirmarPedido">Realizar pedido</button>
+            <button v-if="!checkoutPaso" class="cx-btn cx-btn-lg" style="width: 100%" @click="irACheckout">Continuar</button>
+            <button v-else class="cx-btn cx-btn-lg" style="width: 100%" @click="confirmarPedido">Realizar pedido</button>
           </footer>
           <footer v-else class="p-8 text-center text-sm text-slatebody">
             Tu carrito está vacío. Agrega productos del menú.

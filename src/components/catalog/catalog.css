@@ -1,0 +1,846 @@
+/* Catalog tokens: mirror of tokens.ts `light` + catalog/tokens.ts `extra` (catalog.spec.ts enforces sync).
+   Scoped to .cx and light only: no global dark switch recolors the catalog.
+   Friendly Bento rules (desing.md): flat tonal tiles, depth only on the primary lip / active tile / overlays,
+   radii from 8/12/16/24/32/999, dark text on turquoise, Lucide stroke icons. */
+.cx {
+  --cx-bg: #FFFFFF;
+  --cx-surface: #F2F7F7;
+  --cx-surface-strong: #E3EEEE;
+  --cx-ink: #0B2B33;
+  --cx-ink-soft: #44585E;
+  --cx-ink-faint: #5E7277;
+  --cx-border: #D5E0E0;
+  --cx-primary: #00B19D;
+  --cx-primary-hover: #00A491;
+  --cx-primary-lip: #008F7D;
+  --cx-primary-text: #00796B;
+  --cx-primary-tint: #D6F5F0;
+  --cx-on-primary: #0B2B33;
+  --cx-indigo: #2E2A7A;
+  --cx-on-indigo: #FFFFFF;
+  --cx-on-indigo-soft: #C9C7F0;
+  --cx-amber-tint: #FFF1D6;
+  --cx-amber: #FFB62E;
+  --cx-secondary-tint: #E4E3F6;
+  --cx-success: #15803D;
+  --cx-success-tint: #DDF3E4;
+  --cx-success-text: #166534;
+  --cx-warning: #B45309;
+  --cx-warning-tint: #FDF1D6;
+  --cx-warning-text: #92400E;
+  --cx-danger: #DC2626;
+  --cx-danger-tint: #FBE4E4;
+  --cx-danger-text: #B91C1C;
+
+  --cx-font-heading: 'Nunito', system-ui, sans-serif;
+  --cx-font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --cx-shadow-active: 0 6px 20px rgba(11, 43, 51, 0.1);
+  --cx-shadow-overlay: 0 12px 32px rgba(11, 43, 51, 0.16);
+  --cx-gap: 12px;
+
+  background: var(--cx-bg);
+  color: var(--cx-ink);
+  font-family: var(--cx-font-body);
+  font-size: 1rem;
+  line-height: 1.6;
+  min-height: calc(100vh - 64px);
+}
+
+@media (min-width: 1024px) {
+  .cx {
+    --cx-gap: 16px;
+  }
+}
+
+/* The app's global `h1,h2,h3,h4 { text-ink font-semibold tracking-tight }` (src/style.css) would otherwise
+   win over inheritance (same cascade bug the landing had). (0,1,1) beats its (0,0,1). */
+.cx :is(h1, h2, h3, h4) {
+  color: var(--cx-ink);
+  font-family: var(--cx-font-heading);
+  font-weight: 700;
+  letter-spacing: 0;
+  margin: 0;
+}
+
+.cx h1 {
+  font-weight: 800;
+}
+
+.cx p {
+  margin: 0;
+}
+
+.cx :focus-visible {
+  outline: 2px solid var(--cx-primary-text);
+  outline-offset: 2px;
+}
+
+/* ---------- Layout ---------- */
+.cx-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 16px 112px;
+}
+
+@media (min-width: 768px) {
+  .cx-page {
+    padding: 24px 24px 112px;
+  }
+}
+
+.cx-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-gap);
+}
+
+.cx-bento {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--cx-gap);
+}
+
+@media (min-width: 1024px) {
+  .cx-bento {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .cx-span-8 {
+    grid-column: span 8;
+  }
+
+  .cx-span-4 {
+    grid-column: span 4;
+  }
+}
+
+.cx-cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--cx-gap);
+}
+
+@media (min-width: 768px) {
+  .cx-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .cx-cards-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.cx-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.cx-row-between {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* ---------- Type ---------- */
+.cx-h1 {
+  font-size: 1.75rem;
+  line-height: 1.2;
+}
+
+.cx-h2 {
+  font-size: 1.5rem;
+  line-height: 1.25;
+}
+
+.cx-h3 {
+  font-size: 1.25rem;
+  line-height: 1.3;
+}
+
+@media (min-width: 640px) {
+  .cx-h1 {
+    font-size: 2rem;
+  }
+}
+
+.cx-overline {
+  font-size: 0.75rem;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cx-ink-soft);
+}
+
+.cx-lead {
+  color: var(--cx-ink-soft);
+}
+
+.cx-small {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.cx-caption {
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.cx-soft {
+  color: var(--cx-ink-soft);
+}
+
+.cx-link {
+  color: var(--cx-primary-text);
+}
+
+.cx-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cx-price {
+  font-family: var(--cx-font-heading);
+  font-size: 1.125rem;
+  line-height: 1.2;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.cx-price-old {
+  font-size: 0.875rem;
+  color: var(--cx-ink-soft);
+  text-decoration: line-through;
+  font-variant-numeric: tabular-nums;
+}
+
+.cx-eta {
+  font-family: var(--cx-font-heading);
+  font-size: 2.5rem;
+  line-height: 1;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.cx-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  padding: 0;
+}
+
+/* ---------- Tiles: tone, not border. Flat: no shadow. ---------- */
+.cx-tile {
+  background: var(--cx-surface);
+  color: var(--cx-ink);
+  border-radius: 24px;
+  padding: 20px;
+}
+
+.cx-tile-hero {
+  border-radius: 32px;
+  padding: 24px;
+}
+
+.cx-tile-compact {
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.cx-tile-brand {
+  background: var(--cx-primary-tint);
+}
+
+.cx-tile-indigo {
+  background: var(--cx-indigo);
+  color: var(--cx-on-indigo);
+}
+
+.cx .cx-tile-indigo :is(h1, h2, h3, h4),
+.cx .cx-tile-indigo .cx-overline,
+.cx .cx-tile-indigo .cx-eta {
+  color: var(--cx-on-indigo);
+}
+
+.cx .cx-tile-indigo .cx-soft {
+  color: var(--cx-on-indigo-soft);
+}
+
+.cx-tile-interactive {
+  display: block;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 150ms ease-out, transform 80ms ease-out;
+}
+
+.cx-tile-interactive:hover {
+  background: var(--cx-surface-strong);
+}
+
+.cx-tile-interactive:active {
+  transform: scale(0.98);
+}
+
+.cx-tile[aria-disabled='true'] {
+  background: var(--cx-surface-strong);
+  cursor: not-allowed;
+}
+
+.cx-tile[aria-disabled='true']:hover {
+  background: var(--cx-surface-strong);
+}
+
+.cx-tile[aria-disabled='true']:active {
+  transform: none;
+}
+
+/* Merchant card: 24px tile, 8px padding, so the 16px cover is concentric (24 - 8). */
+.cx-merchant {
+  padding: 8px;
+}
+
+.cx-cover {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 112px;
+  padding: 12px;
+  border-radius: 16px;
+  background: var(--cx-primary-tint);
+}
+
+.cx-cover-b {
+  background: var(--cx-secondary-tint);
+}
+
+.cx-cover-c {
+  background: var(--cx-amber-tint);
+}
+
+.cx-tile[aria-disabled='true'] .cx-cover {
+  background: var(--cx-bg);
+}
+
+.cx-cover-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: var(--cx-bg);
+  color: var(--cx-primary-text);
+}
+
+.cx-cover-b .cx-cover-icon {
+  color: var(--cx-indigo);
+}
+
+.cx-cover-c .cx-cover-icon {
+  color: var(--cx-warning);
+}
+
+.cx-tile[aria-disabled='true'] .cx-cover-icon {
+  background: var(--cx-surface-strong);
+  color: var(--cx-ink-soft);
+}
+
+.cx-merchant-body {
+  padding: 12px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cx-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  margin-top: 8px;
+  font-size: 0.875rem;
+  color: var(--cx-ink-soft);
+}
+
+.cx-meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cx-meta svg {
+  color: var(--cx-primary-text);
+}
+
+.cx-tile[aria-disabled='true'] .cx-meta svg {
+  color: var(--cx-ink-soft);
+}
+
+/* Product tile: compact 16px tile, 12px padding, 8px thumb (always below the parent radius). */
+.cx-product {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cx-product-main {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.cx-thumb {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  background: var(--cx-bg);
+  color: var(--cx-primary-text);
+}
+
+.cx-thumb-promo {
+  background: var(--cx-amber-tint);
+  color: var(--cx-warning);
+}
+
+.cx-product-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cx-product[data-unavailable='true'] .cx-thumb {
+  color: var(--cx-ink-soft);
+}
+
+/* Store header stats */
+.cx-icon-disc {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: var(--cx-bg);
+  color: var(--cx-primary-text);
+}
+
+/* ---------- Chips and badges (pill, tonal) ---------- */
+.cx-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: var(--cx-surface-strong);
+  color: var(--cx-ink-soft);
+  font-family: var(--cx-font-heading);
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 150ms ease-out;
+}
+
+.cx-chip:hover {
+  background: var(--cx-border);
+}
+
+.cx-tile-brand .cx-chip {
+  background: var(--cx-bg);
+}
+
+.cx-tile-brand .cx-chip:hover {
+  background: var(--cx-surface);
+}
+
+.cx-chip-selected,
+.cx-tile-brand .cx-chip-selected {
+  background: var(--cx-primary);
+  color: var(--cx-on-primary);
+  animation: cx-pop 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.cx-chip-selected:hover,
+.cx-tile-brand .cx-chip-selected:hover {
+  background: var(--cx-primary-hover);
+}
+
+@keyframes cx-pop {
+  from {
+    transform: scale(0.94);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.cx-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--cx-surface-strong);
+  color: var(--cx-ink-soft);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cx-badge-info {
+  background: var(--cx-primary-tint);
+  color: var(--cx-primary-text);
+}
+
+.cx-badge-open {
+  background: var(--cx-success-tint);
+  color: var(--cx-success-text);
+}
+
+.cx-badge-open svg {
+  color: var(--cx-success);
+}
+
+.cx-badge-closed {
+  background: var(--cx-danger-tint);
+  color: var(--cx-danger-text);
+}
+
+.cx-badge-closed svg {
+  color: var(--cx-danger);
+}
+
+.cx-badge-review {
+  background: var(--cx-warning-tint);
+  color: var(--cx-warning-text);
+}
+
+.cx-badge-review svg {
+  color: var(--cx-warning);
+}
+
+.cx-badge-promo {
+  background: var(--cx-amber-tint);
+  color: var(--cx-ink);
+}
+
+.cx-badge-promo svg {
+  color: var(--cx-warning);
+}
+
+.cx-badge-accent {
+  background: var(--cx-amber);
+  color: var(--cx-ink);
+}
+
+/* ---------- Buttons: pill, 44px+, solid 4px lip on primary only ---------- */
+.cx-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 24px;
+  margin-bottom: 4px;
+  border-radius: 999px;
+  background: var(--cx-primary);
+  color: var(--cx-on-primary);
+  box-shadow: 0 4px 0 var(--cx-primary-lip);
+  font-family: var(--cx-font-heading);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 150ms ease-out, transform 80ms ease-out, box-shadow 80ms ease-out;
+}
+
+.cx-btn:hover {
+  background: var(--cx-primary-hover);
+}
+
+.cx-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 var(--cx-primary-lip);
+}
+
+.cx-btn-lg {
+  min-height: 56px;
+  padding: 0 32px;
+}
+
+.cx-btn-secondary {
+  background: var(--cx-primary-tint);
+  color: var(--cx-primary-text);
+  box-shadow: none;
+  margin-bottom: 0;
+}
+
+.cx-btn-secondary:hover {
+  background: var(--cx-surface-strong);
+}
+
+.cx-btn-secondary:active {
+  box-shadow: none;
+}
+
+.cx-btn-ghost {
+  background: transparent;
+  color: var(--cx-ink);
+  box-shadow: none;
+  margin-bottom: 0;
+  padding: 0 16px;
+}
+
+.cx-btn-ghost:hover {
+  background: var(--cx-surface);
+}
+
+.cx-btn-ghost:active {
+  box-shadow: none;
+}
+
+.cx-btn[disabled],
+.cx-btn[aria-disabled='true'],
+.cx-btn[disabled]:hover,
+.cx-btn[aria-disabled='true']:hover {
+  background: var(--cx-surface-strong);
+  color: var(--cx-ink-soft);
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ---------- Inputs ---------- */
+.cx-field {
+  position: relative;
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.cx-field > svg {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--cx-ink-soft);
+}
+
+.cx-input {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 16px 0 44px;
+  border: 2px solid transparent;
+  border-radius: 16px;
+  background: var(--cx-surface);
+  color: var(--cx-ink);
+  font-family: var(--cx-font-body);
+  font-size: 1rem;
+  line-height: 1.2;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out;
+}
+
+.cx-input::placeholder {
+  color: var(--cx-ink-faint);
+}
+
+.cx-input:hover {
+  background: var(--cx-surface-strong);
+}
+
+.cx-input:focus {
+  background: var(--cx-bg);
+  border-color: var(--cx-primary-text);
+}
+
+@media (min-width: 1024px) {
+  .cx-input {
+    min-height: 44px;
+  }
+}
+
+.cx-select {
+  appearance: none;
+  padding-right: 44px;
+  padding-left: 16px;
+  cursor: pointer;
+}
+
+.cx-field-select {
+  flex: 1 1 100%;
+}
+
+@media (min-width: 640px) {
+  .cx-field-select {
+    flex: 0 1 240px;
+  }
+}
+
+.cx-field-select > svg {
+  left: auto;
+  right: 16px;
+}
+
+/* ---------- Segmented view switch (on a brand tile) ---------- */
+.cx-segment {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--cx-bg);
+}
+
+.cx-segment button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  color: var(--cx-ink-soft);
+  font-family: var(--cx-font-heading);
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 150ms ease-out;
+}
+
+.cx-segment button:hover {
+  background: var(--cx-surface);
+}
+
+.cx-segment button[aria-pressed='true'] {
+  background: var(--cx-ink);
+  color: var(--cx-bg);
+}
+
+/* ---------- Alerts and empty states ---------- */
+.cx-alert {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  overflow: hidden;
+  padding: 16px 16px 16px 20px;
+  border-radius: 16px;
+  background: var(--cx-warning-tint);
+  color: var(--cx-ink);
+}
+
+.cx-alert::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--cx-warning);
+}
+
+.cx-alert svg {
+  flex: none;
+  color: var(--cx-warning);
+}
+
+.cx-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.cx-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 999px;
+  background: var(--cx-primary-tint);
+  color: var(--cx-primary-text);
+}
+
+.cx-empty p {
+  max-width: 28rem;
+  color: var(--cx-ink-soft);
+}
+
+/* ---------- Sticky filter bar (solid, no blur, no shadow) ---------- */
+.cx-sticky {
+  position: sticky;
+  top: 64px;
+  z-index: 20;
+  padding: 12px 0;
+  background: var(--cx-bg);
+}
+
+.cx-map {
+  padding: 8px;
+}
+
+.cx-map-inner {
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.cx-scroll-x {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* Room so the 2px focus ring + offset is not clipped by the scroller. */
+  padding: 4px;
+  margin: -4px;
+}
+
+.cx-scroll-x::-webkit-scrollbar {
+  display: none;
+}
+
+.cx-fab {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 20px;
+  z-index: 40;
+  width: fit-content;
+  max-width: calc(100vw - 32px);
+  margin-inline: auto;
+}
+
+/* ---------- Reduced motion: colors still change instantly, nothing moves ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .cx,
+  .cx *,
+  .cx *::before,
+  .cx *::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+
+  .cx .cx-btn:active,
+  .cx .cx-tile-interactive:active {
+    transform: none !important;
+  }
+}

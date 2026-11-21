@@ -55,7 +55,7 @@ async function setup(promo = false, autenticado = true, usuario: Record<string, 
 }
 
 async function openCheckout(w: Awaited<ReturnType<typeof setup>>['w']) {
-  await w.find('button.btn-primary').trigger('click') // add the product
+  await w.find('[data-test="add-to-cart"]').trigger('click') // add the product
   await w.findAll('button').find((b) => b.text() === 'Continuar')!.trigger('click')
 }
 
@@ -74,6 +74,18 @@ describe('StoreDetailView checkout', () => {
     expect(w.find('[data-test="precio-efectivo"]').text()).toBe('B/ 4.00')
     expect(w.find('[data-test="precio-regular"]').text()).toBe('B/ 5.00')
     expect(w.find('[data-test="promo-badge"]').text()).toBe('Promo')
+  })
+
+  it('promo: badge has an icon, list price is struck through, and the discount is a chip', async () => {
+    const { w } = await setup(true)
+    const badge = w.find('[data-test="promo-badge"]')
+    expect(badge.classes()).toContain('cx-badge-promo')
+    expect(badge.find('svg').exists()).toBe(true)
+    const old = w.find('[data-test="precio-regular"]')
+    expect(old.element.tagName).toBe('DEL')
+    expect(old.classes()).toContain('cx-price-old')
+    expect(w.find('[data-test="precio-efectivo"]').classes()).toContain('cx-price')
+    expect(w.find('[data-test="descuento"]').text()).toBe('-20%')
   })
 
   it('shows a single price and no promo badge when there is no promo', async () => {
@@ -115,10 +127,52 @@ describe('StoreDetailView checkout', () => {
     await flushPromises()
 
     expect(w.find('[data-test="closed-merchant-notice"]').text()).toContain('cerrado')
-    const addBtn = w.find('[data-test="product-card"] button.btn-primary')
+    const addBtn = w.find('[data-test="product-card"] [data-test="add-to-cart"]')
     expect((addBtn.element as HTMLButtonElement).disabled).toBe(true)
     await addBtn.trigger('click')
     expect(store.carrito).toHaveLength(0)
+  })
+
+  it('closed merchant: add button is disabled AND aria-disabled with icon + text, header badge says Cerrado', async () => {
+    const { w, store } = await setup(false)
+    store.comercios = [{ id: 'c9', nombre: 'Comercio', tipo: 'Restaurante', zona: 'san-francisco', rating: 4, tiempoEntrega: '20', activo: false, descripcion: '', icono: 'Store', estadoAfiliacion: 'activo' }]
+    await flushPromises()
+
+    const addBtn = w.find('[data-test="add-to-cart"]')
+    expect(addBtn.attributes('aria-disabled')).toBe('true')
+    expect(addBtn.attributes('disabled')).toBeDefined()
+    expect(addBtn.text()).toBe('Cerrado')
+    expect(addBtn.find('svg').exists()).toBe(true)
+    const status = w.find('[data-test="store-status"]')
+    expect(status.classes()).toContain('cx-badge-closed')
+    expect(status.text()).toBe('Cerrado')
+    expect(status.find('svg').exists()).toBe(true)
+    expect(w.find('[data-test="closed-merchant-notice"] svg').exists()).toBe(true)
+  })
+
+  it('open merchant: add button is enabled, labelled and not aria-disabled', async () => {
+    const { w } = await setup(false)
+    const addBtn = w.find('[data-test="add-to-cart"]')
+    expect(addBtn.attributes('aria-disabled')).toBeUndefined()
+    expect((addBtn.element as HTMLButtonElement).disabled).toBe(false)
+    expect(addBtn.text()).toBe('Agregar')
+    expect(w.find('[data-test="store-status"]').text()).toBe('Abierto ahora')
+  })
+
+  it('products empty state: icon circle, title, one line and one primary button that clears the filters', async () => {
+    const { w } = await setup(false)
+    await w.find('[data-test="products-search"]').setValue('pizza')
+    const empty = w.find('[data-test="products-empty"]')
+    expect(empty.classes()).toContain('cx-empty')
+    expect(empty.find('.cx-empty-icon svg').exists()).toBe(true)
+    expect(empty.find('h3').text()).toBe('No hay productos que coincidan')
+    expect(empty.findAll('p')).toHaveLength(1)
+    const btn = empty.find('[data-test="products-clear-filters"]')
+    expect(btn.classes()).toContain('cx-btn')
+    expect(empty.findAll('button')).toHaveLength(1)
+    await btn.trigger('click')
+    expect(w.findAll('[data-test="product-card"]')).toHaveLength(1)
+    expect((w.find('[data-test="products-search"]').element as HTMLInputElement).value).toBe('')
   })
 })
 

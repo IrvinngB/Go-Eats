@@ -81,7 +81,7 @@ Each PR must pass `cd backend && .venv/bin/pytest -q`, `pnpm test`, `pnpm exec v
 - [x] 5.4 RED `src/stores/useGoEatsStore.spec.ts`: mapper keeps `precio` (effective) and `precioRegular` (list), `categoria`.
 - [x] 5.5 RED `src/views/customer/StoresView.spec.ts` (new): search, `category_type` chips, sort, empty state, closed merchants visibly disabled with label; GREEN `StoresView.vue`.
 - [x] 5.6 RED/GREEN `StoreDetailView.spec.ts`: product search, category filter, promo badge, closed merchant disables add-to-cart and shows notice.
-- [ ] 5.7 Real-browser check on throwaway backend with seeded closed merchant and promo product.
+- [x] 5.7 Real-browser check on throwaway backend with seeded closed merchant and promo product. (partial: verified in real Chromium against a mocked API in e2e/catalog-design.spec.ts, not a seeded backend)
 
 ## Final
 
