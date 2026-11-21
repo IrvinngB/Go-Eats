@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { createPinia, setActivePinia } from 'pinia'
@@ -16,6 +16,12 @@ import LoginView from './LoginView.vue'
 import { routes } from '../router'
 // @ts-expect-error the store is plain JS without declarations
 import { useGoEatsStore } from '../stores/useGoEatsStore'
+
+// The form no longer prefills credentials unless the demo flag is on, so tests type them explicitly.
+async function fillCredentials(wrapper: ReturnType<typeof mount>) {
+  await wrapper.find('input[type="email"]').setValue('carlos@ejemplo.pa')
+  await wrapper.find('input[type="password"]').setValue('demo1234')
+}
 
 const Stub = defineComponent({ render: () => h('div') })
 
@@ -57,6 +63,7 @@ describe('LoginView', () => {
   it('navigates by the server role (customer) and sends no role in the payload', async () => {
     post.mockResolvedValue(session('customer'))
     const { wrapper, router } = await setup()
+    await fillCredentials(wrapper)
     await wrapper.find('button.btn-primary').trigger('click')
     await flushPromises()
     expect(post).toHaveBeenCalledWith('/auth/login', {
@@ -69,6 +76,7 @@ describe('LoginView', () => {
   it('navigates to the server role home for a merchant', async () => {
     post.mockResolvedValue(session('merchant'))
     const { wrapper, router } = await setup()
+    await fillCredentials(wrapper)
     await wrapper.find('button.btn-primary').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.path).toBe('/panel-comercio')
@@ -84,6 +92,7 @@ describe('LoginView', () => {
     post.mockResolvedValue(session('customer'))
     const { wrapper } = await setup()
     await wrapper.findAll('button').find((b) => b.text() === 'Regístrate')!.trigger('click')
+    await fillCredentials(wrapper)
     await wrapper.find('button.btn-primary').trigger('click')
     await flushPromises()
     expect(post).not.toHaveBeenCalled()
@@ -110,6 +119,7 @@ describe('LoginView privacy policy control (PR9)', () => {
 })
 
 describe('store autenticarUsuario payloads', () => {
+  afterEach(() => vi.unstubAllEnvs())
   beforeEach(() => {
     post.mockReset()
     get.mockReset()
@@ -117,15 +127,31 @@ describe('store autenticarUsuario payloads', () => {
   })
 
   it('demo account switch logs in by email+password without role and takes the server role', async () => {
+    vi.resetModules()
+    vi.stubEnv('VITE_ENABLE_DEMO_SWITCHER', 'true')
+    // @ts-expect-error the store is plain JS without declarations
+    const { useGoEatsStore: freshStore } = await import('../stores/useGoEatsStore')
     setActivePinia(createPinia())
     post.mockResolvedValue(session('merchant'))
-    const store = useGoEatsStore()
+    const store = freshStore()
     await store.cambiarACuentaDemo({ email: 'hector.endara@ejemplo.pa', role: 'merchant', name: 'H' })
     expect(post).toHaveBeenCalledWith('/auth/login', {
       email: 'hector.endara@ejemplo.pa',
       password: 'demo1234',
     })
     expect(store.rol).toBe('merchant')
+  })
+
+  it('demo account switch is refused (no API call) when the flag is off', async () => {
+    vi.resetModules()
+    vi.stubEnv('VITE_ENABLE_DEMO_SWITCHER', '')
+    // @ts-expect-error the store is plain JS without declarations
+    const { useGoEatsStore: freshStore } = await import('../stores/useGoEatsStore')
+    setActivePinia(createPinia())
+    const store = freshStore()
+    const res = await store.cambiarACuentaDemo({ email: 'hector.endara@ejemplo.pa', role: 'merchant', name: 'H' })
+    expect(res.ok).toBe(false)
+    expect(post).not.toHaveBeenCalled()
   })
 
   it('register does not default consent to true', async () => {
@@ -157,6 +183,7 @@ describe('LoginView ?redirect (PR10)', () => {
 
   // Real routes are lazy-loaded views: wait until the navigation left /login.
   async function submit(wrapper: ReturnType<typeof mount>, router?: { currentRoute: { value: { name?: unknown } } }) {
+    await fillCredentials(wrapper)
     await wrapper.find('button.btn-primary').trigger('click')
     await flushPromises()
     if (router) await vi.waitFor(() => expect(router.currentRoute.value.name).not.toBe('login'), { timeout: 5000 })
@@ -213,5 +240,47 @@ describe('LoginView ?redirect (PR10)', () => {
     await submit(wrapper)
     expect(router.currentRoute.value.name).toBe('login')
     expect(wrapper.text()).toContain('Credenciales inválidas.')
+  })
+})
+
+describe('LoginView demo prefill (flag-gated)', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  // The flag is a build-time constant read at import time: load fresh modules per case.
+  async function mountWithFlag(flag: string) {
+    vi.resetModules()
+    vi.stubEnv('VITE_ENABLE_DEMO_SWITCHER', flag)
+    const { default: FreshLogin } = await import('./LoginView.vue')
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/login', component: FreshLogin }] })
+    await router.push('/login')
+    await router.isReady()
+    const wrapper = mount(FreshLogin, { global: { plugins: [pinia, router] } })
+    await flushPromises()
+    return wrapper
+  }
+
+  it.each(['', 'false', 'TRUE'])('flag %j: email and password fields are empty', async (flag) => {
+    const wrapper = await mountWithFlag(flag)
+    expect((wrapper.find('input[type="email"]').element as HTMLInputElement).value).toBe('')
+    expect((wrapper.find('input[type="password"]').element as HTMLInputElement).value).toBe('')
+  })
+
+  it('flag off: submitting the untouched form asks for credentials and calls no API', async () => {
+    post.mockReset()
+    const wrapper = await mountWithFlag('')
+    await wrapper.find('button.btn-primary').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Ingresa tu correo y contraseña')
+    expect(post).not.toHaveBeenCalled()
+  })
+
+  it('flag on: the demo customer credentials are prefilled', async () => {
+    const wrapper = await mountWithFlag('true')
+    await vi.waitFor(() => {
+      expect((wrapper.find('input[type="email"]').element as HTMLInputElement).value).toBe('carlos@ejemplo.pa')
+    })
+    expect((wrapper.find('input[type="password"]').element as HTMLInputElement).value).toBe('demo1234')
   })
 })

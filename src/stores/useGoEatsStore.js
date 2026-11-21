@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import api, { tokenStorage } from '../services/api'
 import { toWriteError } from '../services/errors'
+import { DEMO_SWITCHER } from '../config'
 import {
   ZONAS,
   comercios,
@@ -99,20 +100,11 @@ function ahora() {
   return new Date().toLocaleTimeString('es-PA', { hour: '2-digit', minute: '2-digit', hour12: true })
 }
 
-export const CUENTAS_DEMO = [
-  { email: 'carlos@ejemplo.pa', role: 'customer', name: 'Carlos Andrade', label: 'Cliente (Carlos)', avatar: 'CA' },
-  { email: 'hector.endara@ejemplo.pa', role: 'merchant', name: 'Héctor Endara', label: 'Comercio (Diablicos)', avatar: 'HE' },
-  { email: 'maria.cedeno@ejemplo.pa', role: 'courier', name: 'María Cedeño', label: 'Repartidor (María)', avatar: 'MC' },
-  { email: 'javier.morales@ejemplo.pa', role: 'courier', name: 'Javier Morales', label: 'Repartidor (Javier)', avatar: 'JM' },
-  { email: 'contabilidad@goeats.pa', role: 'accountant', name: 'Marta Pinzón', label: 'Contabilidad (Marta)', avatar: 'MP' },
-  { email: 'admin@goeats.pa', role: 'admin', name: 'Administrador General', label: 'Admin (Go Eats)', avatar: 'AG' },
-]
-
 export const useGoEatsStore = defineStore('goeats', {
   state: () => ({
     rol: 'customer',
     autenticado: false,
-    usuario: { nombre: 'Carlos Andrade', email: 'carlos@ejemplo.pa', telefono: '6123-4567', consentimientoLey81: null }, // null = unknown until GET /users/me/consent
+    usuario: { nombre: '', email: '', telefono: '', consentimientoLey81: null }, // null = unknown until GET /users/me/consent
     zonas: ZONAS,
     zonaSeleccionada: 'san-francisco',
     comercios: comercios.map((c) => ({ ...c })),
@@ -191,9 +183,11 @@ export const useGoEatsStore = defineStore('goeats', {
     },
 
     async cambiarACuentaDemo(cuenta) {
+      if (!DEMO_SWITCHER) return { ok: false, mensaje: 'El cambio de cuenta de demostración no está disponible.' }
+      const { DEMO_PASSWORD } = await import('../demoAccounts')
       const res = await this.autenticarUsuario({
         email: cuenta.email,
-        password: 'demo1234',
+        password: DEMO_PASSWORD,
         nombre: cuenta.name,
       })
       if (res.ok) {

@@ -43,6 +43,9 @@ async function mockApi(page: Page, account: { role: Role }) {
 const loginWithRedirect = (path: string) => new RegExp(`/login\\?redirect=(%2F|/)${path.replace('/', '')}$`)
 
 async function login(page: Page) {
+  // The form is empty unless the demo flag is on at build time: type the credentials explicitly.
+  await page.locator('input[type="email"]').fill('user@example.com')
+  await page.locator('input[type="password"]').fill('secret-pass-1')
   await page.getByRole('button', { name: 'Entrar' }).click()
 }
 

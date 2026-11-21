@@ -40,6 +40,8 @@ async function mountTopBar(flag: string | undefined, session?: { rol: string; no
   await router.push('/tiendas')
   await router.isReady()
   const wrapper = mount(TopBar, { global: { plugins: [pinia, router] } })
+  if (flag === 'true') await import('../demoAccounts') // warm the lazy chunk so the component's own import() settles in a tick
+  await flushPromises() // demo accounts are lazy-loaded (dynamic import) in flag-on builds
   return { wrapper, router, store }
 }
 

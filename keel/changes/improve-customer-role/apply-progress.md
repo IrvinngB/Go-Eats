@@ -378,3 +378,10 @@ backend pytest 353 passed; `pnpm test` 528 passed (40 files; router/App/App.sync
 - Customer checkout redirect e2e (anonymous checkout -> login -> back to store with cart) not re-run in a browser in this PR (store/guard/Login specs cover pieces; StoreDetailView already pushed `redirect`).
 
 ### Remaining: `.env.development` (user), V.1/V.2/V.3
+
+## Fix: demo credentials gating
+
+- Problem: LoginView prefilled `carlos@ejemplo.pa` / `demo1234` regardless of `DEMO_SWITCHER`, and flag-off bundles shipped `CUENTAS_DEMO` and the `demo1234` literal.
+- `src/demoAccounts.ts` (new) holds `CUENTAS_DEMO`, `DEMO_PASSWORD`, `DEMO_LOGIN`; it is only reached via `import()` inside `if (DEMO_SWITCHER)` (LoginView, TopBar) or after a `DEMO_SWITCHER` guard (store `cambiarACuentaDemo`, which now refuses with `ok:false` when the flag is off). The store's initial mock user (Carlos / carlos@ejemplo.pa) became an empty user and the login placeholder is now `tucorreo@correo.com`, so `ejemplo.pa` is absent too.
+- Tests: `LoginView.spec` prefill cases (flag off/false/TRUE empty, flag on prefilled) plus explicit `fillCredentials` in the existing PR3/PR10 submit tests (prefill contract changed legitimately); demo-switch test stubs the flag on; `TopBar.spec` awaits the lazy chunk; `e2e/guards.spec.ts` `login()` fills credentials; `tests/build/demoGating.build.spec.ts` runs real `vite build`s into a tmp dir and asserts `demo1234`/`ejemplo.pa` absent (flag off) and present (flag on). `vite.config.ts` test include extended to `tests/**/*.spec.ts`.
+- Verified: pnpm test 536 pass, vue-tsc -b ok, pnpm build, pnpm test:e2e 29 pass, backend pytest 353 pass; real browser: flag-off /login empty fields, flag-on scratch build prefilled.
