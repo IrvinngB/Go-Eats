@@ -3,7 +3,7 @@ import type { RouteRecordRaw } from 'vue-router'
 export type Role = 'customer' | 'merchant' | 'courier' | 'accountant' | 'admin'
 
 export const routes: RouteRecordRaw[] = [
-  { path: '/', redirect: '/tiendas' },
+  { path: '/', name: 'landing', component: () => import('./views/landing/LandingView.vue') },
   { path: '/login', name: 'login', component: () => import('./views/LoginView.vue') },
   { path: '/tiendas', name: 'stores', component: () => import('./views/customer/StoresView.vue') },
   { path: '/tiendas/:id', name: 'store-detail', component: () => import('./views/customer/StoreDetailView.vue') },

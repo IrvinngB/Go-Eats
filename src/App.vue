@@ -9,6 +9,7 @@ import { computed, onMounted } from 'vue'
 const store = useGoEatsStore()
 const route = useRoute()
 const esLogin = computed(() => route.path === '/login')
+const esLanding = computed(() => route.name === 'landing')
 
 onMounted(() => {
   store.sincronizarConBackend()
@@ -18,14 +19,14 @@ onMounted(() => {
 <template>
   <div class="min-h-screen flex flex-col">
     <PwaStatus />
-    <TopBar v-if="!esLogin" />
-    <main class="flex-1">
+    <TopBar v-if="!esLogin && !esLanding" />
+    <component :is="esLanding ? 'div' : 'main'" class="flex-1">
       <router-view v-slot="{ Component }">
         <transition name="page" mode="out-in">
           <component :is="Component" />
         </transition>
       </router-view>
-    </main>
+    </component>
 
     <!-- Global notification toast -->
     <transition name="modal">
