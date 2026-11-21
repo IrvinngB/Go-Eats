@@ -13,7 +13,9 @@ import StoresSection from '../../components/landing/StoresSection.vue'
 import CoverageSection from '../../components/landing/CoverageSection.vue'
 import RolePanels from '../../components/landing/RolePanels.vue'
 import InstallSection from '../../components/landing/InstallSection.vue'
-import BrandLogo from '../../components/landing/BrandLogo.vue'
+import FaqSection from '../../components/landing/FaqSection.vue'
+import CtaBand from '../../components/landing/CtaBand.vue'
+import LandingFooter from '../../components/landing/LandingFooter.vue'
 import { useLandingData } from '../../composables/useLandingData'
 
 // One fetch for the whole page: stores and zones share this composable, sections only receive props.
@@ -31,14 +33,9 @@ const { estado, loading, tiendas, zonas, zonasError } = useLandingData()
       <CoverageSection :zonas="zonas" :zonas-error="zonasError" :cargando="loading" />
       <RolePanels />
       <InstallSection />
-      <!-- WU7 adds the FAQ and the CTA band after the install section. -->
+      <FaqSection />
+      <CtaBand />
     </main>
-    <!-- Minimal footer; WU7 replaces it with LandingFooter. -->
-    <footer class="lp-band-indigo">
-      <div class="mx-auto flex max-w-[1200px] flex-col gap-4 px-4 py-12 md:px-8">
-        <BrandLogo variant="sobre-indigo" />
-        <p class="m-0 text-sm" style="color: var(--lp-on-indigo-soft)">Go Eats. Comercios de tu zona, en tu puerta.</p>
-      </div>
-    </footer>
+    <LandingFooter />
   </div>
 </template>

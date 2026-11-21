@@ -72,11 +72,11 @@ WU5a (5.1, 5.2, stores wiring) and WU5b (5.3-5.6, coverage) done.
 - [x] 6.4 Manual check PwaStatus banner on non-landing routes; stubs in `App.spec.ts` and `App.sync.spec.ts` still pass.
 
 ## WU7: FAQ, CTA band, footer, copy (base: WU6)
-- [ ] 7.1 RED/GREEN: `FaqSection` spec (`aria-expanded`, `aria-controls`, one open, close open, Enter/Space) then component.
-- [ ] 7.2 RED/GREEN: `CtaBand` and `LandingFooter` specs (only `/tiendas`, `/login`, anchors; no `nav`; no legal/social/contact) then components.
-- [ ] 7.3 `LandingView.spec.ts`: `router.resolve` asserts route names `stores` and `login` (not catch-all); anchor ids exist.
-- [ ] 7.4 Copy-integrity scan including `aria-hidden` text (no currency, minutes, stars, %, brands, Yappy, Paguelo Fácil, card, "en vivo", "tiempo real", distance); exact shipping sentence.
-- [ ] 7.5 Copy checklist: each claim mapped to RF-01/02/04/05/06/10/13/14/15/16/19 (cash to RF-10, status to RF-16); no prices, ETAs, ratings, stats, testimonials, partner brands, live-tracking wording.
+- [x] 7.1 RED/GREEN: `FaqSection` spec (`aria-expanded`, `aria-controls`, one open, close open, Enter/Space) then component.
+- [x] 7.2 RED/GREEN: `CtaBand` and `LandingFooter` specs (only `/tiendas`, `/login`, anchors; no `nav`; no legal/social/contact) then components.
+- [x] 7.3 `LandingView.spec.ts`: `router.resolve` asserts route names `stores` and `login` (not catch-all); anchor ids exist.
+- [x] 7.4 Copy-integrity scan including `aria-hidden` text (no currency, minutes, stars, %, brands, Yappy, Paguelo Fácil, card, "en vivo", "tiempo real", distance); exact shipping sentence.
+- [x] 7.5 Copy checklist: each claim mapped to RF-01/02/04/05/06/10/13/14/15/16/19 (cash to RF-10, status to RF-16); no prices, ETAs, ratings, stats, testimonials, partner brands, live-tracking wording.
 
 ## WU8: Real-browser verification (base: WU7)
 - [ ] 8.1 `e2e/landing.spec.ts`: cascade (dark scheme plus `html.dark`, h1/h2 `rgb(11,43,51)`, white bg, band bg), 360x800 `scrollWidth <= innerWidth`, landmarks, skip-link Tab/Enter, sticky nav and anchor offset.

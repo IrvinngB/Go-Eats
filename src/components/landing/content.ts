@@ -136,3 +136,96 @@ export const INSTALL_COPY = {
   iosAdd: 'Agregar a pantalla de inicio',
   neutral: 'Si tu navegador permite instalar apps, busca la opción Instalar o Agregar a pantalla de inicio en su menú.',
 } as const
+
+export interface FaqItem {
+  id: string
+  q: string
+  a: string
+}
+
+/** FAQ copy. Every answer maps to a verified product fact: RF-04, 05, 14 (order), RF-10 (payment), RF-15 (shipping), RF-16 (status), RF-01/02/13/19 (roles). */
+export const FAQ_COPY = {
+  eyebrow: 'Ayuda',
+  title: 'Preguntas frecuentes',
+  lead: 'Lo básico para pedir, recibir y empezar a usar Go Eats.',
+} as const
+
+export const FAQ_ITEMS: FaqItem[] = [
+  {
+    id: 'pedir',
+    q: '¿Cómo hago un pedido?',
+    a: 'Elige un comercio de tu zona, arma tu carrito con los productos de su catálogo y confirma tu pedido con tu dirección de entrega.',
+  },
+  {
+    id: 'pago',
+    q: '¿Cómo se paga?',
+    a: 'Puedes pagar contra entrega, es decir, al recibir tu pedido.',
+  },
+  {
+    id: 'envio',
+    q: '¿Cómo se calcula el costo de envío?',
+    a: ENVIO_COPY,
+  },
+  {
+    id: 'estado',
+    q: '¿Cómo sigo el estado de mi pedido?',
+    a: 'Entra a la sección de pedidos de la app. Ahí ves cómo avanza: confirmado, en preparación, en camino y entregado.',
+  },
+  {
+    id: 'unirse',
+    q: '¿Cómo me uno como comercio o repartidor?',
+    a: 'Entra a la página de ingreso de Go Eats: ahí puedes crear tu cuenta o iniciar sesión como comercio o como repartidor.',
+  },
+  {
+    id: 'instalar',
+    q: '¿Puedo instalar Go Eats como app?',
+    a: 'Sí. Desde tu navegador puedes agregarla a tu pantalla de inicio y abrirla como cualquier otra app.',
+  },
+  {
+    id: 'zona',
+    q: '¿Cómo sé si llegan a mi zona?',
+    a: 'Go Eats trabaja por zonas de cobertura. Al entrar a la app ves los comercios que llegan a la tuya, y en la sección de cobertura de esta página puedes revisar las zonas activas.',
+  },
+]
+
+/** Final CTA band copy. No claims beyond the hero and the steps. */
+export const CTA_COPY = {
+  title: 'Empieza tu pedido en Go Eats',
+  lead: 'Elige un comercio de tu zona y paga al recibir tu pedido.',
+  primary: 'Pedir ahora',
+  secondary: 'Iniciar sesión',
+} as const
+
+export interface FooterLink {
+  label: string
+  href: string
+}
+
+export const FOOTER_COPY = {
+  tagline: 'Comercios de tu zona, en tu puerta.',
+  copyright: '© Go Eats',
+} as const
+
+/** Only /tiendas, /login and anchors of sections that always render (the install section hides itself once installed, so it is not linked). */
+export const FOOTER_GROUPS: { id: string; label: string; links: FooterLink[] }[] = [
+  {
+    id: 'lp-footer-explorar',
+    label: 'Explorar',
+    links: [
+      { label: 'Cómo funciona', href: '#como-funciona' },
+      { label: 'Comercios', href: '#tiendas' },
+      { label: 'Cobertura', href: '#cobertura' },
+      { label: 'Preguntas frecuentes', href: '#preguntas' },
+    ],
+  },
+  {
+    id: 'lp-footer-cuenta',
+    label: 'Go Eats',
+    links: [
+      { label: 'Ver comercios', href: '/tiendas' },
+      { label: 'Para comercios', href: '#comercios' },
+      { label: 'Para repartidores', href: '#repartidores' },
+      { label: 'Iniciar sesión', href: '/login' },
+    ],
+  },
+]
