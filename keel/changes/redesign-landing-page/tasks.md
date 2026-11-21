@@ -41,12 +41,12 @@ Note: ~700 words on purpose, given the scope. Stacked means each PR targets `dev
 - [x] 2.7 Add `@fontsource/nunito/latin-400.css` import in `LandingView.vue` (default: add 400; body currently renders 700). Keep 32/40px title scale (default).
 
 ## WU3: Nav, hero, view composition (base: WU2)
-- [ ] 3.1 RED/GREEN: `LandingNav.spec.ts` then `LandingNav.vue` (skip link first, focuses `main`; one `nav[aria-label=Principal]`; anchors `hidden md:flex`; login CTA secondary).
-- [ ] 3.2 RED/GREEN: `HeroVisual.spec.ts` then rewrite (aria-hidden circles and phone mock, `ESTADO_LABELS` four labels, no `Bike`).
-- [ ] 3.3 RED/GREEN: rename `HeroTile` to `HeroSection` + spec (aria-labelledby, one h1, primary `/tiendas`, secondary `/login`).
-- [ ] 3.4 RED/GREEN: `LandingView.spec.ts` (one header/nav/main/footer, one h1, section order) then rewrite `LandingView.vue` with exactly one `main#contenido[tabindex=-1]` (App.spec.ts:43).
-- [ ] 3.5 Delete `BentoGrid`, `BentoTile`, `tiles.ts` and both specs; `rg` confirms no references.
-- [ ] 3.6 Run the three gates.
+- [x] 3.1 RED/GREEN: `LandingNav.spec.ts` then `LandingNav.vue` (skip link first, focuses `main`; one `nav[aria-label=Principal]`; anchors `hidden md:flex`; login CTA secondary).
+- [x] 3.2 RED/GREEN: `HeroVisual.spec.ts` then rewrite (aria-hidden circles and phone mock, `ESTADO_LABELS` four labels, no `Bike`).
+- [x] 3.3 RED/GREEN: rename `HeroTile` to `HeroSection` + spec (aria-labelledby, one h1, primary `/tiendas`, secondary `/login`).
+- [x] 3.4 RED/GREEN: `LandingView.spec.ts` (one header/nav/main/footer, one h1, section order) then rewrite `LandingView.vue` with exactly one `main#contenido[tabindex=-1]` (App.spec.ts:43).
+- [x] 3.5 Delete `BentoGrid`, `BentoTile`, `tiles.ts` and both specs; `rg` confirms no references.
+- [x] 3.6 Run the three gates.
 
 ## WU4: Categories, steps, role panels (base: WU3)
 - [ ] 4.1 Create `content.ts` (typed categories, steps, `ENVIO_COPY` exact sentence) + spec for the sentence.

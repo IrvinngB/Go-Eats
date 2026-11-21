@@ -101,31 +101,86 @@
   }
 }
 
-.lp-hero {
+.lp-lead {
+  max-width: 36rem;
+  font-size: 1.125rem;
+  line-height: 1.6;
+  color: var(--lp-ink-soft);
+}
+
+/* Phone mock: concentric radii, outer 32 minus 8px padding is 24, minus 8px padding is 16. */
+.lp-phone {
   border-radius: 32px;
-  background: var(--lp-primary-tint);
-  color: var(--lp-ink);
+  padding: 8px;
+  background: var(--lp-indigo);
 }
 
-.lp-tile {
+.lp-phone-screen {
   border-radius: 24px;
-  background: var(--lp-surface);
+  padding: 8px;
+  background: var(--lp-bg);
   color: var(--lp-ink);
 }
 
-.lp-tile-brand {
-  background: var(--lp-primary-tint);
+.lp-phone-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 16px;
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  background: var(--lp-surface);
+  color: var(--lp-ink-soft);
 }
 
-.lp-icon-chip {
+.lp-phone-row[data-current='true'] {
+  background: var(--lp-primary-tint);
+  color: var(--lp-ink);
+  outline: 2px solid var(--lp-primary);
+  outline-offset: -2px;
+}
+
+/* Skip link: off-screen until focused, first focusable element in the page. */
+.lp-skip {
+  position: absolute;
+  left: 1rem;
+  top: -4rem;
+  z-index: 60;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 999px;
-  background: var(--lp-bg);
-  color: var(--lp-primary-text);
+  min-height: 44px;
+  padding: 0 1rem;
+  border-radius: 12px;
+  font-weight: 800;
+  background: var(--lp-indigo);
+  color: var(--lp-on-indigo);
+}
+
+.lp-skip:focus {
+  top: 0.75rem;
+  outline: 3px solid var(--lp-primary-text);
+  outline-offset: 3px;
+}
+
+.lp-nav-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border-radius: 12px;
+  font-weight: 700;
+  color: var(--lp-ink);
+  text-decoration: none;
+}
+
+.lp-nav-link:hover {
+  background: var(--lp-surface);
+}
+
+.lp-nav-link:focus-visible {
+  outline: 3px solid var(--lp-primary-text);
+  outline-offset: 2px;
 }
 
 .lp-link {

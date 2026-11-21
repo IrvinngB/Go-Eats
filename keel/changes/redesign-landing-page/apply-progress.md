@@ -75,3 +75,36 @@ amber #FFB62E is decorative only; no band pair enforced for it.
 
 ### Remaining
 WU3-WU8.
+
+## WU3: Nav, hero, view composition (branch feat/landing-redesign-wu3-nav-hero) - DONE
+Tasks 3.1-3.6 complete. Not committed. Size exception (~600 added) user-approved.
+
+### TDD Cycle Evidence
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 3.1 | src/components/landing/LandingNav.spec.ts | component | pnpm test 108/108 | suite failed: `Failed to resolve import ./LandingNav.vue` | 6 pass | skip link first + text, click focuses main, one nav/sticky header, colour wordmark, anchors + `hidden md:flex`, single secondary CTA | none |
+| 3.2 | src/components/landing/HeroVisual.spec.ts | component | existing 3 specs | 6 of 7 failed (no aria-hidden root, no `.lp-phone-row`, no palette tokens, Bike icon present) | 7 pass | labels in order, one current row, frame+screen, tokens, no Bike/digits, slot override | typed `ESTADO_LABELS` via `src/mockData.d.ts` after vue-tsc TS7016 |
+| 3.3 | src/components/landing/HeroSection.spec.ts (git mv from HeroTile.spec) | component | existing HeroTile spec | 3 of 7 failed (no `.lp-lead`, no band class, no `hero-note`) | 7 pass | h1/aria-labelledby, one primary /tiendas, secondary /login, router navigation, band + hidden visual, cash note | none |
+| 3.4 | src/views/landing/LandingView.spec.ts + landing.spec.ts | view/css | existing view spec | view suite failed on import of deleted HeroTile path; landing.spec 3 failed (`.lp-phone`, retired classes, `.lp-lead`/`.lp-skip`) | 115/115 | one header/nav/main/footer, child order A-HEADER-MAIN-FOOTER, skip target `main#contenido[tabindex=-1]`, footer sobre-indigo on indigo band, no old tile content | removed retired `.lp-hero/.lp-tile/.lp-tile-brand/.lp-icon-chip` CSS (no users); `text-wrap: balance` and narrower mobile phone after visual review |
+| 3.5 | n/a (deletion) | - | - | - | rg for Bento/HeroTile/tiles/lp-tile/lp-icon-chip finds only the two negative assertions | n/a | n/a |
+
+### Files
+- New: LandingNav.vue(+spec), src/mockData.d.ts (types ESTADO_LABELS only)
+- Renamed+rewritten: HeroTile -> HeroSection (+spec); rewritten: HeroVisual (+spec), LandingView.vue (+spec)
+- Modified: landing.css (+lp-lead, lp-phone*, lp-skip, lp-nav-link, text-wrap balance; -hero/tile/icon-chip), landing.spec.ts (+3 tests)
+- Deleted: BentoGrid, BentoTile, tiles.ts and 2 specs
+- `git diff --stat HEAD` (intent-to-add): 17 files, 399 insertions, 269 deletions
+
+### Gates
+pnpm test 11 files/115 tests; vue-tsc -b OK; pnpm build OK (dist wordmarks: color + sobre-indigo only; precache 36 entries 654 KiB); pnpm test:e2e 1 passed. tsconfig.app.tsbuildinfo restored.
+
+### Visual self-review (throwaway Playwright script in scratchpad; preview on 4173 stopped)
+360x800 and 1440x900: no horizontal overflow. Fixed: h1 widow via text-wrap balance; phone narrower on mobile so the primary circle shows. Remaining flaws: (1) ~60px white strip under the footer at 1440x900 until WU4+ add height; (2) display size 36/48px per design feels modest in the 1200px container; (3) sobre-indigo wordmark looks slightly indented in the footer (padded rect); (4) nav anchors #como-funciona, #cobertura, #preguntas are dead until WU4/5/7 add ids (md+ only); (5) hero art is shapes plus phone mock only, no mascot or photo. WU8 real-browser review still required.
+
+### Deviations
+- Added `src/mockData.d.ts`: vue-tsc TS7016 on importing mockData.js from a lang="ts" component; declares only `ESTADO_LABELS`.
+- Hero adds an eyebrow pill and a cash-on-delivery note (RF-10); no digits, prices or times.
+- App.spec.ts untouched: it stubs the landing, so `main#landing-main` there is independent of `main#contenido`.
+
+### Remaining
+WU4-WU8.

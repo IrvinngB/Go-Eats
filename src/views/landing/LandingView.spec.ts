@@ -18,52 +18,62 @@ async function mountView() {
 }
 
 describe('LandingView', () => {
-  it('has one header, one main and one footer', async () => {
+  it('has one header, one nav, one main and one footer', async () => {
     const w = await mountView()
-    expect(w.findAll('header')).toHaveLength(1)
-    expect(w.findAll('main')).toHaveLength(1)
-    expect(w.findAll('footer')).toHaveLength(1)
+    for (const tag of ['header', 'nav', 'main', 'footer']) expect(w.findAll(tag), tag).toHaveLength(1)
   })
 
-  it('header exposes a navigation landmark with the login link', async () => {
+  it('names the nav Principal and keeps it inside the header', async () => {
     const w = await mountView()
-    const nav = w.find('header nav')
-    expect(nav.attributes('aria-label')).toBe('Principal')
-    expect(nav.find('a[href="/login"]').exists()).toBe(true)
+    expect(w.find('header nav').attributes('aria-label')).toBe('Principal')
+    expect(w.find('footer nav').exists()).toBe(false)
   })
 
-  it('main holds the hero and the six tiles, header/footer hold neither', async () => {
+  it('renders the skip link first in the landing root, targeting the focusable main', async () => {
     const w = await mountView()
+    const first = w.element.firstElementChild!
+    expect(first.getAttribute('href')).toBe('#contenido')
     const main = w.find('main')
-    expect(main.find('h1').exists()).toBe(true)
-    expect(main.findAll('article')).toHaveLength(6)
-    expect(w.find('header').find('h1').exists()).toBe(false)
-    expect(w.find('footer').findAll('article')).toHaveLength(0)
+    expect(main.attributes('id')).toBe('contenido')
+    expect(main.attributes('tabindex')).toBe('-1')
   })
 
-  it('has a single h1 followed by six h2 and no skipped levels', async () => {
+  it('holds the hero inside main, with a single h1 and nothing in header or footer', async () => {
     const w = await mountView()
-    const levels = w.findAll('h1,h2,h3,h4,h5,h6').map((h) => Number(h.element.tagName[1]))
-    expect(levels).toEqual([1, 2, 2, 2, 2, 2, 2])
+    expect(w.findAll('h1')).toHaveLength(1)
+    expect(w.find('main h1').exists()).toBe(true)
+    expect(w.find('header h1').exists()).toBe(false)
+    expect(w.find('footer h1').exists()).toBe(false)
   })
 
-  it('exposes exactly the primary and secondary hero CTAs to /tiendas and /login', async () => {
+  it('orders hero content after the header and before the footer', async () => {
     const w = await mountView()
-    const hrefs = w.findAll('main a.lp-btn').map((a) => a.attributes('href'))
-    expect(hrefs).toEqual(['/tiendas', '/login'])
+    const kids = Array.from(w.element.children as HTMLCollection).map((e) => e.tagName)
+    expect(kids).toEqual(['A', 'HEADER', 'MAIN', 'FOOTER'])
   })
 
-  it('scopes tokens through the .landing root', async () => {
+  it('shows the hero CTAs to /tiendas and /login only', async () => {
+    const w = await mountView()
+    expect(w.findAll('main a.lp-btn').map((a) => a.attributes('href'))).toEqual(['/tiendas', '/login'])
+  })
+
+  it('shows the sobre-indigo wordmark on the indigo footer band', async () => {
+    const w = await mountView()
+    const footer = w.find('footer')
+    expect(footer.classes()).toContain('lp-band-indigo')
+    expect(footer.find('img').attributes('alt')).toBe('Go Eats')
+    expect(footer.find('img').attributes('src')).toContain('sobre-indigo')
+  })
+
+  it('scopes tokens through the .landing root and has no gradient or blur', async () => {
     const w = await mountView()
     expect(w.classes()).toContain('landing')
+    expect(w.html()).not.toMatch(/gradient|blur/i)
   })
 
-  it('shows Spanish copy and decorative icons only', async () => {
+  it('does not include the old six-tile content', async () => {
     const w = await mountView()
-    expect(w.find('h1').text()).toMatch(/pide|tienda|comercio/i)
-    const svgs = w.findAll('svg')
-    expect(svgs.length).toBeGreaterThanOrEqual(7)
-    for (const s of svgs) expect(s.attributes('aria-hidden')).toBe('true')
-    expect(w.html()).not.toMatch(/gradient|blur/i)
+    expect(w.findAll('article')).toHaveLength(0)
+    expect(w.html()).not.toMatch(/lp-tile|lp-icon-chip/)
   })
 })
