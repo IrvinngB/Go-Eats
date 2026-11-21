@@ -31,8 +31,9 @@ const arcoPendientes = computed(() => store.solicitudesARCO.filter((s) => s.esta
 const responderModal = ref(null)
 const respuestaARCO = ref('')
 
-function resolver(a, aprobar) {
-  store.resolverAfiliacion(a.id, aprobar)
+async function resolver(a, aprobar) {
+  const r = await store.resolverAfiliacion(a.id, aprobar)
+  if (!r.ok) return
   store.notificar(aprobar ? `${a.nombre} fue aprobado.` : `Afiliación de ${a.nombre} rechazada.`)
 }
 
@@ -41,9 +42,10 @@ function abrirResponder(s) {
   respuestaARCO.value = ''
 }
 
-function enviarRespuesta() {
+async function enviarRespuesta() {
   if (!respuestaARCO.value.trim()) return
-  store.responderARCO(responderModal.value.id, respuestaARCO.value)
+  const r = await store.responderARCO(responderModal.value.id, respuestaARCO.value)
+  if (!r.ok) return
   store.notificar(`Respuesta enviada a ${responderModal.value.usuario}.`)
   responderModal.value = null
 }

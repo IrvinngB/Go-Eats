@@ -254,3 +254,43 @@ backend pytest 319 passed; `pnpm test` 360 passed (33 files); vue-tsc clean; `pn
 - No mobile viewport screenshots; the checkout screenshots for cash were taken but not Read.
 
 ### Remaining: PR8..PR10 (and V.1/V.2/V.3)
+
+
+## PR8 (tasks 8.1-8.2) - DONE, not committed
+Branch: feat/customer-pr8-writes. Frontend only, backend untouched.
+
+### Files
+NEW `src/services/errors.ts` (`toWriteError` -> `{kind, status, message (Spanish), code?, detail?}`; kinds network/unauthorized/forbidden/not_found/validation/conflict/server/unknown; no response + axios error/timeout = network status 0; string details shaped like `snake_case` become `code` (consent_required, no_linked_entity get specific messages); 400/422 message appends a string detail). NEW `errors.spec.ts` (12), `useGoEatsStore.writes.spec.ts` (32).
+MOD `useGoEatsStore.js`: `notificar(texto, tipo)` fixed (F5) + new `escribir({objetivos, aplicar, llamada, exito, revertir})` helper (snapshot -> optimistic -> await -> on failure restore + typed error toast (`tipo: 'error'`) + `{ok:false, error}`; success `{ok:true, data}`; never throws; local log event and success toasts run only after ok). `App.vue` toast red for `tipo === 'error'`. Views adapted to await the result: MerchantView, CourierView, OrdersView (+2 tests in OrdersView.spec.ts), AdminView, ProfileView (success toast only on ok; modals stay open on failure).
+
+### Every write in the store (rg `.catch(() => {})` / `api.post|patch|put`) and how it is covered
+All `.catch(() => {})` removed (0 left). Through `escribir`: avanzarEstadoPedido (merchant/courier/admin status, incl. cancel with reason), rechazarPedido, asignarRepartidor, toggleRepartidorDisponible, actualizarEstadoProducto, guardarProducto (update restores fields, create removes the new item), guardarHorarioComercio, conciliarTransaccion, resolverAfiliacion (approve; reject is local-only, no API), cambiarEstadoComercio, responderARCO (non-numeric ids stay local-only), enviarSolicitudARCO (optimistic item removed on failure), guardarPerfil, calificarPedido. crearPedido: manual typed handling (two calls). autenticarUsuario/auth POSTs keep their own `{ok, mensaje}` contract (login, not an optimistic write). descargarComprobantePDF is a GET with its offline fallback, unchanged.
+
+### Decisions / deviations
+- Write actions now return a Promise of `{ok, data|error}` (was undefined). `{ok:false, error:null}` = unknown local id (no call, no toast).
+- crearPedido keeps its PR7 return shape (order or null). Cart is cleared only after both calls succeed (before it was cleared after the order POST). If the payment POST fails over HTTP/network the order stays in the list (it exists on the server), the cart is kept, the toast is "El pedido PED-x se creó, pero el pago falló. <typed message>" and it returns null. Risk: retrying creates a second order (no reuse of the created one).
+- Local log events (`registrarEvento`) now only on success. Previously logged optimistically.
+- 401 on a write: toast "Tu sesión expiró. Inicia sesión de nuevo.", state rolled back, tokens untouched (refresh/expiry hook is PR10).
+- Restore is per-object (shallow): two in-flight writes on the same object where the first fails restore the pre-first state.
+- No PR4-PR7 spec had to change (all stay green); only OrdersView.spec got new cases.
+
+### TDD evidence
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|---|
+| 8.1 | services/errors.spec.ts | unit | - | suite failed to load: `./errors` module missing | 12 pass | network, timeout, 401/403/404/409/500/503/418, 400 with string detail, 422 list detail, consent_required, no_linked_entity, non-axios throw/string | none |
+| 8.2 | stores/useGoEatsStore.writes.spec.ts, views/customer/OrdersView.spec.ts | store + component | 360 green | 30 of 32 failed: `r` undefined (`Cannot read properties of undefined (reading 'ok')`), fake-timer toast stayed `{texto:'Hola', id}` instead of null (F5), cart/message cases failed | 32 pass, then 406 total | 403/404/409/422/400+detail/network/401 on status write, success path, 14 writes rollback, create rollback, unknown id, no unhandled rejections, cart kept on order failure x4 kinds and on payment failure, cleared only on success, notificar timers (older timer, same-ms ids, error style); OrdersView rating fail vs ok | helper extracted from per-action code |
+(2 of 32 passed at RED: optimistic-before-answer and the success-keeps-cart case already held; not counted as RED evidence.) After GREEN, 6 tests failed on my own test mistakes (double period in the expected message, seeded orders in the default store) and the tests, not the code, were fixed.
+
+### Real verification (throwaway sqlite scratchpad/pr8.db seeded via init_db; uvicorn :8781; vite :5221 with VITE_API_URL; Playwright scratchpad/pr8.mjs; merchant hector.endara@ejemplo.pa (c1) and customer carlos@ejemplo.pa; goeats.db never created)
+Merchant UI: PED-1102 rejected behind the UI's back via API, then the stale UI clicked "Confirmar pedido": backend 400 "Invalid state transition from 'rechazado' to 'confirmado'", card went back to Pendiente, red toast "Los datos no son válidos o la acción no está permitida: Invalid state transition ...", toast gone after 3.3 s with no interaction. Happy path PED-1101: Confirmado, no toast, server status confirmado. Backend killed by PID: confirm on PED-1100 stayed Pendiente, toast "No se pudo conectar con el servidor. ..." and gone by itself. Customer with backend stopped: "Realizar pedido" kept the drawer and cart (subtotal B/ 13.00, total B/ 15.50) and showed the network toast, which disappeared by itself. No pageerror. (First run had only one pending order in the seed; I added three via the customer API and re-ran.) Screenshots Read: scratchpad/pr8-m2-backend-reject-toast.png, pr8-m4-network-toast.png, pr8-c1-cart-survives.png. Servers stopped, ports free.
+
+### Gates
+backend pytest 319 passed (untouched); `pnpm test` 406 passed (35 files; router/App/App.sync/LandingView and PR4-PR7 suites unchanged and green); vue-tsc clean; `pnpm build` ok; `pnpm test:e2e` 19 passed; tsbuildinfo restored.
+
+### Not verified
+- UI paths for courier, admin, accountant, profile and ARCO write failures (store specs only; views adapted but not clicked in a browser). Rating modal-stays-open by component test only.
+- In the browser only the 400 invalid-transition and network cases were exercised; 403/404/409/422/401 by unit tests.
+- Payment-HTTP-failure after a created order not reproduced in a browser (store spec only).
+- No mobile viewport; real 401 mid-session not exercised (PR10).
+
+### Remaining: PR9, PR10 (and V.1/V.2/V.3)

@@ -108,3 +108,34 @@ describe('OrdersView payment status from the API', () => {
     expect(setup(pedido('pendiente', { pagoEstado: null })).find('[data-test="estado-pago"]').exists()).toBe(false)
   })
 })
+
+describe('OrdersView rating write does not assume success', () => {
+  async function rate(apiResult: 'ok' | 'fail') {
+    const { default: api } = await import('../../services/api')
+    const post = api.post as unknown as ReturnType<typeof vi.fn>
+    post.mockReset()
+    if (apiResult === 'ok') post.mockResolvedValue({ data: {} })
+    else post.mockRejectedValue(Object.assign(new Error('x'), { isAxiosError: true, response: { status: 409 } }))
+    const w = setup(pedido('entregado'))
+    await w.find('button.btn-secondary').trigger('click')
+    const enviar = w.findAll('button.btn-primary').find((b) => b.text() === 'Enviar')!
+    await enviar.trigger('click')
+    await vi.waitFor(() => expect(post).toHaveBeenCalled())
+    await new Promise((r) => setTimeout(r, 0))
+    return { w, store: useGoEatsStore() }
+  }
+
+  it('failure keeps the modal open, rolls back the rating and shows the typed error (no thanks toast)', async () => {
+    const { w, store } = await rate('fail')
+    expect(w.text()).toContain('Atención del repartidor')
+    expect(store.pedidos[0].calificacion).toBeNull()
+    expect(store.notificacion).toMatchObject({ texto: 'La acción choca con el estado actual. Actualiza e inténtalo de nuevo.', tipo: 'error' })
+  })
+
+  it('success closes the modal and thanks the user', async () => {
+    const { w, store } = await rate('ok')
+    expect(w.text()).not.toContain('Atención del repartidor')
+    expect(store.pedidos[0].calificacion).toBe(5)
+    expect(store.notificacion.texto).toBe('¡Gracias por calificar tu pedido!')
+  })
+})

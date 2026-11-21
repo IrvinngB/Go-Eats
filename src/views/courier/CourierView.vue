@@ -28,20 +28,22 @@ function toggle() {
   store.toggleRepartidorDisponible(courierId.value)
 }
 
-function enCamino(p) {
-  store.avanzarEstadoPedido(p.id, 'en_camino')
-  store.notificar(`Pedido ${p.id} marcado en camino.`)
+async function enCamino(p) {
+  const r = await store.avanzarEstadoPedido(p.id, 'en_camino')
+  if (r.ok) store.notificar(`Pedido ${p.id} marcado en camino.`)
 }
 
-function entregar(p) {
-  store.avanzarEstadoPedido(p.id, 'entregado')
-  store.notificar(`Entrega de ${p.id} completada. ¡Buen trabajo!`)
+async function entregar(p) {
+  const r = await store.avanzarEstadoPedido(p.id, 'entregado')
+  if (r.ok) store.notificar(`Entrega de ${p.id} completada. ¡Buen trabajo!`)
 }
 
-function reportar() {
+async function reportar() {
   if (!motivo.value.trim()) return
-  store.avanzarEstadoPedido(reportarModal.value.id, 'cancelado', { motivoCancelacion: motivo.value })
-  store.notificar(`Pedido ${reportarModal.value.id} reportado como cancelado.`)
+  const id = reportarModal.value.id
+  const r = await store.avanzarEstadoPedido(id, 'cancelado', { motivoCancelacion: motivo.value })
+  if (!r.ok) return // modal stays open; the store already showed the error
+  store.notificar(`Pedido ${id} reportado como cancelado.`)
   reportarModal.value = null
   motivo.value = ''
 }

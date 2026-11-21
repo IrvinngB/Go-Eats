@@ -22,23 +22,25 @@ const horario = ref({ ...(comercio.value?.horario || { abre: '', cierra: '' }) }
 watch(comercio, (c) => { if (c) horario.value = { ...c.horario } })
 const horarioGuardado = ref(false)
 
-function siguiente(p) {
+async function siguiente(p) {
   const s = store.siguienteEstado(p.estado)
   if (!s) return
-  store.avanzarEstadoPedido(p.id, s)
+  await store.avanzarEstadoPedido(p.id, s) // on failure the store rolls back and shows the error toast
 }
 
 // El comercio puede rechazar mientras el pedido no haya salido a la calle (motivo obligatorio).
 const RECHAZABLES = ['pendiente', 'confirmado', 'en_preparacion']
 
-function asignar(p, repartidorId) {
-  store.asignarRepartidor(p.id, repartidorId)
+async function asignar(p, repartidorId) {
+  await store.asignarRepartidor(p.id, repartidorId)
 }
 
-function confirmarRechazo() {
+async function confirmarRechazo() {
   if (!motivoRechazo.value.trim()) return
-  store.rechazarPedido(rechazarModal.value.id, motivoRechazo.value)
-  store.notificar(`Pedido ${rechazarModal.value.id} rechazado.`)
+  const id = rechazarModal.value.id
+  const r = await store.rechazarPedido(id, motivoRechazo.value)
+  if (!r.ok) return // the modal stays open with the typed reason; the store already showed the error
+  store.notificar(`Pedido ${id} rechazado.`)
   rechazarModal.value = null
   motivoRechazo.value = ''
 }
@@ -53,15 +55,17 @@ function editar(p) {
   formProducto.value = { nombre: p.nombre, precio: p.precio, descripcion: p.descripcion }
 }
 
-function guardarProducto() {
+async function guardarProducto() {
   if (!formProducto.value.nombre.trim()) return
-  store.guardarProducto(comercio.value.id, { ...formProducto.value, precio: Number(formProducto.value.precio) }, editarProducto.value?.id || null)
+  const r = await store.guardarProducto(comercio.value.id, { ...formProducto.value, precio: Number(formProducto.value.precio) }, editarProducto.value?.id || null)
+  if (!r.ok) return
   editarProducto.value = null
   store.notificar('Producto guardado.')
 }
 
-function guardarHorario() {
-  store.guardarHorarioComercio(comercio.value.id, horario.value)
+async function guardarHorario() {
+  const r = await store.guardarHorarioComercio(comercio.value.id, horario.value)
+  if (!r.ok) return
   horarioGuardado.value = true
   setTimeout(() => (horarioGuardado.value = false), 2500)
 }
