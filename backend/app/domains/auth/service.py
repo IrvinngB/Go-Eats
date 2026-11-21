@@ -1,6 +1,8 @@
 import jwt
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+from app.core.config import settings
+from app.core.rbac import UserRole
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -36,7 +38,7 @@ class AuthService:
             email=payload.email,
             phone=payload.phone,
             password_hash=hash_password(payload.password),
-            role=payload.role.value,
+            role=UserRole.CUSTOMER.value,
         )
         record_auth_event(self.db, user.email, "register_success")
         record_audit_event(
@@ -57,7 +59,9 @@ class AuthService:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="User account is suspended.",
             )
-        active_role = payload.role.value if payload.role else user.role
+        active_role = user.role
+        if settings.dev_role_override and payload.role:
+            active_role = payload.role.value
         record_auth_event(self.db, user.email, f"login_success:{active_role}")
         return self._issue_tokens(user, role_override=active_role)
 
@@ -70,7 +74,6 @@ class AuthService:
                     detail="Invalid refresh token.",
                 )
             user_id = int(decoded["sub"])
-            role = str(decoded["role"])
         except (jwt.PyJWTError, KeyError, ValueError) as exc:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -83,7 +86,8 @@ class AuthService:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User not found or inactive.",
             )
-        return self._issue_tokens(user, role_override=role)
+        # Role always comes from the DB, never from the token claim.
+        return self._issue_tokens(user)
 
     def _issue_tokens(self, user, role_override: str | None = None) -> TokenResponse:
         role = role_override or user.role

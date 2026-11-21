@@ -42,10 +42,10 @@ Every PR gate: `cd backend && .venv/bin/pytest`, `pnpm test`, `pnpm exec vue-tsc
 - [x] 2.4 Verify seeded users have consent rows (seed.py:83) and record result in PR description.
 
 ## PR3: Auth hardening
-- [ ] 3.1 RED `test_auth.py::test_login_ignores_role_flag_off`, `test_login_honors_role_flag_on`; GREEN: add `dev_role_override`, `dev_simulate_failure` to `config.py` (1/true/yes), gate login role.
-- [ ] 3.2 RED `test_register_role_admin_becomes_customer`, `accepts_privacy_policy` default False; GREEN: remove `UserCreate.role`.
-- [ ] 3.3 RED `test_refresh_uses_db_role`; GREEN: `auth/service.py` refresh.
-- [ ] 3.4 RED LoginView spec (navigates by server role); GREEN: LoginView uses `store.rol`; role picker gated (hidden unless backend override flag path is irrelevant: remove picker), checkbox only on register; store no longer sends `role`/default consent True.
+- [x] 3.1 RED `test_auth.py::test_login_ignores_role_flag_off`, `test_login_honors_role_flag_on`; GREEN: add `dev_role_override`, `dev_simulate_failure` to `config.py` (1/true/yes), gate login role.
+- [x] 3.2 RED `test_register_role_admin_becomes_customer`, `accepts_privacy_policy` default False; GREEN: remove `UserCreate.role`.
+- [x] 3.3 RED `test_refresh_uses_db_role`; GREEN: `auth/service.py` refresh.
+- [x] 3.4 RED LoginView spec (navigates by server role); GREEN: LoginView uses `store.rol`; role picker gated (hidden unless backend override flag path is irrelevant: remove picker), checkbox only on register; store no longer sends `role`/default consent True.
 
 ## PR4: Scoped reads + locks + sync + session restore
 - [ ] 4.1 RED `test_orders_scope.py` (customer own, merchant linked, unlinked `[]`, courier, admin/accountant all, anon 401, other-order GET 404); GREEN: `OrderService.list_for`, `MerchantRepository.get_by_owner`, `CourierRepository.get_by_user`.

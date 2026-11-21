@@ -8,8 +8,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     phone: str = Field(default="", max_length=40)
     password: str = Field(..., min_length=6, max_length=128)
-    role: UserRole = UserRole.CUSTOMER
-    accepts_privacy_policy: bool = True
+    accepts_privacy_policy: bool
 
 
 class UserUpdate(BaseModel):

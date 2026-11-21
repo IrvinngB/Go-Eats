@@ -2,6 +2,11 @@ import os
 from pydantic import BaseModel
 
 
+def env_flag(value: str | None) -> bool:
+    """True only for 1/true/yes (case-insensitive); anything else is OFF."""
+    return (value or "").strip().lower() in {"1", "true", "yes"}
+
+
 class Settings(BaseModel):
     app_name: str = "Go Eats API"
     api_v1_prefix: str = "/api/v1"
@@ -15,6 +20,9 @@ class Settings(BaseModel):
     s3_access_key: str = os.getenv("S3_ACCESS_KEY", "minioadmin")
     s3_secret_key: str = os.getenv("S3_SECRET_KEY", "minioadmin_password")
     s3_bucket_name: str = os.getenv("S3_BUCKET_NAME", "goeats-storage")
+    # Server-side dev flags: read from the environment only, never from a request.
+    dev_role_override: bool = env_flag(os.getenv("DEV_ROLE_OVERRIDE"))
+    dev_simulate_failure: bool = env_flag(os.getenv("DEV_SIMULATE_FAILURE"))
 
 
 settings = Settings()
