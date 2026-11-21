@@ -57,7 +57,7 @@ export const comercios = [
     estadoAfiliacion: 'activo',
     horario: { abre: '11:00', cierra: '21:00' },
     descripcion: 'Sancocho, ropa vieja y ceviche elaborados al estilo del mercado interno.',
-    emoji: '🍲',
+    icono: 'Soup',
   },
   {
     id: 'c2',
@@ -70,7 +70,7 @@ export const comercios = [
     estadoAfiliacion: 'activo',
     horario: { abre: '06:30', cierra: '20:00' },
     descripcion: 'Café de boquete, empanadas y pan dulce horneado cada mañana.',
-    emoji: '☕',
+    icono: 'Coffee',
   },
   {
     id: 'c3',
@@ -83,7 +83,7 @@ export const comercios = [
     estadoAfiliacion: 'activo',
     horario: { abre: '12:00', cierra: '22:00' },
     descripcion: 'Rolls frescos de Corotú, ramen y tempura crujiente.',
-    emoji: '🍣',
+    icono: 'Fish',
   },
   {
     id: 'c4',
@@ -96,7 +96,7 @@ export const comercios = [
     estadoAfiliacion: 'activo',
     horario: { abre: '07:00', cierra: '21:00' },
     descripcion: 'Despensa, frutas frescas y artículos básicos a domicilio.',
-    emoji: '🛒',
+    icono: 'ShoppingCart',
   },
   {
     id: 'c5',
@@ -109,7 +109,7 @@ export const comercios = [
     estadoAfiliacion: 'activo',
     horario: { abre: '12:00', cierra: '23:00' },
     descripcion: 'Pizza de leña con masa de fermentación lenta, estilo napolitano.',
-    emoji: '🍕',
+    icono: 'Pizza',
   },
   {
     id: 'c6',
@@ -122,7 +122,7 @@ export const comercios = [
     estadoAfiliacion: 'activo',
     horario: { abre: '10:00', cierra: '20:00' },
     descripcion: 'Pollo entero frito, patacones y ensalada de papas.',
-    emoji: '🍗',
+    icono: 'Drumstick',
   },
   {
     id: 'c7',
@@ -135,7 +135,7 @@ export const comercios = [
     estadoAfiliacion: 'activo',
     horario: { abre: '08:00', cierra: '18:00' },
     descripcion: 'Bowls, ensaladas y jugos prensados en frío. Cerrado temporalmente.',
-    emoji: '🥗',
+    icono: 'Salad',
   },
   {
     id: 'c8',
@@ -148,7 +148,7 @@ export const comercios = [
     estadoAfiliacion: 'en_revision',
     horario: { abre: '10:00', cierra: '19:00' },
     descripcion: 'Afilación en revisión por el administrador.',
-    emoji: '🍰',
+    icono: 'Cake',
   },
 ]
 

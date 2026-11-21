@@ -5,9 +5,19 @@ import StatusBadge from '../../components/StatusBadge.vue'
 
 const store = useGoEatsStore()
 const tab = ref('pedidos')
-const comercio = computed(() => store.comercios[0]) // comercio demo: Diablicos
-const productos = computed(() => store.productosDe(comercio.value.id))
-const pedidos = computed(() => store.pedidosPorComercio(comercio.value.id))
+const comercio = computed(() => {
+  if (store.usuario?.email) {
+    const encontrado = store.comercios.find(
+      (c) =>
+        c.email === store.usuario.email ||
+        (c.nombre && c.nombre.toLowerCase().includes(store.usuario.nombre.toLowerCase().split(' ')[0]))
+    )
+    if (encontrado) return encontrado
+  }
+  return store.comercios[0] || { id: 'c1', nombre: 'Comercio', horario: { abre: '09:00', cierra: '21:00' } }
+})
+const productos = computed(() => store.productosDe(comercio.value?.id || 'c1'))
+const pedidos = computed(() => store.pedidosPorComercio(comercio.value?.id || 'c1'))
 
 const activos = computed(() => pedidos.value.filter((p) => !['entregado', 'cancelado'].includes(p.estado)))
 const historial = computed(() => pedidos.value.filter((p) => ['entregado', 'cancelado'].includes(p.estado)))
@@ -132,7 +142,7 @@ function guardarHorario() {
                   <select class="input" @change="asignar(p, $event.target.value); $event.target.value = ''">
                     <option value="" disabled selected>Selecciona un repartidor…</option>
                     <option v-for="r in store.repartidoresDisponibles" :key="r.id" :value="r.id">
-                      {{ r.nombre }} · ⭐ {{ r.rating }} · {{ store.zonas.find((z) => z.id === r.zona)?.nombre }}
+                      {{ r.nombre }} · ({{ r.rating }}/5) · {{ store.zonas.find((z) => z.id === r.zona)?.nombre }}
                     </option>
                   </select>
                   <p v-if="store.repartidoresDisponibles.length === 0" class="text-xs text-amber-600 mt-1.5">No hay repartidores disponibles ahora.</p>

@@ -3,15 +3,25 @@ import { ref, computed } from 'vue'
 import { useGoEatsStore } from '../../stores/useGoEatsStore'
 import { kpis, actividadReciente } from '../../mockData'
 import StatusBadge from '../../components/StatusBadge.vue'
+import {
+  Package,
+  CircleDollarSign,
+  Clock,
+  Store,
+  CreditCard,
+  Key,
+  FileText,
+  Bike,
+} from '@lucide/vue'
 
 const store = useGoEatsStore()
 const tab = ref('afiliaciones')
 
 const tarjetas = [
-  { label: 'Pedidos del día', valor: kpis.pedidosDia, icono: '📦', color: 'bg-brand-light text-brand-dark' },
-  { label: 'Ingresos totales', valor: `B/ ${kpis.ingresosTotales.toFixed(2)}`, icono: '💰', color: 'bg-emerald-50 text-emerald-600' },
-  { label: 'Tiempo prom. de entrega', valor: kpis.tiempoPromedioEntrega, icono: '⏱️', color: 'bg-blue-50 text-blue-600' },
-  { label: 'Comercios activos', valor: kpis.comerciosActivos, icono: '🏪', color: 'bg-amber-50 text-amber-600' },
+  { label: 'Pedidos del día', valor: kpis.pedidosDia, icono: Package, color: 'bg-brand-light text-brand-dark' },
+  { label: 'Ingresos totales', valor: `B/ ${kpis.ingresosTotales.toFixed(2)}`, icono: CircleDollarSign, color: 'bg-emerald-50 text-emerald-600' },
+  { label: 'Tiempo prom. de entrega', valor: kpis.tiempoPromedioEntrega, icono: Clock, color: 'bg-blue-50 text-blue-600' },
+  { label: 'Comercios activos', valor: kpis.comerciosActivos, icono: Store, color: 'bg-amber-50 text-amber-600' },
 ]
 
 const pendientes = computed(() => store.afiliaciones.filter((a) => a.estado === 'en_revision'))
@@ -38,7 +48,7 @@ function enviarRespuesta() {
   responderModal.value = null
 }
 
-const tipoIcono = { pedido: '📦', pago: '💳', acceso: '🔐', comercio: '🏪', arco: '📋' }
+const tipoIcono = { pedido: Package, pago: CreditCard, acceso: Key, comercio: Store, arco: FileText }
 </script>
 
 <template>
@@ -51,7 +61,9 @@ const tipoIcono = { pedido: '📦', pago: '💳', acceso: '🔐', comercio: '�
     <!-- KPIs -->
     <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <div v-for="k in tarjetas" :key="k.label" class="card p-5 flex items-center gap-4">
-        <span class="grid place-items-center w-11 h-11 rounded-xl text-xl" :class="k.color">{{ k.icono }}</span>
+        <span class="grid place-items-center w-11 h-11 rounded-xl" :class="k.color">
+          <component :is="k.icono" class="w-5 h-5" />
+        </span>
         <div>
           <p class="text-xs text-slatebody">{{ k.label }}</p>
           <p class="text-xl font-bold text-ink">{{ k.valor }}</p>
@@ -78,7 +90,9 @@ const tipoIcono = { pedido: '📦', pago: '💳', acceso: '🔐', comercio: '�
         <h2 class="text-sm font-semibold uppercase tracking-wide text-slatebody/70 mb-3">Pendientes de aprobación ({{ pendientes.length }})</h2>
         <div v-if="pendientes.length" class="grid gap-3 lg:grid-cols-2">
           <div v-for="a in pendientes" :key="a.id" class="card p-5 flex items-start gap-4">
-            <span class="grid place-items-center w-11 h-11 rounded-xl bg-canvas text-xl shrink-0">{{ a.tipo === 'comercio' ? '🏪' : '🛵' }}</span>
+            <span class="grid place-items-center w-11 h-11 rounded-xl bg-canvas text-brand shrink-0">
+              <component :is="a.tipo === 'comercio' ? Store : Bike" class="w-5 h-5" />
+            </span>
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
                 <h3 class="font-semibold text-ink">{{ a.nombre }}</h3>
@@ -184,7 +198,12 @@ const tipoIcono = { pedido: '📦', pago: '💳', acceso: '🔐', comercio: '�
               <td class="td text-slatebody whitespace-nowrap">{{ e.fecha }}</td>
               <td class="td font-medium text-ink">{{ e.actor }}</td>
               <td class="td text-slatebody">{{ e.accion }}</td>
-              <td class="td"><span class="text-lg" :title="e.tipo">{{ tipoIcono[e.tipo] || '•' }}</span></td>
+              <td class="td">
+                <span class="inline-flex items-center text-slatebody" :title="e.tipo">
+                  <component :is="tipoIcono[e.tipo]" v-if="tipoIcono[e.tipo]" class="w-4 h-4" />
+                  <span v-else>•</span>
+                </span>
+              </td>
             </tr>
           </tbody>
         </table>

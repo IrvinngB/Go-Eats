@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useGoEatsStore } from '../../stores/useGoEatsStore'
+import CommerceIcon from '../../components/CommerceIcon.vue'
 
 const store = useGoEatsStore()
 const route = useRoute()
@@ -73,7 +74,9 @@ function verPedido() {
 
     <!-- Encabezado -->
     <div class="card p-6 flex flex-wrap items-center gap-5">
-      <span class="grid place-items-center w-16 h-16 rounded-2xl bg-brand-light text-4xl">{{ comercio.emoji }}</span>
+      <span class="grid place-items-center w-16 h-16 rounded-2xl bg-brand-light text-brand">
+        <CommerceIcon :name="comercio.icono" class="w-8 h-8" />
+      </span>
       <div class="flex-1 min-w-[200px]">
         <h1 class="text-2xl font-bold">{{ comercio.nombre }}</h1>
         <p class="text-sm text-slatebody">{{ comercio.tipo }} · {{ store.zonaActual.nombre }}</p>

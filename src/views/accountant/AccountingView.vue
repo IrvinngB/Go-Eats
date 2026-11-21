@@ -157,7 +157,7 @@ function metodoLabel(m) {
               <div class="flex justify-between font-bold text-ink text-base pt-2 border-t border-line"><span>Neto al comercio</span><span>B/ {{ comprobante.total.toFixed(2) }}</span></div>
             </div>
             <p class="text-[10px] text-slatebody/60 text-center pt-3 border-t border-line">Documento generado electrónicamente. Este comprobante es una simulación para fines de demostración.</p>
-            <button class="btn-primary w-full mt-5" @click="store.notificar('Comprobante descargado (simulado).')">
+            <button class="btn-primary w-full mt-5" @click="store.descargarComprobantePDF(comprobante)">
               Descargar PDF
             </button>
           </div>
