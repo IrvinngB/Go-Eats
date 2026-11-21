@@ -437,7 +437,7 @@ export const useGoEatsStore = defineStore('goeats', {
     // POST /orders then POST /payments for the server order code (both awaited).
     // Returns the UI order (with `pagoEstado`, `referenciaPasarela`) or null on any failure (typed toast shown).
     // The cart is cleared only when both calls succeed.
-    async crearPedido({ direccion, lat, lng, metodoPago, observaciones }) {
+    async crearPedido({ direccion, lat, lng, metodoPago, observaciones, simularFalloPago = false }) {
       const comercio = this.carritoComercio
       if (!this.autenticado || !comercio || this.carrito.length === 0) return null
       const metodo = metodoPago === 'electronico' ? 'yappy' : 'contr_entrega'
@@ -487,7 +487,13 @@ export const useGoEatsStore = defineStore('goeats', {
       }
       try {
         // Amounts are never sent: the server takes them from the persisted order.
-        const { data: pago } = await api.post('/payments/', { order_code: pedido.id, method: metodo })
+        // Decline simulation is sent ONLY when the build-time demo flag is enabled AND the decline test card was used.
+        const demoActivo = import.meta.env.VITE_ENABLE_DEMO_SWITCHER === 'true'
+        const cuerpoPago =
+          demoActivo && simularFalloPago
+            ? { order_code: pedido.id, method: metodo, simulate_failure: true }
+            : { order_code: pedido.id, method: metodo }
+        const { data: pago } = await api.post('/payments/', cuerpoPago)
         pedido.pagoEstado = pago.status
         pedido.referenciaPasarela = pago.provider_reference || undefined
         if (pago.status === 'fallido') {

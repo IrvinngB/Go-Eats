@@ -32,6 +32,7 @@ vi.mock('../../components/AddressPickerMap.vue', async () => {
 
 import StoreDetailView from './StoreDetailView.vue'
 import api from '../../services/api'
+import { TEST_CARD_APPROVE, TEST_CARD_DECLINE } from '../../utils/card'
 // @ts-expect-error the store is plain JS without declarations
 import { useGoEatsStore } from '../../stores/useGoEatsStore'
 
@@ -92,24 +93,40 @@ describe('StoreDetailView payment flow', () => {
     await flushPromises()
   }
 
-  it('electronic opens a modal with a single "Pagar (simulado)" action and no outcome buttons', async () => {
+  async function completeGateway(w: Awaited<ReturnType<typeof setup>>['w'], numero = TEST_CARD_APPROVE) {
+    await w.find('[data-test="card-holder"]').setValue('Carlos Andrade')
+    await w.find('[data-test="card-number"]').setValue(numero)
+    await w.find('[data-test="card-expiry"]').setValue('12/29')
+    await w.find('[data-test="card-cvv"]').setValue('123')
+    await w.find('[data-test="card-submit"]').trigger('click')
+    await w.find('[data-test="otp-code"]').setValue('123456')
+    await w.find('[data-test="otp-submit"]').trigger('click')
+    await flushPromises()
+  }
+
+  it('electronic opens the simulated card modal first without calling crearPedido until OTP completes', async () => {
     const { w, store } = await setup()
     const crear = vi.spyOn(store, 'crearPedido').mockResolvedValue(pedido())
     await toCheckout(w, 'electronico')
-    const labels = w.findAll('.modal-panel button').map((b) => b.text())
-    expect(labels).toEqual(['Pagar (simulado)'])
-    expect(w.text()).not.toMatch(/Simular (rechazo|aprobación)/)
-    expect(crear).not.toHaveBeenCalled() // nothing is created until the user pays
+    expect(w.find('[data-test="step-card"]').exists()).toBe(true)
+    expect(w.find('.modal-panel').text().toLowerCase()).toContain('simulado')
+    expect(crear).not.toHaveBeenCalled()
   })
 
   it('paying calls crearPedido once with the electronic method and shows the server reference', async () => {
     const { w, store } = await setup()
     const crear = vi.spyOn(store, 'crearPedido').mockResolvedValue(pedido())
     await toCheckout(w, 'electronico')
-    await w.find('.modal-panel button').trigger('click')
-    await flushPromises()
+    await completeGateway(w, TEST_CARD_APPROVE)
     expect(crear).toHaveBeenCalledTimes(1)
-    expect(crear).toHaveBeenCalledWith({ direccion: 'Calle 45', lat: null, lng: null, metodoPago: 'electronico', observaciones: '' })
+    expect(crear).toHaveBeenCalledWith({
+      direccion: 'Calle 45',
+      lat: null,
+      lng: null,
+      metodoPago: 'electronico',
+      observaciones: '',
+      simularFalloPago: false,
+    })
     expect(w.find('.modal-panel').text()).toContain('Pago aprobado')
     expect(w.find('.modal-panel').text()).toContain('YPY-ABC')
   })
@@ -118,9 +135,63 @@ describe('StoreDetailView payment flow', () => {
     const { w, store } = await setup()
     vi.spyOn(store, 'crearPedido').mockResolvedValue(pedido({ pagoEstado: 'fallido', estado: 'cancelado' }))
     await toCheckout(w, 'electronico')
-    await w.find('.modal-panel button').trigger('click')
-    await flushPromises()
+    await completeGateway(w, TEST_CARD_DECLINE)
     expect(w.find('.modal-panel').text()).toContain('Pago rechazado')
+  })
+
+  it('sends only order_code + method to /payments by default, and adds simulate_failure only when DEMO_SWITCHER is enabled with the decline card', async () => {
+    const postMock = vi.mocked(api.post)
+    postMock.mockReset()
+    const orderResp = {
+      data: {
+        code: 'PED-55',
+        customer_id: 1,
+        customer_name: 'Carlos',
+        merchant_code: 'c9',
+        merchant_name: 'Comercio',
+        zone_slug: 'san-francisco',
+        status: 'pendiente',
+        payment_method: 'yappy',
+        payment_status: 'pendiente',
+        subtotal: 5,
+        delivery_fee: 2.5,
+        total: 7.5,
+        delivery_address: 'Calle 45',
+        items: [],
+        created_at: '2026-11-20T00:00:00Z',
+      },
+    }
+
+    // 1. Default (prod build, flag off) + decline test card -> NO simulate_failure sent, approves
+    vi.stubEnv('VITE_ENABLE_DEMO_SWITCHER', 'false')
+    postMock
+      .mockResolvedValueOnce(orderResp)
+      .mockResolvedValueOnce({ data: { id: 1, order_code: 'PED-55', method: 'yappy', status: 'pagado', amount: 7.5, provider_reference: 'YPY-PROD' } })
+
+    const s1 = await setup()
+    await toCheckout(s1.w, 'electronico')
+    await completeGateway(s1.w, TEST_CARD_DECLINE)
+
+    const payCallProd = postMock.mock.calls.find((c) => c[0] === '/payments/')!
+    expect(Object.keys(payCallProd[1] as object).sort()).toEqual(['method', 'order_code'])
+    expect(JSON.stringify(postMock.mock.calls)).not.toContain(TEST_CARD_DECLINE)
+    expect(JSON.stringify(postMock.mock.calls)).not.toContain('Carlos Andrade')
+
+    // 2. Demo flag ON + decline test card -> sends simulate_failure: true
+    postMock.mockReset()
+    vi.stubEnv('VITE_ENABLE_DEMO_SWITCHER', 'true')
+    postMock
+      .mockResolvedValueOnce({ data: { ...orderResp.data, code: 'PED-56' } })
+      .mockResolvedValueOnce({ data: { id: 2, order_code: 'PED-56', method: 'yappy', status: 'fallido', amount: 7.5, provider_reference: 'YPY-FAIL' } })
+
+    const s2 = await setup()
+    await toCheckout(s2.w, 'electronico')
+    await completeGateway(s2.w, TEST_CARD_DECLINE)
+
+    const payCallDemo = postMock.mock.calls.find((c) => c[0] === '/payments/')!
+    expect(payCallDemo[1]).toEqual({ order_code: 'PED-56', method: 'yappy', simulate_failure: true })
+    expect(s2.w.find('.modal-panel').text()).toContain('Pago rechazado')
+    vi.unstubAllEnvs()
   })
 
   it('cash on delivery goes through the same call without a payment modal', async () => {
@@ -173,7 +244,13 @@ describe('StoreDetailView consent_required', () => {
     const { w, store, router } = await setup()
     vi.spyOn(store, 'crearPedido').mockImplementation(blocked(store))
     await toCheckout(w, 'electronico')
-    await w.findAll('.modal-panel button').find((b) => b.text() === 'Pagar (simulado)')!.trigger('click')
+    await w.find('[data-test="card-holder"]').setValue('Carlos Andrade')
+    await w.find('[data-test="card-number"]').setValue(TEST_CARD_APPROVE)
+    await w.find('[data-test="card-expiry"]').setValue('12/29')
+    await w.find('[data-test="card-cvv"]').setValue('123')
+    await w.find('[data-test="card-submit"]').trigger('click')
+    await w.find('[data-test="otp-code"]').setValue('123456')
+    await w.find('[data-test="otp-submit"]').trigger('click')
     await flushPromises()
     const box = w.find('.modal-panel [data-test="consent-required"]')
     expect(box.text()).toContain('Debes aceptar el tratamiento de tus datos')
@@ -348,6 +425,17 @@ describe('StoreDetailView checkout address', () => {
     expect(w.find('aside').exists()).toBe(false) // checkout closed: the order went through
   })
 
+  async function pagarEnModal(w: W, numero = TEST_CARD_APPROVE) {
+    await w.find('[data-test="card-holder"]').setValue('Carlos Andrade')
+    await w.find('[data-test="card-number"]').setValue(numero)
+    await w.find('[data-test="card-expiry"]').setValue('12/29')
+    await w.find('[data-test="card-cvv"]').setValue('123')
+    await w.find('[data-test="card-submit"]').trigger('click')
+    await w.find('[data-test="otp-code"]').setValue('123456')
+    await w.find('[data-test="otp-submit"]').trigger('click')
+    await flushPromises()
+  }
+
   it('electronic: the default is saved after the payment flow succeeds, not when the modal opens', async () => {
     const { w, store } = await setup(false, true, PERFIL)
     const guardar = vi.spyOn(store, 'guardarPerfil').mockResolvedValue({ ok: true })
@@ -359,8 +447,7 @@ describe('StoreDetailView checkout address', () => {
     await w.find('input[value="electronico"]').setValue(true)
     await realizar(w)
     expect(guardar).not.toHaveBeenCalled()
-    await w.find('.modal-panel button').trigger('click')
-    await flushPromises()
+    await pagarEnModal(w)
     expect(guardar).toHaveBeenCalledWith({ direccion: 'Avenida Balboa, Torre 3', lat: 8.9824, lng: -79.5199 }) // the prefilled pin was kept
   })
 
@@ -374,8 +461,7 @@ describe('StoreDetailView checkout address', () => {
     await w.find('[data-test="guardar-default"]').setValue(true)
     await w.find('input[value="electronico"]').setValue(true)
     await realizar(w)
-    await w.find('.modal-panel button').trigger('click')
-    await flushPromises()
+    await pagarEnModal(w, TEST_CARD_DECLINE)
     expect(guardar).not.toHaveBeenCalled()
   })
 
