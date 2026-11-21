@@ -79,11 +79,11 @@ WU5a (5.1, 5.2, stores wiring) and WU5b (5.3-5.6, coverage) done.
 - [x] 7.5 Copy checklist: each claim mapped to RF-01/02/04/05/06/10/13/14/15/16/19 (cash to RF-10, status to RF-16); no prices, ETAs, ratings, stats, testimonials, partner brands, live-tracking wording.
 
 ## WU8: Real-browser verification (base: WU7)
-- [ ] 8.1 `e2e/landing.spec.ts`: cascade (dark scheme plus `html.dark`, h1/h2 `rgb(11,43,51)`, white bg, band bg), 360x800 `scrollWidth <= innerWidth`, landmarks, skip-link Tab/Enter, sticky nav and anchor offset.
-- [ ] 8.2 Reduced motion (`scroll-behavior: auto`, no running animation); API states via `page.route` (fulfill filter/cap, abort fallback, 6 s delay loading); map (no chunk before scroll, caption visible, no dialog).
-- [ ] 8.3 Create `docs/landing-image-briefs.md`.
-- [ ] 8.4 Verify precache: 2 wordmarks (not 22) in `pnpm build` output.
-- [ ] 8.5 `docker compose build web`, then confirm SW update on a returning client.
+- [x] 8.1 `e2e/landing.spec.ts`: cascade (dark scheme plus `html.dark`, h1/h2 `rgb(11,43,51)`, white bg, band bg), 360x800 `scrollWidth <= innerWidth`, landmarks, skip-link Tab/Enter, sticky nav and anchor offset.
+- [x] 8.2 Reduced motion (`scroll-behavior: auto`, no running animation); API states via `page.route` (fulfill filter/cap, abort fallback, 6 s delay loading); map (no chunk before scroll, caption visible, no dialog).
+- [x] 8.3 Create `docs/landing-image-briefs.md`.
+- [x] 8.4 Verify precache: 2 wordmarks (not 22) in `pnpm build` output.
+- [x] 8.5 `docker compose build web`, then confirm SW update on a returning client.
 - [ ] 8.6 User visual review in a real browser at 360px and desktop.
 
 ## Cleanup
