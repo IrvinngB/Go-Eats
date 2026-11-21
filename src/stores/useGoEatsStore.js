@@ -153,11 +153,19 @@ export const useGoEatsStore = defineStore('goeats', {
   },
 
   actions: {
-    notificar(texto, tipo = 'info') {
+    // info/success auto-dismiss; errors stay until the user dismisses them (desing.md), replaced only by a newer
+    // toast or cleared when the same action succeeds (`accion` ties an error to the action that raised it).
+    notificar(texto, tipo = 'info', accion = null) {
       // A unique id per toast: the timer only dismisses the toast it was created for.
       const id = ++notificacionSeq
-      this.notificacion = { texto, tipo, id }
+      this.notificacion = { texto, tipo, id, accion }
+      if (tipo === 'error') return
       setTimeout(() => { if (this.notificacion?.id === id) this.notificacion = null }, 2800)
+    },
+
+    // A successful retry removes the error toast left by the failed attempt of the same action.
+    limpiarError(accion) {
+      if (accion && this.notificacion?.tipo === 'error' && this.notificacion.accion === accion) this.notificacion = null
     },
 
     // Single wrapper for every API write.
@@ -167,7 +175,7 @@ export const useGoEatsStore = defineStore('goeats', {
     //   exito:     runs after the server confirmed (local log, success toast)
     //   revertir:  extra undo for changes a field snapshot cannot cover (items added to a list)
     // Never throws: returns { ok: true, data } or { ok: false, error } (typed, already toasted).
-    async escribir({ objetivos = [], aplicar, llamada, exito, revertir }) {
+    async escribir({ objetivos = [], aplicar, llamada, exito, revertir, accion = null }) {
       const snapshot = tomarSnapshot(objetivos)
       if (aplicar) aplicar()
       let data
@@ -177,9 +185,10 @@ export const useGoEatsStore = defineStore('goeats', {
         restaurarSnapshot(objetivos, snapshot)
         if (revertir) revertir()
         const error = toWriteError(err)
-        this.notificar(error.message, 'error')
+        this.notificar(error.message, 'error', accion)
         return { ok: false, error }
       }
+      this.limpiarError(accion)
       if (exito) exito(data)
       return { ok: true, data }
     },
@@ -428,6 +437,14 @@ export const useGoEatsStore = defineStore('goeats', {
       if (this.carrito.length === 0) this.carritoComercioId = null
     },
 
+    // Cart drawer edits: an absolute quantity (<= 0 removes the line) and/or the line note.
+    actualizarItemCarrito(idx, { cantidad, observacion } = {}) {
+      const item = this.carrito[idx]
+      if (!item) return
+      if (typeof observacion === 'string') item.observacion = observacion
+      if (typeof cantidad === 'number') this.actualizarCantidad(idx, cantidad - item.cantidad)
+    },
+
     vaciarCarrito() {
       this.carrito = []
       this.carritoComercioId = null
@@ -479,7 +496,7 @@ export const useGoEatsStore = defineStore('goeats', {
         } catch (err) {
           const error = toWriteError(err)
           if (error.code === 'consent_required') this.consentimientoRequerido = true
-          this.notificar(error.message, 'error')
+          this.notificar(error.message, 'error', 'crear-pedido')
           return null
         }
         this.pedidos.unshift(pedido)
@@ -506,10 +523,11 @@ export const useGoEatsStore = defineStore('goeats', {
         // The order exists on the server (pending): it is remembered so a retry only repeats the payment.
         const error = toWriteError(err)
         if (error.code === 'consent_required') this.consentimientoRequerido = true
-        this.notificar(`El pedido ${pedido.id} se creó, pero el pago falló. ${error.message}`, 'error')
+        this.notificar(`El pedido ${pedido.id} se creó, pero el pago falló. ${error.message}`, 'error', 'crear-pedido')
         return null
       }
       this.consentimientoRequerido = false
+      this.limpiarError('crear-pedido')
       this.vaciarCarrito() // also clears pedidoPendientePago
       return pedido
     },
@@ -518,6 +536,7 @@ export const useGoEatsStore = defineStore('goeats', {
       const pedido = this.pedidos.find((p) => p.id === pedidoId)
       if (!pedido) return Promise.resolve({ ok: false, error: null })
       return this.escribir({
+        accion: `estado:${pedidoId}`,
         objetivos: [pedido],
         aplicar: () => {
           pedido.estado = nuevoEstado
@@ -770,6 +789,7 @@ export const useGoEatsStore = defineStore('goeats', {
         if (i >= 0) this.misSolicitudesARCO.splice(i, 1)
       }
       return this.escribir({
+        accion: 'arco',
         aplicar: () => this.misSolicitudesARCO.unshift(solicitud),
         llamada: () => api.post('/users/me/arco', { request_type: tipo, detail: detalle }),
         revertir: quitar,
@@ -796,6 +816,7 @@ export const useGoEatsStore = defineStore('goeats', {
     // PUT /users/me/consent: revoke and re-grant are the same call (history is kept server-side).
     cambiarConsentimiento(aceptado) {
       return this.escribir({
+        accion: 'consentimiento',
         objetivos: [this.usuario],
         aplicar: () => {
           this.usuario.consentimientoLey81 = aceptado
@@ -827,6 +848,7 @@ export const useGoEatsStore = defineStore('goeats', {
         local.lng = body.lng
       }
       return this.escribir({
+        accion: 'perfil',
         objetivos: [this.usuario],
         // The consent flag is owned by the server (cambiarConsentimiento), never by a profile form copy.
         aplicar: () => Object.assign(this.usuario, local),
@@ -842,6 +864,7 @@ export const useGoEatsStore = defineStore('goeats', {
       const p = this.pedidos.find((x) => x.id === pedidoId)
       if (!p) return Promise.resolve({ ok: false, error: null })
       return this.escribir({
+        accion: `calificar:${pedidoId}`,
         objetivos: [p],
         aplicar: () => {
           p.calificacion = estrellasComercio

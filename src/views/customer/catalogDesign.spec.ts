@@ -2,10 +2,9 @@ import { describe, expect, it } from 'vitest'
 import stores from './StoresView.vue?raw'
 import detail from './StoreDetailView.vue?raw'
 
-// Browsing markup only: the cart drawer and checkout (everything after this marker) are out of scope.
+// The whole StoreDetailView template, cart drawer and checkout included (PR2 brought them into the scan).
 const template = (src: string) => src.slice(src.indexOf('<template>'))
-const browsing = (src: string) => template(src).split('<!-- Carrito lateral -->')[0]
-const views = { StoresView: template(stores), StoreDetailView: browsing(detail) }
+const views = { StoresView: template(stores), StoreDetailView: template(detail) }
 
 describe('catalog views follow the Friendly Bento rules', () => {
   for (const [name, src] of Object.entries(views)) {

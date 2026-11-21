@@ -1,17 +1,21 @@
 <script setup>
-import { ref, computed, defineAsyncComponent, nextTick } from 'vue'
+import { ref, computed, defineAsyncComponent, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useGoEatsStore } from '../../stores/useGoEatsStore'
 import CommerceIcon from '../../components/CommerceIcon.vue'
 import PaymentGatewayModal from '../../components/PaymentGatewayModal.vue'
 import { puntoEnCobertura } from '../../utils/geo'
-import { extraerCategorias, filtrarProductos, tienePromocion } from '../../utils/catalog'
+import { extraerCategorias, filtrarProductos, formatRating, tienePromocion } from '../../utils/catalog'
+import { resumenPedido } from '../../utils/checkout'
+import { textoVerMas } from '../../utils/pagination'
+import { useDialogo } from '../../composables/useDialogo'
+import { usePaginacion } from '../../composables/usePaginacion'
 import { layoutGrid, cellClass } from '../../utils/grid'
 import '@fontsource/nunito/latin-400.css'
 import '@fontsource/nunito/latin-700.css'
 import '@fontsource/nunito/latin-800.css'
 import '../../components/catalog/catalog.css'
-import { Search, SearchX, Bike, Utensils, Sparkles, Star, ArrowLeft, Plus, Lock, Ban, CircleCheck, ShoppingBag, Check } from '@lucide/vue'
+import { Search, SearchX, Bike, Utensils, Sparkles, Star, ArrowLeft, Plus, Minus, Trash2, Lock, Ban, CircleAlert, CircleCheck, ShoppingBag, Check, X, MapPin, Pencil, Info, Banknote, CreditCard, ReceiptText, ShieldAlert } from '@lucide/vue'
 
 // Leaflet only loads when the user chooses to change the address for this order.
 const AddressPickerMap = defineAsyncComponent(() => import('../../components/AddressPickerMap.vue'))
@@ -33,7 +37,13 @@ const productosFiltrados = computed(() =>
   }),
 )
 
-const celdasProductos = computed(() => layoutGrid(productosFiltrados.value.length).map(cellClass))
+// "Ver más": a long menu shows the first 12 products; search or category changes go back to the first page.
+const {
+  visibles: productosVisibles,
+  restantes: productosRestantes,
+  verMas: verMasProductos,
+} = usePaginacion(productosFiltrados, [busquedaProducto, categoriaProducto])
+const celdasProductos = computed(() => layoutGrid(productosVisibles.value.length).map(cellClass))
 
 const carritoAbierto = ref(false)
 const checkoutPaso = ref(false)
@@ -43,6 +53,9 @@ const editandoDireccion = ref(false) // true once the user chose "Cambiar para e
 const guardarComoDefault = ref(false)
 const refDireccion = ref(null)
 const refCambiar = ref(null)
+const errorDireccion = ref(false)
+const panelCarrito = ref(null)
+const tituloCarrito = ref(null)
 const observaciones = ref('')
 const metodoPago = ref('contr_entrega')
 const pedidoCreado = ref(null)
@@ -55,7 +68,25 @@ const puntoGuardado = computed(() => (store.usuario.lat != null && store.usuario
 const mostrandoGuardada = computed(() => direccionGuardada.value !== '' && !editandoDireccion.value)
 const fueraDeCobertura = computed(() => punto.value !== null && !puntoEnCobertura(punto.value.lat, punto.value.lng))
 
-const total = computed(() => store.carritoSubtotal + (checkoutPaso.value ? store.zonaActual.tarifa : 0))
+const resumen = computed(() => resumenPedido(store.carritoSubtotal, store.zonaActual.tarifa))
+const total = computed(() => resumen.value.total)
+
+function cerrarCarrito() {
+  carritoAbierto.value = false
+}
+
+// Focus moves into the sheet, stays inside it, Escape closes it and focus returns to what opened it.
+useDialogo(() => carritoAbierto.value, panelCarrito, {
+  cerrar: cerrarCarrito,
+  enfoqueInicial: () => tituloCarrito.value,
+  alVolver: ['[data-test="cart-fab"]', '[data-test="add-to-cart"]'],
+})
+
+// Switching between the cart and the checkout swaps the footer button the user just pressed: land on the new title.
+watch(checkoutPaso, async () => {
+  await nextTick()
+  if (carritoAbierto.value) tituloCarrito.value?.focus()
+})
 
 function porcentajeDescuento(p) {
   if (!tienePromocion(p) || !p.precioRegular) return 0
@@ -89,6 +120,7 @@ function irACheckout() {
 }
 
 function limpiarFormulario() {
+  errorDireccion.value = false
   checkoutPaso.value = false
   carritoAbierto.value = false
   direccion.value = ''
@@ -146,7 +178,10 @@ async function guardarComoPredeterminada(nuevaDireccion, mensajePedido) {
 
 async function confirmarPedido() {
   if (!direccion.value.trim()) {
+    errorDireccion.value = true
     store.notificar('Ingresa la dirección de entrega para continuar.')
+    await nextTick()
+    refDireccion.value?.focus()
     return
   }
   if (!store.autenticado) {
@@ -236,7 +271,7 @@ function verPedido() {
           <div class="cx-row">
             <span class="cx-badge cx-badge-promo">
               <Star :size="16" aria-hidden="true" />
-              {{ comercio.rating }} calificación
+              {{ formatRating(comercio.rating) }} calificación
             </span>
             <span class="cx-badge cx-badge-info">
               <Bike :size="16" aria-hidden="true" />
@@ -308,7 +343,7 @@ function verPedido() {
 
       <div v-if="productosFiltrados.length > 0" class="cx-cards" data-test="product-grid">
         <div
-          v-for="(p, idx) in productosFiltrados" :key="p.id"
+          v-for="(p, idx) in productosVisibles" :key="p.id"
           data-test="product-card"
           class="cx-tile cx-tile-compact cx-product"
           :class="celdasProductos[idx]"
@@ -357,7 +392,13 @@ function verPedido() {
           </div>
         </div>
       </div>
-      <div v-else data-test="products-empty" class="cx-tile cx-empty">
+      <div v-if="productosFiltrados.length > 0 && productosRestantes > 0" class="cx-more">
+        <button type="button" data-test="products-more" class="cx-btn cx-btn-secondary" @click="verMasProductos">
+          {{ textoVerMas(productosRestantes, 'productos') }}
+        </button>
+        <span class="cx-sr-only" role="status" aria-live="polite">{{ productosRestantes }} productos más por mostrar</span>
+      </div>
+      <div v-else-if="productosFiltrados.length === 0" data-test="products-empty" class="cx-tile cx-empty">
         <span class="cx-empty-icon"><SearchX :size="32" aria-hidden="true" /></span>
         <h3 class="cx-h3">No hay productos que coincidan</h3>
         <p>Prueba con otro nombre o cambia la categoría.</p>
@@ -370,117 +411,205 @@ function verPedido() {
       v-if="store.carritoTotalItems > 0 && !carritoAbierto"
       type="button"
       class="cx-btn cx-btn-lg cx-fab"
+      data-test="cart-fab"
       @click="carritoAbierto = true"
     >
       <ShoppingBag :size="20" aria-hidden="true" />
       <span style="font-variant-numeric: tabular-nums">Ver pedido · {{ store.carritoTotalItems }} item(s) · B/ {{ store.carritoSubtotal.toFixed(2) }}</span>
     </button>
 
-    <!-- Carrito lateral -->
-    <transition name="modal">
-      <div v-if="carritoAbierto" class="fixed inset-0 z-50 bg-ink/40" @click="carritoAbierto = false">
-        <aside class="modal-panel absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl flex flex-col" @click.stop>
-          <header class="flex items-center justify-between px-5 py-4 border-b border-line">
-            <h3 class="font-semibold text-ink">{{ checkoutPaso ? 'Finalizar pedido' : 'Tu carrito' }}</h3>
-            <button class="p-1.5 rounded-lg hover:bg-canvas" @click="carritoAbierto = false">
-              <svg class="w-5 h-5 text-slatebody" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+    <!-- Carrito lateral: bottom sheet on phones, side panel from 768px -->
+    <transition name="cx-sheet">
+      <div v-if="carritoAbierto" class="cx cx-overlay cx-overlay-side" data-test="cart-overlay" @click="cerrarCarrito">
+        <aside
+          ref="panelCarrito"
+          class="cx-sheet cx-sheet-side"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cart-title"
+          tabindex="-1"
+          data-test="cart-drawer"
+          @click.stop
+        >
+          <header class="cx-sheet-head">
+            <h2 id="cart-title" ref="tituloCarrito" tabindex="-1" class="cx-h2">{{ checkoutPaso ? 'Finalizar pedido' : 'Tu carrito' }}</h2>
+            <button type="button" class="cx-icon-btn" data-test="cart-close" aria-label="Cerrar carrito" @click="cerrarCarrito">
+              <X :size="20" aria-hidden="true" />
             </button>
           </header>
 
-          <div class="flex-1 overflow-y-auto p-5">
+          <div class="cx-sheet-body">
             <!-- Items -->
-            <div v-if="!checkoutPaso">
-              <div v-for="(item, idx) in store.carrito" :key="idx" class="flex items-start gap-3 py-3 border-b border-line/60 last:border-0">
-                <div class="flex-1">
-                  <p class="text-sm font-medium text-ink">{{ item.nombre }}</p>
-                  <p class="text-xs text-slatebody mt-0.5">B/ {{ item.precio.toFixed(2) }} c/u</p>
-                  <input
-                    class="input mt-2 !py-1.5 !text-xs"
-                    placeholder="Observación (ej. sin cebolla)"
-                    :value="item.observacion"
-                    @input="store.actualizarItemCarrito(idx, { observacion: $event.target.value })"
-                  />
-                </div>
-                <div class="flex items-center gap-1.5">
-                  <button class="w-7 h-7 rounded-lg border border-line grid place-items-center text-sm hover:bg-canvas" @click="store.actualizarItemCarrito(idx, { cantidad: item.cantidad - 1 })">−</button>
-                  <span class="w-6 text-center text-sm font-medium">{{ item.cantidad }}</span>
-                  <button class="w-7 h-7 rounded-lg border border-line grid place-items-center text-sm hover:bg-canvas" @click="store.actualizarItemCarrito(idx, { cantidad: item.cantidad + 1 })">+</button>
-                </div>
+            <template v-if="!checkoutPaso">
+              <ul v-if="store.carrito.length > 0" class="cx-lines" data-test="cart-lines">
+                <li v-for="(item, idx) in store.carrito" :key="`${item.id}-${idx}`" class="cx-line" data-test="cart-line">
+                  <div class="cx-stack" style="gap: 2px; min-width: 0">
+                    <h3 class="cx-h3 cx-line-name">{{ item.nombre }}</h3>
+                    <p class="cx-small cx-soft">B/ {{ item.precio.toFixed(2) }} c/u</p>
+                  </div>
+                  <span class="cx-line-total" data-test="line-total">B/ {{ (item.precio * item.cantidad).toFixed(2) }}</span>
+                  <div class="cx-line-controls">
+                    <div class="cx-field">
+                      <label :for="`item-note-${idx}`" class="cx-sr-only">Observación para {{ item.nombre }}</label>
+                      <Pencil :size="20" aria-hidden="true" />
+                      <input
+                        :id="`item-note-${idx}`"
+                        class="cx-input"
+                        data-test="item-note"
+                        placeholder="Nota (ej. sin cebolla)"
+                        :value="item.observacion"
+                        @input="store.actualizarItemCarrito(idx, { observacion: $event.target.value })"
+                      />
+                    </div>
+                    <div class="cx-qty" role="group" :aria-label="`Cantidad de ${item.nombre}`">
+                      <button
+                        type="button"
+                        data-test="qty-minus"
+                        :aria-label="item.cantidad === 1 ? `Quitar ${item.nombre} del carrito` : `Quitar una unidad de ${item.nombre}`"
+                        @click="store.actualizarItemCarrito(idx, { cantidad: item.cantidad - 1 })"
+                      >
+                        <Trash2 v-if="item.cantidad === 1" :size="20" aria-hidden="true" />
+                        <Minus v-else :size="20" aria-hidden="true" />
+                      </button>
+                      <output data-test="qty-value" aria-live="polite">{{ item.cantidad }}</output>
+                      <button
+                        type="button"
+                        data-test="qty-plus"
+                        :aria-label="`Agregar una unidad de ${item.nombre}`"
+                        @click="store.actualizarItemCarrito(idx, { cantidad: item.cantidad + 1 })"
+                      >
+                        <Plus :size="20" aria-hidden="true" />
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              </ul>
+              <div v-else class="cx-empty" data-test="cart-empty" style="padding: 32px 0">
+                <span class="cx-empty-icon"><ShoppingBag :size="32" aria-hidden="true" /></span>
+                <h3 class="cx-h3">Tu carrito está vacío</h3>
+                <p>Agrega productos del menú.</p>
+                <button type="button" class="cx-btn" @click="cerrarCarrito">Ver el menú</button>
               </div>
-            </div>
+            </template>
 
             <!-- Paso checkout -->
-            <div v-else class="space-y-4">
-              <div v-if="store.consentimientoRequerido" data-test="consent-required" class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                <p>Debes aceptar el tratamiento de tus datos para continuar. Tu pedido no se creó y tu carrito se conserva.</p>
-                <button type="button" class="mt-2 font-semibold underline underline-offset-2" @click="irAPerfil">Ir a mi perfil para aceptar</button>
-              </div>
-              <div data-test="direccion-entrega">
-                <template v-if="mostrandoGuardada">
-                  <p class="label">Dirección de entrega</p>
-                  <div class="rounded-lg border border-line p-3" data-test="direccion-guardada">
-                    <p class="text-sm text-ink">{{ direccion }}</p>
-                    <p v-if="punto" class="text-xs text-slatebody mt-1">Con ubicación en el mapa</p>
-                  </div>
-                  <p v-if="fueraDeCobertura" data-test="coverage-warning" role="status" class="mt-2 text-sm rounded-lg border border-sky-200 bg-sky-50 text-sky-800 p-3">
-                    Esta ubicación está fuera de las zonas de cobertura. Aun así puedes hacer el pedido.
-                  </p>
-                  <button ref="refCambiar" type="button" data-test="cambiar-direccion" class="mt-2 text-sm font-semibold text-brand-dark underline underline-offset-2" @click="cambiarDireccion">Cambiar para este pedido</button>
-                </template>
-                <template v-else>
-                  <label for="checkout-direccion" class="label">Dirección de entrega</label>
-                  <input id="checkout-direccion" ref="refDireccion" v-model="direccion" class="input" autocomplete="street-address" placeholder="Ej. Calle 45, Ed. Nogal, Apto 2B" />
-                  <div class="mt-3">
-                    <AddressPickerMap v-model="punto" />
-                  </div>
-                  <label class="mt-3 flex items-center gap-2 text-sm text-ink cursor-pointer">
-                    <input v-model="guardarComoDefault" type="checkbox" data-test="guardar-default" class="accent-[#00B19D]" />Guardar como mi dirección
-                  </label>
-                  <button v-if="direccionGuardada" type="button" data-test="usar-guardada" class="mt-2 text-sm font-semibold text-brand-dark underline underline-offset-2" @click="usarGuardada">Usar mi dirección guardada</button>
-                </template>
-              </div>
-              <div>
-                <label class="label">Observaciones para el repartidor</label>
-                <textarea v-model="observaciones" rows="2" class="input" placeholder="Ej. dejar en recepción" />
-              </div>
-              <div>
-                <label class="label">Método de pago</label>
-                <div class="space-y-2">
-                  <label class="flex items-center gap-3 rounded-lg border p-3 cursor-pointer" :class="metodoPago === 'contr_entrega' ? 'border-brand bg-brand-light' : 'border-line'" >
-                    <input v-model="metodoPago" type="radio" value="contr_entrega" class="accent-[#00B19D]" />
-                    <span>
-                      <span class="block text-sm font-medium text-ink">Pago contra entrega</span>
-                      <span class="block text-xs text-slatebody">Pagas en efectivo al recibir</span>
-                    </span>
-                  </label>
-                  <label class="flex items-center gap-3 rounded-lg border p-3 cursor-pointer" :class="metodoPago === 'electronico' ? 'border-brand bg-brand-light' : 'border-line'">
-                    <input v-model="metodoPago" type="radio" value="electronico" class="accent-[#00B19D]" />
-                    <span>
-                      <span class="block text-sm font-medium text-ink">Pago electrónico (simulado)</span>
-                      <span class="block text-xs text-slatebody">Pasarela simulada (sin datos reales de tarjeta)</span>
-                    </span>
-                  </label>
+            <template v-else>
+              <button type="button" class="cx-btn cx-btn-ghost" style="align-self: flex-start; margin-left: -16px" data-test="volver-carrito" @click="checkoutPaso = false">
+                <ArrowLeft :size="20" aria-hidden="true" />
+                Editar el carrito
+              </button>
+
+              <div v-if="store.consentimientoRequerido" data-test="consent-required" class="cx-alert cx-alert-danger" role="alert">
+                <ShieldAlert :size="20" aria-hidden="true" />
+                <div class="cx-alert-body">
+                  <p>Debes aceptar el tratamiento de tus datos para continuar. Tu pedido no se creó y tu carrito se conserva.</p>
+                  <button type="button" class="cx-btn cx-btn-secondary" @click="irAPerfil">Ir a mi perfil para aceptar</button>
                 </div>
               </div>
-            </div>
+
+              <section class="cx-section" data-test="direccion-entrega" aria-labelledby="direccion-title">
+                <h3 id="direccion-title" class="cx-h3 cx-section-title"><MapPin :size="20" aria-hidden="true" />Dirección de entrega</h3>
+                <template v-if="mostrandoGuardada">
+                  <div class="cx-address" data-test="direccion-guardada">
+                    <p style="font-weight: 600">{{ direccion }}</p>
+                    <p v-if="punto" class="cx-address-meta"><MapPin :size="16" aria-hidden="true" />Con ubicación en el mapa</p>
+                  </div>
+                  <div v-if="fueraDeCobertura" data-test="coverage-warning" role="status" class="cx-alert">
+                    <Info :size="20" aria-hidden="true" />
+                    <p>Esta ubicación está fuera de las zonas de cobertura. Aun así puedes hacer el pedido.</p>
+                  </div>
+                  <button ref="refCambiar" type="button" data-test="cambiar-direccion" class="cx-btn cx-btn-secondary" style="align-self: flex-start" @click="cambiarDireccion">
+                    <Pencil :size="20" aria-hidden="true" />Cambiar para este pedido
+                  </button>
+                </template>
+                <template v-else>
+                  <div>
+                    <label for="checkout-direccion" class="cx-sr-only">Dirección de entrega</label>
+                    <div class="cx-field">
+                      <MapPin :size="20" aria-hidden="true" />
+                      <input
+                        id="checkout-direccion"
+                        ref="refDireccion"
+                        v-model="direccion"
+                        class="cx-input"
+                        autocomplete="street-address"
+                        placeholder="Ej. Calle 45, Ed. Nogal, Apto 2B"
+                        :aria-invalid="errorDireccion ? 'true' : undefined"
+                        :aria-describedby="errorDireccion ? 'checkout-direccion-error' : undefined"
+                        @input="errorDireccion = false"
+                      />
+                    </div>
+                    <p v-if="errorDireccion" id="checkout-direccion-error" class="cx-field-error" data-test="direccion-error">
+                      <CircleAlert :size="16" aria-hidden="true" />
+                      <span>Ingresa la dirección de entrega para continuar.</span>
+                    </p>
+                  </div>
+                  <AddressPickerMap v-model="punto" />
+                  <label class="cx-check">
+                    <input v-model="guardarComoDefault" type="checkbox" data-test="guardar-default" class="cx-check-input" />
+                    <span class="cx-check-box" aria-hidden="true"><Check v-if="guardarComoDefault" :size="16" /></span>
+                    <span>Guardar como mi dirección</span>
+                  </label>
+                  <button v-if="direccionGuardada" type="button" data-test="usar-guardada" class="cx-btn cx-btn-ghost" style="align-self: flex-start; margin-left: -16px" @click="usarGuardada">
+                    Usar mi dirección guardada
+                  </button>
+                </template>
+              </section>
+
+              <section class="cx-section">
+                <label for="checkout-observaciones" class="cx-section-title">
+                  <Pencil :size="20" aria-hidden="true" />Observaciones para el repartidor
+                </label>
+                <textarea id="checkout-observaciones" v-model="observaciones" rows="2" class="cx-input cx-input-plain cx-textarea" placeholder="Ej. dejar en recepción" />
+              </section>
+
+              <div class="cx-section" role="radiogroup" aria-labelledby="pago-title" data-test="metodo-pago">
+                <h3 id="pago-title" class="cx-h3 cx-section-title"><CreditCard :size="20" aria-hidden="true" />Método de pago</h3>
+                <label class="cx-option" :class="{ 'cx-option-selected': metodoPago === 'contr_entrega' }">
+                  <input v-model="metodoPago" type="radio" name="metodo-pago" value="contr_entrega" class="cx-option-input" />
+                  <span class="cx-option-dot" aria-hidden="true"><Check v-if="metodoPago === 'contr_entrega'" :size="14" /></span>
+                  <span class="cx-option-text">
+                    <span class="cx-option-title">Pago contra entrega</span>
+                    <span class="cx-option-sub">Pagas en efectivo al recibir</span>
+                  </span>
+                  <Banknote :size="24" aria-hidden="true" />
+                </label>
+                <label class="cx-option" :class="{ 'cx-option-selected': metodoPago === 'electronico' }">
+                  <input v-model="metodoPago" type="radio" name="metodo-pago" value="electronico" class="cx-option-input" />
+                  <span class="cx-option-dot" aria-hidden="true"><Check v-if="metodoPago === 'electronico'" :size="14" /></span>
+                  <span class="cx-option-text">
+                    <span class="cx-option-title">Pago electrónico (simulado)</span>
+                    <span class="cx-option-sub">Pasarela simulada (sin datos reales de tarjeta)</span>
+                  </span>
+                  <CreditCard :size="24" aria-hidden="true" />
+                </label>
+              </div>
+            </template>
+
+            <!-- Resumen -->
+            <section v-if="store.carritoTotalItems > 0" class="cx-section" aria-labelledby="resumen-title">
+              <h3 id="resumen-title" class="cx-h3 cx-section-title"><ReceiptText :size="20" aria-hidden="true" />Resumen del pedido</h3>
+              <dl class="cx-summary" data-test="order-summary">
+                <div>
+                  <dt>Subtotal</dt>
+                  <dd data-test="summary-subtotal">B/ {{ resumen.subtotal.toFixed(2) }}</dd>
+                </div>
+                <div>
+                  <dt>Envío ({{ store.zonaActual.nombre }})</dt>
+                  <dd data-test="summary-envio">B/ {{ resumen.envio.toFixed(2) }}</dd>
+                </div>
+              </dl>
+            </section>
           </div>
 
-          <!-- Resumen + acción -->
-          <footer v-if="store.carritoTotalItems > 0" class="border-t border-line p-5 space-y-2">
-            <div class="flex justify-between text-sm">
-              <span class="text-slatebody">Subtotal</span><span class="font-medium text-ink">B/ {{ store.carritoSubtotal.toFixed(2) }}</span>
-            </div>
-            <div class="flex justify-between text-sm">
-              <span class="text-slatebody">Envío ({{ store.zonaActual.nombre }})</span><span class="font-medium text-ink">B/ {{ store.zonaActual.tarifa.toFixed(2) }}</span>
-            </div>
-            <div class="flex justify-between text-base font-bold text-ink pt-1">
-              <span>Total</span><span>B/ {{ total.toFixed(2) }}</span>
-            </div>
-            <button v-if="!checkoutPaso" class="cx-btn cx-btn-lg" style="width: 100%" @click="irACheckout">Continuar</button>
-            <button v-else class="cx-btn cx-btn-lg" style="width: 100%" @click="confirmarPedido">Realizar pedido</button>
-          </footer>
-          <footer v-else class="p-8 text-center text-sm text-slatebody">
-            Tu carrito está vacío. Agrega productos del menú.
+          <!-- Barra de pago fija: total a la izquierda, la acción principal a la derecha -->
+          <footer v-if="store.carritoTotalItems > 0" class="cx-sheet-bar" data-test="checkout-bar">
+            <p class="cx-sheet-total">
+              <span class="cx-overline">Total</span>
+              <span class="cx-h3" data-test="summary-total">B/ {{ total.toFixed(2) }}</span>
+            </p>
+            <button v-if="!checkoutPaso" type="button" class="cx-btn cx-btn-lg" data-test="cart-continue" @click="irACheckout">Continuar</button>
+            <button v-else type="button" class="cx-btn cx-btn-lg" data-test="place-order" @click="confirmarPedido">Realizar pedido</button>
           </footer>
         </aside>
       </div>

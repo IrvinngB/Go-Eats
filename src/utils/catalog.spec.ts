@@ -56,3 +56,23 @@ describe('catalog browsing helpers', () => {
     expect(filtrarProductos(productos, { busqueda: 'sushi' })).toEqual([])
   })
 })
+
+import { formatRating } from './catalog'
+
+describe('formatRating', () => {
+  it('always prints one decimal with a dot separator', () => {
+    expect(formatRating(4)).toBe('4.0')
+    expect(formatRating(4.5)).toBe('4.5')
+    expect(formatRating(4.25)).toBe('4.3')
+    expect(formatRating(5)).toBe('5.0')
+    expect(formatRating('3.8')).toBe('3.8')
+  })
+
+  it('falls back to the given text when there is no usable rating', () => {
+    expect(formatRating(null)).toBe('—')
+    expect(formatRating(undefined)).toBe('—')
+    expect(formatRating(Number.NaN)).toBe('—')
+    expect(formatRating(0)).toBe('—')
+    expect(formatRating(undefined, 'Nuevo')).toBe('Nuevo')
+  })
+})
