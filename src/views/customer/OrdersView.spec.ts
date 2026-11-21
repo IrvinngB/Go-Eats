@@ -117,9 +117,8 @@ describe('OrdersView rating write does not assume success', () => {
     if (apiResult === 'ok') post.mockResolvedValue({ data: {} })
     else post.mockRejectedValue(Object.assign(new Error('x'), { isAxiosError: true, response: { status: 409 } }))
     const w = setup(pedido('entregado'))
-    await w.find('button.btn-secondary').trigger('click')
-    const enviar = w.findAll('button.btn-primary').find((b) => b.text() === 'Enviar')!
-    await enviar.trigger('click')
+    await w.find('[data-test="rate-open"]').trigger('click')
+    await w.find('[data-test="rate-submit"]').trigger('click')
     await vi.waitFor(() => expect(post).toHaveBeenCalled())
     await new Promise((r) => setTimeout(r, 0))
     return { w, store: useGoEatsStore() }

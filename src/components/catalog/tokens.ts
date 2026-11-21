@@ -95,3 +95,48 @@ export function checkoutPairs(t: Theme = catalogTheme): Pair[] {
     ui('indigo', 'bg'), // destination pin
   ]
 }
+
+/**
+ * Pairs the order screens add (status chips, timeline, progress, ETA, courier, rating, banners).
+ * Chip texts use the darker `*-text` tokens on the design's own tints: desing.md `success`, `warning` and `danger`
+ * on their tints measure 4.30, 4.48 and 3.98 (< 4.5), so the icon keeps the base color and only the text darkens.
+ */
+export function ordersPairs(t: Theme = catalogTheme): Pair[] {
+  const text = (fg: string, bg: string): Pair => ({ label: `${fg} on ${bg}`, fg: t[fg], bg: t[bg], min: 4.5 })
+  const ui = (fg: string, bg: string): Pair => ({ label: `${fg} on ${bg} (UI)`, fg: t[fg], bg: t[bg], min: 3, ui: true })
+  return [
+    // Tiles: ETA, status, courier, order head, details
+    text('ink', 'surface'),
+    text('ink', 'bg'),
+    text('ink-soft', 'surface'),
+    text('ink-soft', 'bg'),
+    text('ink-soft', 'surface-strong'),
+    // Timeline: pending steps use ink-faint on the white active tile and on the surface tile
+    text('ink-faint', 'bg'),
+    text('ink-faint', 'surface'),
+    text('on-primary', 'primary'), // number/check on a done circle
+    text('ink', 'primary-tint'), // current step number
+    ui('primary-text', 'primary-tint'), // current step ring
+    ui('ink-faint', 'surface-strong'), // pending circle edge and pending progress dots
+    ui('primary-text', 'bg'), // done progress beads (white ring) and the hollow/ringed ones
+    text('primary-text', 'surface'), // "Ver detalle del pedido" summary on the history tile
+    text('ink-soft', 'surface-strong'),
+    // Payment line next to the total
+    text('success-text', 'bg'),
+    text('danger-text', 'bg'),
+    text('success-text', 'surface'),
+    text('danger-text', 'surface'),
+    // Banners and delivered tile
+    text('ink', 'danger-tint'),
+    text('danger-text', 'danger-tint'),
+    ui('danger', 'danger-tint'),
+    text('success-text', 'success-tint'),
+    ui('success-text', 'success-tint'),
+    // Courier: call button and rating star (outlined in warning, with the number beside it)
+    ui('primary-text', 'primary-tint'),
+    ui('warning', 'surface'),
+    ui('warning', 'bg'),
+    // Rating radios: selected and hollow star outlines on the white dialog
+    ui('ink-faint', 'bg'),
+  ]
+}
