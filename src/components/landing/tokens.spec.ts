@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { contrast, dark, light, pairsFor } from './tokens'
+import { bandPairsFor, contrast, dark, light, pairsFor } from './tokens'
 
 describe('contrast()', () => {
   it('matches the WCAG reference values', () => {
@@ -73,5 +73,47 @@ describe.each([
 
   it('ink on bg-strong surface stays at least 4.5:1', () => {
     expect(contrast(theme.ink, theme['surface-strong'])).toBeGreaterThanOrEqual(4.5)
+  })
+})
+
+describe('light band tokens', () => {
+  it('adds the new band tokens to light only', () => {
+    expect(light.indigo).toBe('#2E2A7A')
+    expect(light['on-indigo']).toBe('#FFFFFF')
+    expect(light['on-indigo-soft']).toBe('#C9C7F0')
+    expect(light['amber-tint']).toBe('#FFF1D6')
+    expect(light.amber).toBe('#FFB62E')
+    for (const key of ['indigo', 'on-indigo', 'on-indigo-soft', 'amber-tint', 'amber']) {
+      expect(dark[key], `dark must not define ${key}`).toBeUndefined()
+    }
+  })
+
+  it('leaves pairsFor free of band pairs so the dark loop cannot read missing keys', () => {
+    const labels = pairsFor(light).map((p) => p.label)
+    expect(labels.some((l) => l.includes('indigo') || l.includes('amber-tint'))).toBe(false)
+  })
+
+  const pairs = bandPairsFor(light)
+
+  it('covers the required band pairs', () => {
+    expect(pairs.map((p) => p.label)).toEqual([
+      'ink on amber-tint',
+      'ink-soft on amber-tint',
+      'ink-soft on primary-tint',
+      'primary-text on amber-tint',
+      'on-indigo on indigo',
+      'on-indigo-soft on indigo',
+      'primary vs indigo (UI)',
+      'primary-lip on primary-tint (UI)',
+    ])
+  })
+
+  it('uses 4.5 for text pairs and 3 for UI pairs', () => {
+    expect(pairs.filter((p) => !p.ui).every((p) => p.min === 4.5)).toBe(true)
+    expect(pairs.filter((p) => p.ui).map((p) => p.min)).toEqual([3, 3])
+  })
+
+  it.each(pairs.map((p) => [p.label, p] as const))('%s meets its minimum', (_label, p) => {
+    expect(contrast(p.fg, p.bg)).toBeGreaterThanOrEqual(p.min)
   })
 })

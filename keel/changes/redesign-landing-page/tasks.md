@@ -32,13 +32,13 @@ Note: ~700 words on purpose, given the scope. Stacked means each PR targets `dev
 - [x] 1.5 Confirm vitest and tsc ignore `e2e/`: `pnpm test`, `vue-tsc -b`, `pnpm build` green.
 
 ## WU2: Tokens, assets, BrandLogo (base: WU1)
-- [ ] 2.1 RED: `tokens.spec.ts` band pairs (ink and ink-soft on amber-tint, ink-soft on primary-tint, primary-text on amber-tint, on-indigo and on-indigo-soft on indigo, primary vs indigo and primary-lip on primary-tint at 3.0); `dark` loop unchanged.
-- [ ] 2.2 GREEN: `tokens.ts` add `indigo, on-indigo, on-indigo-soft, amber-tint, amber` to `light` only; new `bandPairsFor(light)`, `pairsFor` untouched.
-- [ ] 2.3 RED: `landing.spec.ts` forbids `prefers-color-scheme`, `.dark`, `data-theme`; `.landing {` block mirrors `light` tokens; flat scan.
-- [ ] 2.4 GREEN: `landing.css` drop dark rules, add tokens, `.lp-band-*`, literal 32/24/16/12px radii (no `--lp-r-*`), reduced-motion-only smooth scroll, `main:focus` outline none, `:root:has(.landing)` scroll-padding 5rem. Keep filename (vitest `css.include`).
-- [ ] 2.5 Create `docs/brand/wordmarks/`, COPY all 22 SVGs there first, then `mv` `color`, `color-sin-swoosh`, `sobre-indigo`, `sobre-turquesa`, `sobre-ambar` to `src/assets/brand/`; remove the remaining 17 from `public/`. `sobre-turquesa` and `sobre-ambar` stay parked, unimported (default; rect `#00C2A8` is not `#00B19D`).
-- [ ] 2.6 RED/GREEN: `BrandLogo.spec.ts` then `BrandLogo.vue` (`variant` color or sobre-indigo; img alt "Go Eats"; RouterLink to `/`; not recolored).
-- [ ] 2.7 Add `@fontsource/nunito/latin-400.css` import in `LandingView.vue` (default: add 400; body currently renders 700). Keep 32/40px title scale (default).
+- [x] 2.1 RED: `tokens.spec.ts` band pairs (ink and ink-soft on amber-tint, ink-soft on primary-tint, primary-text on amber-tint, on-indigo and on-indigo-soft on indigo, primary vs indigo and primary-lip on primary-tint at 3.0); `dark` loop unchanged.
+- [x] 2.2 GREEN: `tokens.ts` add `indigo, on-indigo, on-indigo-soft, amber-tint, amber` to `light` only; new `bandPairsFor(light)`, `pairsFor` untouched.
+- [x] 2.3 RED: `landing.spec.ts` forbids `prefers-color-scheme`, `.dark`, `data-theme`; `.landing {` block mirrors `light` tokens; flat scan.
+- [x] 2.4 GREEN: `landing.css` drop dark rules, add tokens, `.lp-band-*`, literal 32/24/16/12px radii (no `--lp-r-*`), reduced-motion-only smooth scroll, `main:focus` outline none, `:root:has(.landing)` scroll-padding 5rem. Keep filename (vitest `css.include`).
+- [x] 2.5 Create `docs/brand/wordmarks/`, COPY all 22 SVGs there first, then `mv` `color`, `color-sin-swoosh`, `sobre-indigo`, `sobre-turquesa`, `sobre-ambar` to `src/assets/brand/`; remove the remaining 17 from `public/`. `sobre-turquesa` and `sobre-ambar` stay parked, unimported (default; rect `#00C2A8` is not `#00B19D`).
+- [x] 2.6 RED/GREEN: `BrandLogo.spec.ts` then `BrandLogo.vue` (`variant` color or sobre-indigo; img alt "Go Eats"; RouterLink to `/`; not recolored).
+- [x] 2.7 Add `@fontsource/nunito/latin-400.css` import in `LandingView.vue` (default: add 400; body currently renders 700). Keep 32/40px title scale (default).
 
 ## WU3: Nav, hero, view composition (base: WU2)
 - [ ] 3.1 RED/GREEN: `LandingNav.spec.ts` then `LandingNav.vue` (skip link first, focuses `main`; one `nav[aria-label=Principal]`; anchors `hidden md:flex`; login CTA secondary).

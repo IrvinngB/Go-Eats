@@ -27,19 +27,27 @@ describe('landing.css tokens', () => {
     expect(decls(block('.landing {'))).toEqual(upper(light))
   })
 
-  it('dark tokens in prefers-color-scheme match tokens.ts', () => {
-    const media = block('@media (prefers-color-scheme: dark)')
-    expect(media).toContain('.landing:not(.light)')
-    expect(decls(media)).toEqual(upper(dark))
+  it('declares every band token the redesign adds', () => {
+    const tokens = decls(block('.landing {'))
+    for (const key of ['INDIGO', 'ON-INDIGO', 'ON-INDIGO-SOFT', 'AMBER-TINT', 'AMBER']) {
+      expect(Object.keys(tokens).map((k) => k.toUpperCase())).toContain(key)
+    }
+  })
+})
+
+describe('landing.css is light only', () => {
+  it('has no prefers-color-scheme, .dark or data-theme rules', () => {
+    expect(css).not.toMatch(/prefers-color-scheme/)
+    expect(css).not.toMatch(/\.dark\b/)
+    expect(css).not.toMatch(/data-theme/)
   })
 
-  it('dark tokens for .dark and [data-theme="dark"] match tokens.ts', () => {
-    const start = css.indexOf('.dark .landing')
-    expect(start).toBeGreaterThanOrEqual(0)
-    const selector = css.slice(start, css.indexOf('{', start))
-    expect(selector).toContain('.landing.dark')
-    expect(selector).toContain('[data-theme="dark"] .landing')
-    expect(decls(block('.dark .landing'))).toEqual(upper(dark))
+  it('contains no dark token values', () => {
+    const lightValues = new Set(Object.values(upper(light)))
+    for (const [key, value] of Object.entries(upper(dark))) {
+      if (lightValues.has(value)) continue
+      expect(css.toUpperCase(), `dark ${key} ${value} leaked`).not.toContain(value)
+    }
   })
 })
 
@@ -61,6 +69,29 @@ describe('landing.css rules', () => {
     expect(btn).toContain('min-height: 44px')
     expect(btn).toContain('min-width: 44px')
     expect(css).toMatch(/\.lp-btn:focus-visible\s*\{[^}]*outline/)
+  })
+
+  it('uses literal 32/24/16/12px radii and no --lp-r-* variables', () => {
+    expect(css).not.toMatch(/--lp-r-/)
+    for (const r of ['32px', '24px', '16px', '12px']) expect(css).toContain(`border-radius: ${r}`)
+  })
+
+  it('defines the band classes', () => {
+    for (const cls of ['.lp-band-primary-tint', '.lp-band-surface', '.lp-band-amber-tint', '.lp-band-indigo']) {
+      expect(css, cls).toContain(`${cls} {`)
+    }
+    expect(block('.lp-band-indigo {')).toMatch(/background:\s*var\(--lp-indigo\)/)
+    expect(block('.lp-band-indigo {')).toMatch(/color:\s*var\(--lp-on-indigo\)/)
+  })
+
+  it('smooth-scrolls only when motion is allowed', () => {
+    expect(block('@media (prefers-reduced-motion: no-preference)')).toMatch(/scroll-behavior:\s*smooth/)
+    expect(css.match(/scroll-behavior:\s*smooth/g)).toHaveLength(1)
+  })
+
+  it('removes the focus outline from the programmatic main target and pads anchors for the sticky header', () => {
+    expect(block('.landing main:focus {')).toMatch(/outline:\s*none/)
+    expect(block(':root:has(.landing) {')).toMatch(/scroll-padding-top:\s*5rem/)
   })
 
   it('limits transitions to 150ms by default', () => {
