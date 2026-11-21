@@ -32,3 +32,5 @@ __pycache__/
 # Playwright
 test-results/
 playwright-report/
+.pytest_cache/
+backend/.venv
