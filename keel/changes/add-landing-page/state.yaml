@@ -1,0 +1,7 @@
+current_phase: ready-for-apply
+completed: [proposal, spec, clarify, design, blast-radius, tasks]
+open_questions: []
+decisions: [chain=stacked-to-main 4 PRs, D1-D5 defaults accepted]
+updated: 2026-11-20
+status: active
+mode: automatic-until-apply
