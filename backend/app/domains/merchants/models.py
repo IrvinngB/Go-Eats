@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Float, Integer, String, Text
+from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database import Base
 
@@ -21,3 +21,6 @@ class Merchant(Base):
     closes_at: Mapped[str] = mapped_column(String(10), default="21:00", nullable=False)
     description: Mapped[str] = mapped_column(Text, default="", nullable=False)
     icon: Mapped[str] = mapped_column(String(40), default="Store", nullable=False)
+    owner_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"), unique=True, index=True, nullable=True
+    )
