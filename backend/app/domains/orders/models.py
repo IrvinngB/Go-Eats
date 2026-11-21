@@ -19,6 +19,8 @@ class Order(Base):
     customer_phone: Mapped[str] = mapped_column(String(40), default="", nullable=False)
     zone_slug: Mapped[str] = mapped_column(String(80), nullable=False)
     delivery_address: Mapped[str] = mapped_column(Text, nullable=False)
+    delivery_lat: Mapped[float | None] = mapped_column(Float, nullable=True)
+    delivery_lng: Mapped[float | None] = mapped_column(Float, nullable=True)
     notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
     payment_method: Mapped[str] = mapped_column(String(40), nullable=False)
     status: Mapped[str] = mapped_column(String(40), default="pendiente", index=True, nullable=False)

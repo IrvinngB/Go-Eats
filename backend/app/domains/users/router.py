@@ -8,6 +8,7 @@ from app.domains.users.schemas import (
     ArcoRequestResolve,
     ConsentRead,
     ConsentUpdate,
+    UserListRead,
     UserRead,
     UserUpdate,
 )
@@ -85,9 +86,9 @@ def resolve_arco_request(
     return UserService(db).resolve_arco(arco_id, payload)
 
 
-@router.get("/", response_model=list[UserRead])
+@router.get("/", response_model=list[UserListRead])
 def list_all_users(
     _: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
     db: Session = Depends(get_db),
-) -> list[UserRead]:
+) -> list[UserListRead]:
     return UserService(db).list_users()

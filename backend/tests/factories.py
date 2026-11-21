@@ -20,6 +20,9 @@ def make_user(
     phone: str = "",
     is_active: bool = True,
     consent: bool = True,
+    address: str | None = None,
+    lat: float | None = None,
+    lng: float | None = None,
 ) -> User:
     user = User(
         full_name=full_name,
@@ -28,6 +31,9 @@ def make_user(
         password_hash=PASSWORD_HASH,
         role=role,
         is_active=is_active,
+        address=address,
+        lat=lat,
+        lng=lng,
     )
     db.add(user)
     db.commit()
@@ -159,6 +165,8 @@ def make_order(
     merchant_code: str = "M-TEST",
     courier_code: str | None = None,
     status: str = "pendiente",
+    delivery_lat: float | None = None,
+    delivery_lng: float | None = None,
 ):
     from app.domains.orders.models import Order
 
@@ -170,6 +178,8 @@ def make_order(
         customer_name="Customer",
         zone_slug="zona-test",
         delivery_address="Calle 1",
+        delivery_lat=delivery_lat,
+        delivery_lng=delivery_lng,
         payment_method="contr_entrega",
         status=status,
         courier_code=courier_code,

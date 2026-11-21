@@ -118,6 +118,45 @@ def test_adds_columns_links_idempotent(legacy_engine):
     assert _statuses(legacy_engine) == (["en_preparacion"], [("pendiente", "en_camino")])
 
 
+NEW_COLUMNS = {
+    "users": {"address", "lat", "lng"},
+    "orders": {"delivery_lat", "delivery_lng"},
+}
+
+
+def _col_info(engine, table):
+    return {c["name"]: c for c in inspect(engine).get_columns(table)}
+
+
+def test_adds_address_columns_idempotent(legacy_engine):
+    with legacy_engine.begin() as conn:
+        conn.execute(text("INSERT INTO orders (code, status) VALUES ('PED-1', 'pendiente')"))
+    for table, names in NEW_COLUMNS.items():
+        assert not names & set(_col_info(legacy_engine, table))
+
+    run_startup_migrations(legacy_engine)
+    run_startup_migrations(legacy_engine)  # second run: no-op, no error
+
+    for table, names in NEW_COLUMNS.items():
+        info = _col_info(legacy_engine, table)
+        for name in names:
+            assert name in info
+            assert info[name]["nullable"] is True
+    with legacy_engine.connect() as conn:
+        assert conn.execute(text("SELECT address, lat, lng FROM users")).all() == [(None, None, None)] * 9
+        assert conn.execute(text("SELECT delivery_lat, delivery_lng FROM orders")).all() == [(None, None)] * 2
+
+
+def test_address_columns_not_duplicated_on_partial_schema(legacy_engine):
+    with legacy_engine.begin() as conn:
+        conn.execute(text("ALTER TABLE users ADD COLUMN lat FLOAT"))
+        conn.execute(text("UPDATE users SET lat = 8.5 WHERE id = 1"))
+    run_startup_migrations(legacy_engine)
+    with legacy_engine.connect() as conn:
+        assert conn.execute(text("SELECT lat FROM users WHERE id = 1")).scalar_one() == 8.5
+    assert {"address", "lat", "lng"} <= set(_col_info(legacy_engine, "users"))
+
+
 def test_backfill_leaves_existing_links_alone(legacy_engine):
     run_startup_migrations(legacy_engine)
     with legacy_engine.begin() as conn:
@@ -157,6 +196,8 @@ def test_fresh_schema_noop(db_engine):
     after = {t: {c["name"] for c in inspect(db_engine).get_columns(t)} for t in ("merchants", "couriers")}
     assert before == after
     assert "owner_user_id" in after["merchants"] and "user_id" in after["couriers"]
+    for table, names in NEW_COLUMNS.items():
+        assert names <= set(_col_info(db_engine, table))
     assert "ix_merchants_owner_user_id" in _unique_index_names(db_engine, "merchants")
 
 

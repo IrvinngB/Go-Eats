@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Literal
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from app.shared.coordinates import Latitude, Longitude, ensure_both_or_neither
 
 
 class OrderItemCreate(BaseModel):
@@ -30,9 +31,17 @@ class OrderCreate(BaseModel):
     merchant_code: str
     zone_slug: str
     delivery_address: str = Field(..., min_length=4)
+    # Optional frozen snapshot of the pin; taken from the payload only, never from the profile.
+    delivery_lat: Latitude | None = None
+    delivery_lng: Longitude | None = None
     notes: str = ""
     payment_method: PaymentMethod
     items: list[OrderItemCreate] = Field(..., min_length=1)
+
+    @model_validator(mode="after")
+    def _coords_together(self) -> "OrderCreate":
+        ensure_both_or_neither(self.delivery_lat, self.delivery_lng)
+        return self
 
 
 OrderStatus = Literal[
@@ -85,6 +94,8 @@ class OrderRead(BaseModel):
     customer_phone: str
     zone_slug: str
     delivery_address: str
+    delivery_lat: float | None = None
+    delivery_lng: float | None = None
     notes: str
     payment_method: str
     status: str

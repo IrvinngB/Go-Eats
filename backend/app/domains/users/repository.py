@@ -63,11 +63,19 @@ class UserRepository:
         self.db.refresh(record)
         return record
 
-    def update(self, user: User, full_name: str | None = None, phone: str | None = None) -> User:
+    def update(
+        self,
+        user: User,
+        full_name: str | None = None,
+        phone: str | None = None,
+        address_changes: dict[str, str | float | None] | None = None,
+    ) -> User:
         if full_name is not None:
             user.full_name = full_name
         if phone is not None:
             user.phone = phone
+        for field, value in (address_changes or {}).items():
+            setattr(user, field, value)  # None is meaningful here: it clears the value
         self.db.commit()
         self.db.refresh(user)
         return user
