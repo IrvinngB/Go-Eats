@@ -1,8 +1,12 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, defineAsyncComponent, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useGoEatsStore } from '../../stores/useGoEatsStore'
 import CommerceIcon from '../../components/CommerceIcon.vue'
+import { puntoEnCobertura } from '../../utils/geo'
+
+// Leaflet only loads when the user chooses to change the address for this order.
+const AddressPickerMap = defineAsyncComponent(() => import('../../components/AddressPickerMap.vue'))
 
 const store = useGoEatsStore()
 const route = useRoute()
@@ -14,12 +18,23 @@ const productos = computed(() => store.productosDe(route.params.id))
 const carritoAbierto = ref(false)
 const checkoutPaso = ref(false)
 const direccion = ref('')
+const punto = ref(null) // { lat, lng } | null: the pin of THIS order
+const editandoDireccion = ref(false) // true once the user chose "Cambiar para este pedido"
+const guardarComoDefault = ref(false)
+const refDireccion = ref(null)
+const refCambiar = ref(null)
 const observaciones = ref('')
 const metodoPago = ref('contr_entrega')
 const pagoEstado = ref(null) // null | 'procesando' | 'aprobado' | 'rechazado' | 'error'
 const pedidoCreado = ref(null)
 const totalAPagar = ref(0)
 const modalPago = ref(false)
+
+const direccionGuardada = computed(() => (store.usuario.direccion ?? '').trim())
+const puntoGuardado = computed(() => (store.usuario.lat != null && store.usuario.lng != null ? { lat: store.usuario.lat, lng: store.usuario.lng } : null))
+// With a saved default the checkout shows it read-only; without one the fields start empty and editable.
+const mostrandoGuardada = computed(() => direccionGuardada.value !== '' && !editandoDireccion.value)
+const fueraDeCobertura = computed(() => punto.value !== null && !puntoEnCobertura(punto.value.lat, punto.value.lng))
 
 const total = computed(() => store.carritoSubtotal + (checkoutPaso.value ? store.zonaActual.tarifa : 0))
 
@@ -30,7 +45,14 @@ function agregar(p) {
   checkoutPaso.value = false
 }
 
+function prellenarDesdePerfil() {
+  direccion.value = direccionGuardada.value
+  punto.value = puntoGuardado.value ? { ...puntoGuardado.value } : null
+}
+
 function irACheckout() {
+  // Reopening the drawer keeps whatever the user is editing for this order; otherwise start from the profile default.
+  if (!editandoDireccion.value) prellenarDesdePerfil()
   checkoutPaso.value = true
   carritoAbierto.value = true
 }
@@ -39,11 +61,56 @@ function limpiarFormulario() {
   checkoutPaso.value = false
   carritoAbierto.value = false
   direccion.value = ''
+  punto.value = null
+  editandoDireccion.value = false
+  guardarComoDefault.value = false
   observaciones.value = ''
 }
 
+async function cambiarDireccion() {
+  editandoDireccion.value = true
+  await nextTick()
+  refDireccion.value?.focus()
+}
+
+async function usarGuardada() {
+  editandoDireccion.value = false
+  guardarComoDefault.value = false
+  prellenarDesdePerfil()
+  await nextTick()
+  refCambiar.value?.focus()
+}
+
 function datosPedido() {
-  return { direccion: direccion.value, metodoPago: metodoPago.value, observaciones: observaciones.value }
+  return {
+    direccion: direccion.value,
+    lat: punto.value?.lat ?? null,
+    lng: punto.value?.lng ?? null,
+    metodoPago: metodoPago.value,
+    observaciones: observaciones.value,
+  }
+}
+
+// Only when the user ticked the box while editing. Called after the order flow succeeded; never throws.
+function direccionAGuardar(datos) {
+  if (!editandoDireccion.value || !guardarComoDefault.value) return null
+  return { direccion: datos.direccion, lat: datos.lat, lng: datos.lng }
+}
+
+// A failure here never undoes the order: the typed error is surfaced next to the order confirmation.
+async function guardarComoPredeterminada(nuevaDireccion, mensajePedido) {
+  let r
+  try {
+    r = await store.guardarPerfil(nuevaDireccion)
+  } catch {
+    r = { ok: false, error: null }
+  }
+  if (r.ok) {
+    if (mensajePedido) store.notificar(`${mensajePedido} Guardamos esta dirección como tu predeterminada.`)
+    return
+  }
+  const motivo = r.error?.message ? ` ${r.error.message}` : ''
+  store.notificar(`${mensajePedido ?? ''} No se pudo guardar tu dirección predeterminada.${motivo}`.trim(), 'error')
 }
 
 async function confirmarPedido() {
@@ -65,15 +132,21 @@ async function confirmarPedido() {
     modalPago.value = true
     return
   }
-  const pedido = await store.crearPedido(datosPedido())
+  const datos = datosPedido()
+  const nuevaDireccion = direccionAGuardar(datos)
+  const pedido = await store.crearPedido(datos)
   if (!pedido) return
   limpiarFormulario()
-  store.notificar(`Pedido ${pedido.id} enviado. Pagarás B/ ${pedido.total.toFixed(2)} contra entrega.`)
+  const mensaje = `Pedido ${pedido.id} enviado. Pagarás B/ ${pedido.total.toFixed(2)} contra entrega.`
+  store.notificar(mensaje)
+  if (nuevaDireccion && pedido.estado !== 'cancelado') await guardarComoPredeterminada(nuevaDireccion, mensaje)
 }
 
 async function pagar() {
   pagoEstado.value = 'procesando'
-  const pedido = await store.crearPedido(datosPedido())
+  const datos = datosPedido()
+  const nuevaDireccion = direccionAGuardar(datos)
+  const pedido = await store.crearPedido(datos)
   if (!pedido) {
     pagoEstado.value = 'error'
     return
@@ -81,6 +154,7 @@ async function pagar() {
   pedidoCreado.value = pedido
   limpiarFormulario()
   pagoEstado.value = pedido.pagoEstado === 'pagado' ? 'aprobado' : pedido.pagoEstado === 'fallido' ? 'rechazado' : 'error'
+  if (nuevaDireccion && pedido.estado !== 'cancelado') await guardarComoPredeterminada(nuevaDireccion, null)
 }
 
 function irAPerfil() {
@@ -207,9 +281,29 @@ function verPedido() {
                 <p>Debes aceptar el tratamiento de tus datos para continuar. Tu pedido no se creó y tu carrito se conserva.</p>
                 <button type="button" class="mt-2 font-semibold underline underline-offset-2" @click="irAPerfil">Ir a mi perfil para aceptar</button>
               </div>
-              <div>
-                <label class="label">Dirección de entrega</label>
-                <input v-model="direccion" class="input" placeholder="Ej. Calle 45, Ed. Nogal, Apto 2B" />
+              <div data-test="direccion-entrega">
+                <template v-if="mostrandoGuardada">
+                  <p class="label">Dirección de entrega</p>
+                  <div class="rounded-lg border border-line p-3" data-test="direccion-guardada">
+                    <p class="text-sm text-ink">{{ direccion }}</p>
+                    <p v-if="punto" class="text-xs text-slatebody mt-1">Con ubicación en el mapa</p>
+                  </div>
+                  <p v-if="fueraDeCobertura" data-test="coverage-warning" role="status" class="mt-2 text-sm rounded-lg border border-sky-200 bg-sky-50 text-sky-800 p-3">
+                    Esta ubicación está fuera de las zonas de cobertura. Aun así puedes hacer el pedido.
+                  </p>
+                  <button ref="refCambiar" type="button" data-test="cambiar-direccion" class="mt-2 text-sm font-semibold text-brand-dark underline underline-offset-2" @click="cambiarDireccion">Cambiar para este pedido</button>
+                </template>
+                <template v-else>
+                  <label for="checkout-direccion" class="label">Dirección de entrega</label>
+                  <input id="checkout-direccion" ref="refDireccion" v-model="direccion" class="input" autocomplete="street-address" placeholder="Ej. Calle 45, Ed. Nogal, Apto 2B" />
+                  <div class="mt-3">
+                    <AddressPickerMap v-model="punto" />
+                  </div>
+                  <label class="mt-3 flex items-center gap-2 text-sm text-ink cursor-pointer">
+                    <input v-model="guardarComoDefault" type="checkbox" data-test="guardar-default" class="accent-[#00B19D]" />Guardar como mi dirección
+                  </label>
+                  <button v-if="direccionGuardada" type="button" data-test="usar-guardada" class="mt-2 text-sm font-semibold text-brand-dark underline underline-offset-2" @click="usarGuardada">Usar mi dirección guardada</button>
+                </template>
               </div>
               <div>
                 <label class="label">Observaciones para el repartidor</label>

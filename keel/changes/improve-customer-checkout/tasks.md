@@ -58,9 +58,9 @@ Each PR must pass `cd backend && .venv/bin/pytest -q`, `pnpm test`, `pnpm exec v
 
 ## Unit A3 (PR 3): checkout
 
-- [ ] 3.1 RED `StoreDetailView.spec.ts`: checkout prefilled from profile; "Cambiar para este pedido" edits only the order; "Guardar como mi dirección" (default off) updates the profile only when ticked; out-of-coverage pin shows warning and still allows ordering; order POST carries delivery_lat/lng.
-- [ ] 3.2 GREEN `StoreDetailView.vue` and `crearPedido` (firma includes coords).
-- [ ] 3.3 RED/GREEN `e2e/checkout-address.spec.ts` (stubbed API, like `e2e/guards.spec.ts`).
+- [x] 3.1 RED `StoreDetailView.spec.ts`: checkout prefilled from profile; "Cambiar para este pedido" edits only the order; "Guardar como mi dirección" (default off) updates the profile only when ticked; out-of-coverage pin shows warning and still allows ordering; order POST carries delivery_lat/lng.
+- [x] 3.2 GREEN `StoreDetailView.vue` and `crearPedido` (firma includes coords).
+- [x] 3.3 RED/GREEN `e2e/checkout-address.spec.ts` (stubbed API, like `e2e/guards.spec.ts`).
 - [ ] 3.4 Real-browser check on throwaway backend: order stores frozen coords; changing the profile later does not change the old order.
 
 ## Unit B (PR 4): simulated gateway

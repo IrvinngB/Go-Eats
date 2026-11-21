@@ -178,6 +178,47 @@ describe('crearPedido is retry-safe and consent aware', () => {
     expect(calls('/orders/')).toHaveLength(2)
   })
 
+  it('the same pin after a failed payment reuses the order', async () => {
+    const store = withCart()
+    const conPin = { ...datos, lat: 8.9824, lng: -79.5199 }
+    payFailsOnce(http(500))
+    await store.crearPedido(conPin)
+    await store.crearPedido({ ...conPin })
+    expect(calls('/orders/')).toHaveLength(1)
+  })
+
+  it.each([
+    ['moves the pin', { lat: 9.0, lng: -79.5199 }],
+    ['moves only the longitude', { lat: 8.9824, lng: -79.4 }],
+    ['removes the pin', { lat: null, lng: null }],
+  ])('user %s after a failed payment: a new order is created', async (_n, otro) => {
+    const store = withCart()
+    payFailsOnce(http(500))
+    await store.crearPedido({ ...datos, lat: 8.9824, lng: -79.5199 })
+    post.mockImplementation(async (url: string) => ({ data: url === '/orders/' ? { ...orderBody, code: 'PED-8' } : payBody }))
+    await store.crearPedido({ ...datos, ...otro })
+    expect(calls('/orders/')).toHaveLength(2)
+  })
+
+  it('adding a pin where there was none after a failed payment is a new order', async () => {
+    const store = withCart()
+    payFailsOnce(http(500))
+    await store.crearPedido(datos)
+    post.mockImplementation(async (url: string) => ({ data: url === '/orders/' ? { ...orderBody, code: 'PED-8' } : payBody }))
+    await store.crearPedido({ ...datos, lat: 8.9824, lng: -79.5199 })
+    expect(calls('/orders/')).toHaveLength(2)
+  })
+
+  it.each([
+    ['frozen coordinates', { delivery_lat: 8.9824, delivery_lng: -79.5199 }, 8.9824, -79.5199],
+    ['no coordinates', { delivery_lat: null, delivery_lng: null }, null, null],
+  ])('the created order maps %s from the server', async (_n, coords, lat, lng) => {
+    const store = withCart()
+    post.mockImplementation(async (url: string) => ({ data: url === '/orders/' ? { ...orderBody, ...coords } : payBody }))
+    const pedido = await store.crearPedido(datos)
+    expect([pedido.lat, pedido.lng]).toEqual([lat, lng])
+  })
+
   it('logging out forgets the pending order', async () => {
     const store = withCart()
     payFailsOnce(http(500))

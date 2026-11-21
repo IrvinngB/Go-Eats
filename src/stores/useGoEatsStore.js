@@ -31,6 +31,8 @@ function mapPedidoApi(o) {
     clienteTelefono: o.customer_phone,
     zona: o.zone_slug,
     direccion: o.delivery_address,
+    lat: o.delivery_lat ?? null,
+    lng: o.delivery_lng ?? null,
     items: (o.items || []).map((it) => ({
       nombre: it.name,
       cantidad: it.quantity,
@@ -435,14 +437,17 @@ export const useGoEatsStore = defineStore('goeats', {
     // POST /orders then POST /payments for the server order code (both awaited).
     // Returns the UI order (with `pagoEstado`, `referenciaPasarela`) or null on any failure (typed toast shown).
     // The cart is cleared only when both calls succeed.
-    async crearPedido({ direccion, metodoPago, observaciones }) {
+    async crearPedido({ direccion, lat, lng, metodoPago, observaciones }) {
       const comercio = this.carritoComercio
       if (!this.autenticado || !comercio || this.carrito.length === 0) return null
       const metodo = metodoPago === 'electronico' ? 'yappy' : 'contr_entrega'
+      // Both or none: a lone coordinate is never sent (the server answers 422 to half a pin).
+      const hayPin = Number.isFinite(lat) && Number.isFinite(lng)
       const firma = JSON.stringify([
         comercio.id,
         this.zonaSeleccionada,
         direccion,
+        hayPin ? [lat, lng] : null, // a moved or removed pin is a different order
         observaciones || '',
         metodo,
         this.carrito.map((i) => [String(i.id), i.cantidad, i.observacion || '']),
@@ -460,6 +465,7 @@ export const useGoEatsStore = defineStore('goeats', {
             merchant_code: comercio.id,
             zone_slug: this.zonaSeleccionada,
             delivery_address: direccion,
+            ...(hayPin ? { delivery_lat: lat, delivery_lng: lng } : {}),
             notes: observaciones || '',
             // 'electronico' is the UI id; `yappy` is the wire id of the single simulated gateway.
             payment_method: metodo,

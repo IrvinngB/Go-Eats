@@ -344,6 +344,25 @@ describe('crearPedido wire payload and promo mapping', () => {
     expect(Object.keys(sent()).sort()).toEqual(['delivery_address', 'items', 'merchant_code', 'notes', 'payment_method', 'zone_slug'])
   })
 
+  it('a pin travels as delivery_lat and delivery_lng next to the address', async () => {
+    const store = await ready()
+    store.agregarAlCarrito('c9', store.productosDe('c9')[0], 1, '')
+    await store.crearPedido({ direccion: 'Calle 45', lat: 8.9824, lng: -79.5199, metodoPago: 'contr_entrega', observaciones: '' })
+    expect(sent()).toMatchObject({ delivery_address: 'Calle 45', delivery_lat: 8.9824, delivery_lng: -79.5199 })
+  })
+
+  it.each([
+    ['null coordinates', { lat: null, lng: null }],
+    ['only the latitude', { lat: 8.9824, lng: null }],
+    ['only the longitude', { lat: undefined, lng: -79.5199 }],
+  ])('%s send neither coordinate key (both or none)', async (_n, pin) => {
+    const store = await ready()
+    store.agregarAlCarrito('c9', store.productosDe('c9')[0], 1, '')
+    await store.crearPedido({ direccion: 'Calle 45', ...pin, metodoPago: 'contr_entrega', observaciones: '' })
+    expect(Object.keys(sent())).not.toContain('delivery_lat')
+    expect(Object.keys(sent())).not.toContain('delivery_lng')
+  })
+
   it.each([
     ['electronico', 'yappy', 'pagado', 'YPY-1'],
     ['contr_entrega', 'contr_entrega', 'pendiente', 'COD-1'],

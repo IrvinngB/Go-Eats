@@ -60,3 +60,23 @@ Login as carlos@ejemplo.pa through the UI; map click set 8.991566/-79.508057 + a
 
 ### Remaining
 A3 (checkout wiring), B, C, Final.
+
+## Unit A3 (PR 3): checkout wiring — DONE
+
+Branch `feat/checkout-pr3-checkout-address`. Tasks 3.1-3.3 complete.
+
+### TDD Cycle Evidence
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|-----------|-----|-------|-------------|----------|
+| 3.1/3.2 | src/views/customer/StoreDetailView.spec.ts, src/stores/useGoEatsStore.spec.ts, src/stores/useGoEatsStore.consent.spec.ts | component + store | 592 passed | checkout lacked prefill, override toggle, save-as-default checkbox, coverage warning, coords in order signature | 30 passed in StoreDetailView.spec, 42 in useGoEatsStore.spec, 26 in consent.spec | saved prefill, override without profile save, save-as-default ticked, out-of-coverage warning non-blocking, profile save failure does not rollback order | fixed TS7006 in StoreDetailView.spec.ts:414 |
+| 3.3 | e2e/checkout-address.spec.ts | E2E (Playwright real browser) | 29 passed | new spec | 3 passed (32 total E2E) | prefilled saved address, override out-of-coverage without PUT /users/me, save-as-default triggers PUT /users/me | none |
+
+### Totals
+`pnpm test` 622 passed (44 files); `vue-tsc -b` 0; `pnpm build` OK (`AddressPickerMap` lazy chunk loaded only on "Cambiar para este pedido"); `pnpm test:e2e` 32 passed; backend `pytest -q` 386 passed. `tsconfig.app.tsbuildinfo` restored.
+
+### Files
+src/views/customer/StoreDetailView.vue, src/views/customer/StoreDetailView.spec.ts, src/stores/useGoEatsStore.js, src/stores/useGoEatsStore.spec.ts, src/stores/useGoEatsStore.consent.spec.ts, e2e/checkout-address.spec.ts.
+
+### Remaining
+B (simulated gateway), C (catalog browsing), Final.
