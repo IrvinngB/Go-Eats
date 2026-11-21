@@ -1,0 +1,109 @@
+/* Landing tokens: mirror of tokens.ts (landing.spec.ts enforces sync). Scoped to .landing. */
+.landing {
+  --lp-bg: #FFFFFF;
+  --lp-surface: #F2F7F7;
+  --lp-surface-strong: #E3EEEE;
+  --lp-ink: #0B2B33;
+  --lp-ink-soft: #44585E;
+  --lp-ink-faint: #5E7277;
+  --lp-border: #D5E0E0;
+  --lp-primary: #00B19D;
+  --lp-primary-hover: #00A491;
+  --lp-primary-lip: #008F7D;
+  --lp-primary-text: #00796B;
+  --lp-primary-tint: #D6F5F0;
+  --lp-on-primary: #0B2B33;
+
+  background: var(--lp-bg);
+  color: var(--lp-ink);
+  font-family: 'Nunito', system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  .landing:not(.light) {
+    --lp-bg: #0A171B;
+    --lp-surface: #12262B;
+    --lp-surface-strong: #1B343A;
+    --lp-ink: #F0F7F7;
+    --lp-ink-soft: #B3C7CB;
+    --lp-ink-faint: #8AA2A7;
+    --lp-border: #264047;
+    --lp-primary: #2DE0C8;
+    --lp-primary-hover: #5BEAD6;
+    --lp-primary-lip: #14A895;
+    --lp-primary-text: #2DE0C8;
+    --lp-primary-tint: #10383B;
+    --lp-on-primary: #062A2F;
+  }
+}
+
+.dark .landing, .landing.dark, [data-theme="dark"] .landing {
+  --lp-bg: #0A171B;
+  --lp-surface: #12262B;
+  --lp-surface-strong: #1B343A;
+  --lp-ink: #F0F7F7;
+  --lp-ink-soft: #B3C7CB;
+  --lp-ink-faint: #8AA2A7;
+  --lp-border: #264047;
+  --lp-primary: #2DE0C8;
+  --lp-primary-hover: #5BEAD6;
+  --lp-primary-lip: #14A895;
+  --lp-primary-text: #2DE0C8;
+  --lp-primary-tint: #10383B;
+  --lp-on-primary: #062A2F;
+}
+
+.landing .lp-mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.lp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 1.25rem;
+  border-radius: 0.75rem;
+  font-weight: 800;
+  text-decoration: none;
+  background: var(--lp-primary);
+  color: var(--lp-on-primary);
+  box-shadow: 0 4px 0 var(--lp-primary-lip);
+  transition: transform 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.lp-btn:hover {
+  background: var(--lp-primary-hover);
+}
+
+.lp-btn:active {
+  transform: translateY(4px);
+  box-shadow: 0 0 0 var(--lp-primary-lip);
+}
+
+.lp-btn:focus-visible {
+  outline: 3px solid var(--lp-primary-text);
+  outline-offset: 3px;
+}
+
+.lp-btn-secondary {
+  background: var(--lp-surface);
+  color: var(--lp-ink);
+  box-shadow: 0 4px 0 var(--lp-border);
+}
+
+.lp-btn-secondary:hover {
+  background: var(--lp-surface-strong);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing, .landing *, .landing *::before, .landing *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  .landing .lp-btn:active {
+    transform: none !important;
+  }
+}
