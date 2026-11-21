@@ -47,14 +47,14 @@ Each PR must pass `cd backend && .venv/bin/pytest -q`, `pnpm test`, `pnpm exec v
 
 ## Unit A2 (PR 2): picker, geo, store, profile
 
-- [ ] 2.1 RED `src/utils/geo.spec.ts`: `puntoEnCobertura` inside/outside/edge of a zone.
-- [ ] 2.2 GREEN `src/utils/geo.js`.
-- [ ] 2.3 RED `src/components/AddressPickerMap.spec.ts` (jsdom, L.map spy like CoverageMap.spec): click sets pin and emits; marker drag emits; typed lat/lng inputs move the pin; invalid values show message; labels present; no network call.
-- [ ] 2.4 GREEN `src/components/AddressPickerMap.vue`.
-- [ ] 2.5 RED `src/stores/useGoEatsStore.spec.ts`: `guardarPerfil` PUTs address/lat/lng, rolls back and toasts on failure; `restaurarSesion` maps them.
-- [ ] 2.6 GREEN store (`usuario`, `guardarPerfil`, mappers); update `src/vite-env.d.ts` only if needed.
-- [ ] 2.7 RED `ProfileView.spec.ts`: address section renders saved default, saves through the store, keeps text on failure; GREEN `src/views/customer/ProfileView.vue`.
-- [ ] 2.8 Real-browser check (Playwright MCP or `pnpm dev`) against a throwaway sqlite backend in the scratchpad (never `goeats.db`): save profile address, reload, persists.
+- [x] 2.1 RED `src/utils/geo.spec.ts`: `puntoEnCobertura` inside/outside/edge of a zone.
+- [x] 2.2 GREEN `src/utils/geo.js`.
+- [x] 2.3 RED `src/components/AddressPickerMap.spec.ts` (jsdom, L.map spy like CoverageMap.spec): click sets pin and emits; marker drag emits; typed lat/lng inputs move the pin; invalid values show message; labels present; no network call.
+- [x] 2.4 GREEN `src/components/AddressPickerMap.vue`.
+- [x] 2.5 RED `src/stores/useGoEatsStore.spec.ts`: `guardarPerfil` PUTs address/lat/lng, rolls back and toasts on failure; `restaurarSesion` maps them.
+- [x] 2.6 GREEN store (`usuario`, `guardarPerfil`, mappers); update `src/vite-env.d.ts` only if needed.
+- [x] 2.7 RED `ProfileView.spec.ts`: address section renders saved default, saves through the store, keeps text on failure; GREEN `src/views/customer/ProfileView.vue`.
+- [x] 2.8 Real-browser check (Playwright MCP or `pnpm dev`) against a throwaway sqlite backend in the scratchpad (never `goeats.db`): save profile address, reload, persists.
 
 ## Unit A3 (PR 3): checkout
 

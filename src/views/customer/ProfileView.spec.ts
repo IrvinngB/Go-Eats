@@ -33,13 +33,13 @@ function serve(consent: boolean | 'fail', arco: unknown[] = []) {
   })
 }
 
-async function setup() {
+async function setup(usuario: Record<string, unknown> = {}) {
   const pinia = createPinia()
   setActivePinia(pinia)
   const store = useGoEatsStore()
   store.autenticado = true
   store.rol = 'customer'
-  store.usuario = { nombre: 'Ana', email: 'ana@t.pa', telefono: '600', consentimientoLey81: null }
+  store.usuario = { nombre: 'Ana', email: 'ana@t.pa', telefono: '600', consentimientoLey81: null, ...usuario }
   const w = mount(ProfileView, { global: { plugins: [pinia], stubs: { RouterLink: true } } })
   await flushPromises()
   return { w, store }
@@ -163,5 +163,135 @@ describe('ProfileView ARCO', () => {
     await flushPromises()
     expect((w.find('textarea').element as HTMLTextAreaElement).value).toBe('Quiero conocer mis datos')
     expect(w.findAll('[data-test="arco-item"]')).toHaveLength(0)
+  })
+})
+
+describe('ProfileView default delivery address', () => {
+  const SAVED = { direccion: 'Calle 50, Edificio X', lat: 8.9824, lng: -79.5199 }
+  const addressInput = (w: Awaited<ReturnType<typeof setup>>['w']) => w.find<HTMLInputElement>('[data-test="address-input"]')
+  const latInput = (w: Awaited<ReturnType<typeof setup>>['w']) => w.find<HTMLInputElement>('[data-test="lat-input"]')
+  const lngInput = (w: Awaited<ReturnType<typeof setup>>['w']) => w.find<HTMLInputElement>('[data-test="lng-input"]')
+  const save = (w: Awaited<ReturnType<typeof setup>>['w']) => w.find('[data-test="address-save"]')
+  // The picker is lazy-loaded: wait until its inputs exist.
+  async function ready(w: Awaited<ReturnType<typeof setup>>['w']) {
+    await vi.waitFor(() => expect(latInput(w).exists()).toBe(true))
+  }
+
+  it('has its own section with the Spanish heading', async () => {
+    serve(true)
+    const { w } = await setup()
+    expect(w.find('[data-test="address-section"] h2').text()).toBe('Dirección de entrega predeterminada')
+  })
+
+  it('renders the saved default (text and coordinates) after a reload', async () => {
+    serve(true)
+    const { w } = await setup(SAVED)
+    await ready(w)
+    expect(addressInput(w).element.value).toBe('Calle 50, Edificio X')
+    expect(latInput(w).element.value).toBe('8.9824')
+    expect(lngInput(w).element.value).toBe('-79.5199')
+  })
+
+  it('shows empty fields when nothing is saved', async () => {
+    serve(true)
+    const { w } = await setup()
+    await ready(w)
+    expect(addressInput(w).element.value).toBe('')
+    expect(latInput(w).element.value).toBe('')
+  })
+
+  it('saves through the store: PUT /users/me with the personal data, address and coordinates', async () => {
+    serve(true)
+    put.mockResolvedValue({ data: { address: 'Av. Balboa 10', lat: 8.97, lng: -79.52 } })
+    const { w, store } = await setup()
+    await ready(w)
+    await addressInput(w).setValue('Av. Balboa 10')
+    await latInput(w).setValue('8.97')
+    await lngInput(w).setValue('-79.52')
+    await save(w).trigger('click')
+    await flushPromises()
+    expect(put).toHaveBeenCalledWith('/users/me', { full_name: 'Ana', phone: '600', address: 'Av. Balboa 10', lat: 8.97, lng: -79.52 })
+    expect(store.usuario).toMatchObject({ direccion: 'Av. Balboa 10', lat: 8.97, lng: -79.52 })
+    expect(store.notificacion).toMatchObject({ texto: 'Perfil actualizado correctamente.' })
+  })
+
+  it('clearing the text and the pin sends address null and lat/lng null together', async () => {
+    serve(true)
+    put.mockResolvedValue({ data: { address: null, lat: null, lng: null } })
+    const { w, store } = await setup(SAVED)
+    await ready(w)
+    await addressInput(w).setValue('')
+    await w.find('[data-test="clear-pin"]').trigger('click')
+    await save(w).trigger('click')
+    await flushPromises()
+    expect(put).toHaveBeenCalledWith('/users/me', { full_name: 'Ana', phone: '600', address: null, lat: null, lng: null })
+    expect(store.usuario).toMatchObject({ direccion: '', lat: null, lng: null })
+  })
+
+  it('a failed save keeps the typed text and the pin, rolls the store back and shows the typed error', async () => {
+    serve(true)
+    put.mockRejectedValue(http(500))
+    const { w, store } = await setup(SAVED)
+    await ready(w)
+    await addressInput(w).setValue('Otra dirección 99')
+    await latInput(w).setValue('9.01')
+    await lngInput(w).setValue('-79.45')
+    await save(w).trigger('click')
+    await flushPromises()
+    expect(addressInput(w).element.value).toBe('Otra dirección 99')
+    expect(latInput(w).element.value).toBe('9.01')
+    expect(store.usuario).toMatchObject(SAVED)
+    expect(w.find('[data-test="address-error"]').text()).toBe('El servidor tuvo un problema. Inténtalo más tarde.')
+    expect(store.notificacion).toMatchObject({ texto: 'El servidor tuvo un problema. Inténtalo más tarde.', tipo: 'error' })
+  })
+
+  it.each([
+    ['too short', 'abc', 'La dirección debe tener al menos 4 caracteres.'],
+    ['too long', 'x'.repeat(301), 'La dirección no puede superar 300 caracteres.'],
+  ])('rejects an address that is %s locally without calling the API', async (_name, text, message) => {
+    serve(true)
+    const { w } = await setup()
+    await ready(w)
+    await addressInput(w).setValue(text)
+    await save(w).trigger('click')
+    await flushPromises()
+    expect(put).not.toHaveBeenCalled()
+    expect(w.find('[data-test="address-error"]').text()).toBe(message)
+    expect(addressInput(w).attributes('aria-invalid')).toBe('true')
+  })
+
+  it('labels the address input and disables saving while the request is in flight', async () => {
+    serve(true)
+    let release: (v: unknown) => void = () => undefined
+    put.mockReturnValue(new Promise((r) => (release = r)))
+    const { w } = await setup(SAVED)
+    await ready(w)
+    expect(w.find(`label[for="${addressInput(w).attributes('id')}"]`).text()).toBe('Dirección')
+    await save(w).trigger('click')
+    expect(save(w).attributes('disabled')).toBeDefined()
+    release({ data: {} })
+    await flushPromises()
+    expect(save(w).attributes('disabled')).toBeUndefined()
+  })
+
+  it('shows the soft coverage hint for a saved pin outside the zones and still lets you save', async () => {
+    serve(true)
+    put.mockResolvedValue({ data: {} })
+    const { w } = await setup({ direccion: 'Colón centro', lat: 9.3547, lng: -79.9 })
+    await ready(w)
+    expect(w.find('[data-test="coverage-hint"]').text()).toBe('Esta ubicación está fuera de las zonas de cobertura')
+    await save(w).trigger('click')
+    await flushPromises()
+    expect(put).toHaveBeenCalledTimes(1)
+  })
+
+  it('Guardar cambios (personal data) does not send the address keys', async () => {
+    serve(true)
+    put.mockResolvedValue({ data: {} })
+    const { w } = await setup(SAVED)
+    await ready(w)
+    await w.findAll('button').find((b) => b.text() === 'Guardar cambios')!.trigger('click')
+    await flushPromises()
+    expect(Object.keys(put.mock.calls[0][1]).sort()).toEqual(['full_name', 'phone'])
   })
 })
