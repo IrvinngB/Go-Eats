@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import BackgroundTasks, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.rbac import CurrentUser, UserRole
@@ -14,18 +16,29 @@ from app.domains.orders.schemas import (
 from app.shared.audit import record_audit_event
 from app.shared.push import send_push_notification
 
+logger = logging.getLogger(__name__)
+
+TERMINAL_STATES = frozenset({"entregado", "rechazado", "cancelado"})
+REASON_REQUIRED = frozenset({"rechazado", "cancelado"})
+
+# Section 3.3: forward chain plus rechazado/cancelado from any non-terminal state.
 VALID_TRANSITIONS: dict[str, set[str]] = {
     "pendiente": {"confirmado", "rechazado", "cancelado"},
-    "confirmado": {"en_preparacion", "en preparación", "rechazado", "cancelado"},
-    "en_preparacion": {"listo_para_recoger", "listo para recoger", "cancelado"},
-    "en preparación": {"listo_para_recoger", "listo para recoger", "cancelado"},
-    "listo_para_recoger": {"en_camino", "en camino", "cancelado"},
-    "listo para recoger": {"en_camino", "en camino", "cancelado"},
-    "en_camino": {"entregado", "cancelado"},
-    "en camino": {"entregado", "cancelado"},
+    "confirmado": {"en_preparacion", "rechazado", "cancelado"},
+    "en_preparacion": {"listo_para_recoger", "rechazado", "cancelado"},
+    "listo_para_recoger": {"en_camino", "rechazado", "cancelado"},
+    "en_camino": {"entregado", "rechazado", "cancelado"},
     "entregado": set(),
-    "cancelado": set(),
     "rechazado": set(),
+    "cancelado": set(),
+}
+
+# Which targets each role may set (customer and accountant never reach the service).
+ROLE_TARGETS: dict[UserRole, frozenset[str]] = {
+    UserRole.MERCHANT: frozenset(
+        {"confirmado", "en_preparacion", "listo_para_recoger", "rechazado", "cancelado"}
+    ),
+    UserRole.COURIER: frozenset({"en_camino", "entregado", "cancelado"}),
 }
 
 
@@ -123,27 +136,39 @@ class OrderService:
 
     def update_status(
         self,
+        user: CurrentUser,
         code: str,
         payload: OrderStatusUpdate,
         actor: str,
         background_tasks: BackgroundTasks,
     ) -> Order:
-        order = self.get_order(code)
-        allowed = VALID_TRANSITIONS.get(order.status, set())
-        if payload.status not in allowed:
+        order = self.get_order_for(user, code)  # 404 outside the caller's scope
+        allowed_targets = ROLE_TARGETS.get(user.role)
+        if allowed_targets is not None and payload.status not in allowed_targets:
+            logger.warning(
+                "status target forbidden: user=%s role=%s order=%s target=%s",
+                user.user_id,
+                user.role,
+                code,
+                payload.status,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Role '{user.role}' cannot set status '{payload.status}'.",
+            )
+        if payload.status not in VALID_TRANSITIONS.get(order.status, set()):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid state transition from '{order.status}' to '{payload.status}'.",
             )
-        if payload.status in {"cancelado", "rechazado"} and not (
-            payload.reason and payload.reason.strip()
-        ):
+        reason = payload.reason.strip() if payload.reason else None
+        if payload.status in REASON_REQUIRED and not reason:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Cancellation or rejection requires a mandatory reason (RF-16).",
             )
 
-        updated = self.repo.update_status(order, payload.status, actor=actor, reason=payload.reason)
+        updated = self.repo.update_status(order, payload.status, actor=actor, reason=reason)
         record_audit_event(
             self.db,
             actor,
@@ -158,8 +183,8 @@ class OrderService:
         )
         return updated
 
-    def assign_courier(self, code: str, payload: OrderAssignCourier) -> Order:
-        order = self.get_order(code)
+    def assign_courier(self, user: CurrentUser, code: str, payload: OrderAssignCourier) -> Order:
+        order = self.get_order_for(user, code)  # merchant: only its own orders; admin: any
         courier = self.courier_repo.get_by_code(payload.courier_code)
         if not courier or not courier.is_available or courier.affiliation_status != "activo":
             raise HTTPException(
@@ -175,8 +200,8 @@ class OrderService:
         )
         return updated
 
-    def rate_order(self, code: str, payload: OrderRatingCreate) -> Order:
-        order = self.get_order(code)
+    def rate_order(self, user: CurrentUser, code: str, payload: OrderRatingCreate) -> Order:
+        order = self.get_order_for(user, code)  # only the owning customer reaches here
         if order.status != "entregado":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

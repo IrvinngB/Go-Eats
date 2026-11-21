@@ -139,3 +139,45 @@ pytest 100 passed; `pnpm test` 306 passed; vue-tsc clean; build ok; e2e 19 passe
 - PostgreSQL/Docker path (SQLite only); restore on network error covered by unit test only (backend not killed in the browser).
 
 ### Remaining: PR5..PR10 (and V.1/V.2/V.3)
+
+
+## PR5 (tasks 5.1-5.4) - DONE, not committed
+Branch: feat/customer-pr5-states. Size exception (backend + frontend together) accepted. Actual size: ~1,045 changed lines (approx. 245 production, 800 tests; forecast was ~550, tests are the overrun).
+
+### Files
+Backend: MOD orders/{schemas,service,router}.py (`OrderStatus` Literal[8]; `VALID_TRANSITIONS` canonical only, rechazado/cancelado from any non-terminal; `ROLE_TARGETS`; `update_status/assign_courier/rate_order` take the caller and resolve the order with `get_order_for` (404 out of scope); rating now customer-only), core/migrations.py (`LEGACY_STATUS_MAP`, `_rewrite_statuses` on orders.status and order_status_history.previous_status/new_status, INFO `statuses rewritten: N`), seed.py (canonical cycle and courier set, one `rechazado` order PED-1049 with reason and history row, payment `fallido`), reports/repository.py (`not_in(cancelado, rechazado)`). Tests: NEW tests/test_status.py (141 cases), tests/test_reports_revenue.py (3); MOD tests/test_migrations.py (+9, legacy status assertions updated; the accent-less legacy fixture value now uses the real `en preparación`).
+Frontend: MOD mockData.js (canonical keys, `ESTADOS_TERMINALES`, `rechazado` label, initial mock orders), store (terminal list, `rechazarPedido` stores AND sends `rechazado`), MerchantView, CourierView, OrdersView, landing/HeroVisual.vue (its steps used the spaced keys; not in the blast-radius list, found by running the suite). Tests: NEW src/mockData.spec.ts (5), src/views/customer/OrdersView.spec.ts (8); MOD store spec (+5), MerchantView.spec (+8), CourierView.spec (+5).
+
+### Decisions / deviations
+- Courier may also set `cancelado` (design table, and the existing "Reportar problema" button sends it); the task prompt listed only en_camino/entregado. Followed the design to avoid breaking that button. Courier cannot set `rechazado`.
+- Check order in `update_status`: role gate (403 customer/accountant) -> scope (404) -> role target (403) -> transition (400) -> reason (400). A wrong role target on an order out of scope is 404.
+- Assign courier: nonexistent, unavailable or non-active courier stays 400 (existing RF-01 behavior).
+- Admin loses rating (403) per spec; reason is stripped before storing.
+- Merchant UI: "Rechazar" now offered in pendiente, confirmado and en_preparacion (spec: reject late); en_camino/listo have no reject button (backend would allow it). Merchant history shows the reason under the badge.
+- Seed `rechazado` order is PED-1049 (index 9, another customer than Carlos). On an existing DB the seed skips (>= 40 orders) so no rechazado row is added (test `test_seed_on_existing_db_does_not_add_rechazado`); `python -m app.reseed` (drops data) is the optional way.
+- Migration still only maps accented/spaced legacy values (3 entries). The accent-less `en preparacion` is not in the spec map and is left alone.
+
+### TDD evidence
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|---|
+| 5.1 | tests/test_status.py | integration | 100 green | 24 failed first: spaced `en preparación` returned 200 (`assert 200 == 422`), `en_preparacion -> rechazado` got 400 not 200, wrong-role targets got 200 not 403, foreign courier assign got 200 not 404, non-owner/admin rating 200 not 404/403 | 141 pass | full 8x8 matrix, 6 spaced/unknown values, 3 states x 2 targets x 3 blank reasons, 5+6 role/target cases, scope 404 (m2, unlinked, k2, unassigned), courier assign 400 x3 | none |
+| 5.2 | tests/test_migrations.py | integration (SQLite legacy DDL + fresh seed) | 12 green | rewrite left `en preparación`, no `statuses rewritten` log, seed audit found `listo para recoger` | 17 pass | map on orders+history, second run no-op (log 0), canonical untouched, missing tables, seed rechazado+reason+history, courier states, no rechazado on existing DB | none |
+| 5.3 | tests/test_reports_revenue.py | integration | 249 green | `assert 115.0 == 15.0`, `117.5 == 17.5`, endpoint 115.0 | 3 pass | repo x2, kpis endpoint | none |
+| 5.4 | mockData.spec, store spec, Merchant/Courier/OrdersView specs | unit + component | 306 green | 28 failed against the old sources (stashed): old keys, rechazarPedido stored `cancelado`, no `rechazado` label/terminal, no timeline step markers | 337 pass | every state per view, terminal lists, spaced states offer nothing, reason/no reason, tracking only in 3 states | specs moved store data into mount (`setup(link, pedidos)`) after a sync-read flake |
+
+### Real verification (all throwaway, scratchpad; goeats.db never created; project containers untouched)
+- (a) SQLite legacy: `git show HEAD:backend/app/seed.py` seed (60 orders: en camino 8, en preparación 7, listo para recoger 8, ...; 60 history rows) -> migration -> counts identical, 0 spaced strings in orders/history, second run identical. Scripts: scratchpad/pr5_legacy.py (+ legacy_seed.py).
+- (b) PostgreSQL 16 (container goeats-pg-migcheck on :55432, removed after): same legacy seed; 2 concurrent processes on a wall-clock barrier: one logged `statuses rewritten: 46` (23 orders + 23 history cells), the other 0, no errors, counts 60/60, no spaced values; third sequential run rewrote 0. Also drop_all + new `init()` twice on PG: canonical seed, 1 rechazado (PED-1049) with its reason, history canonical.
+- (c) Real UI (uvicorn :8767 + vite :5202, fresh sqlite pr5.db, Playwright scratchpad/pr5.mjs, real login form, full reload after login): merchant Hector confirmed -> en preparación -> listo para recoger on PED-2001, assigned courier r2 from the select; courier María en camino -> entregado; customer Carlos timeline (screenshot: step 5 highlighted, earlier done, courier card) and after entregado; PED-2002 rechazado through the modal (button disabled while the reason is blank) with reason; customer sees "Rechazado: Sin insumos para este pedido" with no timeline. API checked after every step; history rows: pendiente->confirmado->en_preparacion->listo_para_recoger->en_camino->entregado (actors merchant:15 / courier:20) and pendiente->rechazado with the reason; 0 spaced strings in DB; no pageerror and no 4xx/5xx during the walk. Screenshots read: scratchpad/pr5-{m2-asignado,k1-en-camino,m3-rechazado-historial,c1-timeline-en-camino,c3-timeline-rechazado}.png. Servers stopped, ports confirmed free.
+- The test orders PED-2001/2002 were inserted directly in the scratch DB: `POST /orders/` on a seeded DB still collides with PED-1061 (known defect, PR6 task 6.2).
+
+### Gates
+backend pytest 252 passed; `pnpm test` 337 passed (32 files; router/App/App.sync/LandingView specs untouched and green); vue-tsc clean; `pnpm build` ok; `pnpm test:e2e` 19 passed (landing* unchanged); tsbuildinfo restored.
+
+### Not verified
+- V.1 against the existing project Postgres volume (docker compose) stays open; PG was tested on a throwaway container with a seeded legacy DB, not on the real volume.
+- Customer cancel/reject flows through the courier "Reportar problema" button were covered by component test only, not clicked in the browser.
+- No mobile viewport screenshots of the new timeline/terminal box.
+- Write failures are still silent in the store (`.catch(() => {})`, PR8): e.g. a 403 target error would leave the optimistic local state.
+
+### Remaining: PR6..PR10 (and V.1/V.2/V.3)

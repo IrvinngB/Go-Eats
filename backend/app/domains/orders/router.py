@@ -56,6 +56,7 @@ def update_order_status(
     db: Session = Depends(get_db),
 ) -> OrderRead:
     return OrderService(db).update_status(
+        user=current_user,
         code=code,
         payload=payload,
         actor=f"{current_user.role}:{current_user.user_id}",
@@ -67,17 +68,17 @@ def update_order_status(
 def assign_order_courier(
     code: str,
     payload: OrderAssignCourier,
-    _: CurrentUser = Depends(require_roles(UserRole.MERCHANT, UserRole.ADMIN)),
+    current_user: CurrentUser = Depends(require_roles(UserRole.MERCHANT, UserRole.ADMIN)),
     db: Session = Depends(get_db),
 ) -> OrderRead:
-    return OrderService(db).assign_courier(code, payload)
+    return OrderService(db).assign_courier(current_user, code, payload)
 
 
 @router.post("/{code}/rating", response_model=OrderRead)
 def rate_order(
     code: str,
     payload: OrderRatingCreate,
-    _: CurrentUser = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN)),
+    current_user: CurrentUser = Depends(require_roles(UserRole.CUSTOMER)),
     db: Session = Depends(get_db),
 ) -> OrderRead:
-    return OrderService(db).rate_order(code, payload)
+    return OrderService(db).rate_order(current_user, code, payload)

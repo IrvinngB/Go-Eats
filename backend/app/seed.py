@@ -341,9 +341,9 @@ def seed_initial_data(db: Session) -> None:
     statuses_cycle = [
         "entregado",
         "entregado",
-        "en camino",
-        "listo para recoger",
-        "en preparación",
+        "en_camino",
+        "listo_para_recoger",
+        "en_preparacion",
         "confirmado",
         "pendiente",
         "cancelado",
@@ -353,6 +353,9 @@ def seed_initial_data(db: Session) -> None:
     active_couriers = ["r1", "r2", "r4", "r5", "r6", "r7", "r8", "r10"]
 
     now = datetime.now(timezone.utc)
+    # One demo order per terminal "rechazado" state (canonical, with its mandatory reason).
+    rechazado_index = 9
+    rechazado_reason = "Sin insumos para preparar el pedido."
 
     for i in range(60):
         order_code = f"PED-{1040 + i}"
@@ -373,11 +376,11 @@ def seed_initial_data(db: Session) -> None:
         m_code, m_name, _, m_zone = m_tuple[0], m_tuple[1], m_tuple[2], m_tuple[3]
         zone_fee = dict((z[0], z[2]) for z in zones_data).get(m_zone, 2.50)
 
-        status_val = statuses_cycle[i % len(statuses_cycle)]
+        status_val = "rechazado" if i == rechazado_index else statuses_cycle[i % len(statuses_cycle)]
         method_val = methods_cycle[i % len(methods_cycle)]
 
         courier_val: str | None = None
-        if status_val in {"listo para recoger", "en camino", "entregado"}:
+        if status_val in {"listo_para_recoger", "en_camino", "entregado"}:
             courier_val = "r2" if i < 6 else active_couriers[i % len(active_couriers)]
 
         m_products = catalog_by_merchant[m_code]
@@ -389,11 +392,10 @@ def seed_initial_data(db: Session) -> None:
         total = round(subtotal + zone_fee, 2)
         created_time = now - timedelta(minutes=i * 22)
 
-        cancel_reason = (
-            "Cliente solicitó cancelación por cambio de dirección."
-            if status_val == "cancelado"
-            else None
-        )
+        cancel_reason = {
+            "cancelado": "Cliente solicitó cancelación por cambio de dirección.",
+            "rechazado": rechazado_reason,
+        }.get(status_val)
 
         order = Order(
             code=order_code,
@@ -466,7 +468,7 @@ def seed_initial_data(db: Session) -> None:
         if not db.scalars(select(Payment).where(Payment.code == tx_code)).first():
             tx_status = (
                 "fallido"
-                if status_val == "cancelado"
+                if status_val in {"cancelado", "rechazado"}
                 else ("pagado" if (method_val != "contr_entrega" or status_val == "entregado") else "pendiente")
             )
             commission = round(subtotal * 0.12, 2)

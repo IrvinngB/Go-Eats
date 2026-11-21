@@ -15,7 +15,7 @@ class ReportRepository:
 
     def sum_revenue(self) -> float:
         val = self.db.scalar(
-            select(func.sum(Order.total)).where(Order.status != "cancelado")
+            select(func.sum(Order.total)).where(Order.status.not_in(("cancelado", "rechazado")))
         )
         return round(float(val or 0.0), 2)
 

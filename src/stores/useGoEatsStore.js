@@ -11,6 +11,7 @@ import {
   solicitudesARCO,
   eventosAuditoria,
   ESTADOS_PEDIDO,
+  ESTADOS_TERMINALES,
 } from '../mockData'
 
 let seq = 1100
@@ -66,7 +67,7 @@ export const useGoEatsStore = defineStore('goeats', {
 
     pedidosComoCliente: (s) => s.pedidos.filter((p) => p.clienteNombre === s.usuario.nombre || p.clienteEmail === s.usuario.email),
     pedidosPorComercio: (s) => (comercioId) => s.pedidos.filter((p) => p.comercioId === comercioId),
-    pedidosAsignadosA: (s) => (repartidorId) => s.pedidos.filter((p) => p.repartidorId === repartidorId && !['entregado', 'cancelado'].includes(p.estado)),
+    pedidosAsignadosA: (s) => (repartidorId) => s.pedidos.filter((p) => p.repartidorId === repartidorId && !ESTADOS_TERMINALES.includes(p.estado)),
 
     ingresosDelDia: (s) => s.transacciones.filter((t) => t.estado === 'aprobado').reduce((acc, t) => acc + t.monto, 0),
   },
@@ -477,7 +478,7 @@ export const useGoEatsStore = defineStore('goeats', {
     rechazarPedido(pedidoId, motivo) {
       const pedido = this.pedidos.find((p) => p.id === pedidoId)
       if (!pedido) return
-      pedido.estado = 'cancelado'
+      pedido.estado = 'rechazado'
       pedido.motivoCancelacion = motivo
       this.registrarEvento('Sistema', `Pedido ${pedido.id} rechazado por el comercio`, 'pedido')
       api.patch(`/orders/${pedidoId}/status`, { status: 'rechazado', reason: motivo }).catch(() => {})

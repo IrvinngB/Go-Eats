@@ -223,3 +223,63 @@ describe('autenticarUsuario without offline fake login', () => {
     expect(store.autenticado).toBe(false)
   })
 })
+
+describe('canonical states in order actions', () => {
+  function withOrders(estados: Record<string, string>) {
+    const store = useGoEatsStore()
+    store.pedidos = Object.entries(estados).map(([id, estado]) => ({
+      id,
+      estado,
+      repartidorId: 'r1',
+      comercioId: 'c1',
+    }))
+    return store
+  }
+
+  it('rechazarPedido stores rechazado with the reason (not cancelado) and sends the same value', async () => {
+    const { default: api } = await import('../services/api')
+    const apiPatch = api.patch as unknown as ReturnType<typeof vi.fn>
+    apiPatch.mockReset()
+    apiPatch.mockResolvedValue({ data: {} })
+    const store = withOrders({ 'PED-1': 'pendiente' })
+    store.rechazarPedido('PED-1', 'Sin insumos')
+    expect(store.pedidos[0].estado).toBe('rechazado')
+    expect(store.pedidos[0].motivoCancelacion).toBe('Sin insumos')
+    expect(apiPatch).toHaveBeenCalledWith('/orders/PED-1/status', { status: 'rechazado', reason: 'Sin insumos' })
+  })
+
+  it('avanzarEstadoPedido sends the canonical value it stores', async () => {
+    const { default: api } = await import('../services/api')
+    const apiPatch = api.patch as unknown as ReturnType<typeof vi.fn>
+    apiPatch.mockReset()
+    apiPatch.mockResolvedValue({ data: {} })
+    const store = withOrders({ 'PED-1': 'confirmado' })
+    store.avanzarEstadoPedido('PED-1', 'en_preparacion')
+    expect(store.pedidos[0].estado).toBe('en_preparacion')
+    expect(apiPatch).toHaveBeenCalledWith('/orders/PED-1/status', { status: 'en_preparacion', reason: null })
+  })
+
+  it('siguienteEstado walks the canonical chain and stops at every terminal state', () => {
+    const store = useGoEatsStore()
+    expect(store.siguienteEstado('pendiente')).toBe('confirmado')
+    expect(store.siguienteEstado('confirmado')).toBe('en_preparacion')
+    expect(store.siguienteEstado('en_preparacion')).toBe('listo_para_recoger')
+    expect(store.siguienteEstado('listo_para_recoger')).toBe('en_camino')
+    expect(store.siguienteEstado('en_camino')).toBe('entregado')
+    for (const t of ['entregado', 'rechazado', 'cancelado']) expect(store.siguienteEstado(t)).toBeNull()
+    expect(store.siguienteEstado('en preparación')).toBeNull() // spaced variants are unknown
+  })
+
+  it('pedidosAsignadosA excludes every terminal state including rechazado', () => {
+    const store = withOrders({ A: 'en_camino', B: 'rechazado', C: 'cancelado', D: 'entregado', E: 'listo_para_recoger' })
+    expect(store.pedidosAsignadosA('r1').map((p: { id: string }) => p.id)).toEqual(['A', 'E'])
+  })
+
+  it('sync keeps canonical server states untouched, including rechazado with its reason', async () => {
+    serve({ '/orders/': [{ ...order, status: 'rechazado', cancellation_reason: 'Cerrado' }] })
+    const store = loggedIn('customer')
+    await store.sincronizarConBackend()
+    expect(store.pedidos[0].estado).toBe('rechazado')
+    expect(store.pedidos[0].motivoCancelacion).toBe('Cerrado')
+  })
+})
