@@ -2348,3 +2348,731 @@ body.cx-dialog-open .cx-toast-region {
     width: auto;
   }
 }
+
+/* ================= Orders: tracking, status, timeline, courier, rating =================
+   Tracking follows the "Customer tracking" pattern of desing.md: map, ETA, status, courier, timeline as tiles.
+   The first order in progress is the active tile (the only use of --shadow-active in the whole system). */
+
+/* Status chips: always icon + text + tone. Wraps instead of overflowing on a half-width tile. */
+.cx-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 12px 4px 8px;
+  border-radius: 999px;
+  background: var(--cx-surface-strong);
+  color: var(--cx-ink-soft);
+  font-size: 0.875rem;
+  line-height: 1.3;
+  font-weight: 600;
+  text-align: left;
+}
+
+.cx-estado svg {
+  flex: none;
+}
+
+.cx-estado-neutral {
+  background: var(--cx-surface-strong);
+  color: var(--cx-ink-soft);
+}
+
+.cx-estado-neutral svg {
+  color: var(--cx-ink-soft);
+}
+
+.cx-estado-warning {
+  background: var(--cx-warning-tint);
+  color: var(--cx-warning-text);
+}
+
+.cx-estado-warning svg {
+  color: var(--cx-warning);
+}
+
+.cx-estado-indigo {
+  background: var(--cx-secondary-tint);
+  color: var(--cx-indigo);
+}
+
+.cx-estado-indigo svg {
+  color: var(--cx-indigo);
+}
+
+.cx-estado-info {
+  background: var(--cx-primary-tint);
+  color: var(--cx-primary-text);
+}
+
+.cx-estado-info svg {
+  color: var(--cx-primary-text);
+}
+
+.cx-estado-success {
+  background: var(--cx-success-tint);
+  color: var(--cx-success-text);
+}
+
+.cx-estado-success svg {
+  color: var(--cx-success);
+}
+
+.cx-estado-danger {
+  background: var(--cx-danger-tint);
+  color: var(--cx-danger-text);
+}
+
+.cx-estado-danger svg {
+  color: var(--cx-danger);
+}
+
+/* ---------- Order containers ---------- */
+.cx-order {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.cx-active {
+  padding: 16px;
+  border-radius: 24px;
+  background: var(--cx-bg);
+  box-shadow: var(--cx-shadow-active);
+}
+
+/* An extra order in progress: same content, flat (only one tile carries the depth). Tiles inside a surface use --bg. */
+.cx-order-plain {
+  padding: 16px;
+  border-radius: 24px;
+  background: var(--cx-surface);
+}
+
+.cx-order-plain .cx-track-tile,
+.cx-order-plain .cx-track-map {
+  background: var(--cx-bg);
+}
+
+.cx-order-past {
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--cx-surface);
+}
+
+@media (min-width: 640px) {
+  .cx-active,
+  .cx-order-plain {
+    padding: 20px;
+  }
+}
+
+.cx-order-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cx-order-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cx-order-main .cx-h3 {
+  overflow-wrap: anywhere;
+}
+
+.cx-order-total {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  text-align: right;
+}
+
+.cx-pago {
+  color: var(--cx-ink-soft);
+  font-weight: 600;
+}
+
+.cx-pago-ok {
+  color: var(--cx-success-text);
+}
+
+.cx-pago-bad {
+  color: var(--cx-danger-text);
+}
+
+.cx-tabular {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Tracking grid: phone = 2 columns (map 2x2, ETA | status, courier, timeline); desktop = 7 | 5 ---------- */
+.cx-track {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cx-gap);
+}
+
+@media (max-width: 1023px) {
+  .cx-track-main,
+  .cx-track-side {
+    display: contents;
+  }
+}
+
+.cx-track-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--cx-surface);
+}
+
+.cx-track-map {
+  display: flex;
+  flex-direction: column;
+  grid-column: 1 / -1;
+  gap: 8px;
+  order: 1;
+  min-width: 0;
+  padding: 8px;
+  border-radius: 24px;
+  background: var(--cx-surface);
+}
+
+.cx-track-eta {
+  order: 2;
+}
+
+.cx-track-status {
+  order: 3;
+}
+
+.cx-track-wide,
+.cx-courier,
+.cx-track-timeline {
+  grid-column: 1 / -1;
+}
+
+.cx-courier {
+  order: 4;
+}
+
+.cx-track-timeline {
+  order: 5;
+}
+
+@media (min-width: 1024px) {
+  .cx-track {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  }
+
+  .cx-track-solo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cx-track-main,
+  .cx-track-side {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cx-gap);
+    min-width: 0;
+  }
+
+  /* No map (pending / confirmed): ETA and status stack on the left, the timeline fills the right, no empty row. */
+  .cx-track-solo .cx-track-side {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto 1fr;
+  }
+
+  .cx-track-solo .cx-track-eta {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .cx-track-solo .cx-track-status {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .cx-track-solo .cx-track-status.cx-track-wide {
+    grid-row: 1 / span 2;
+  }
+
+  .cx-track-solo .cx-track-timeline {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .cx-track-map,
+  .cx-track-eta,
+  .cx-track-status,
+  .cx-courier,
+  .cx-track-timeline {
+    order: 0;
+  }
+}
+
+/* Map tile: 24px tile, 8px padding, the map clipped at 16px (concentric). Restyles only the container of CoverageMap. */
+.cx-trackmap {
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.cx-trackmap > div {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.cx-map-cta {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px 16px 8px;
+  text-align: center;
+}
+
+.cx-map-actions {
+  display: flex;
+  justify-content: center;
+  padding: 0 8px 8px;
+}
+
+.cx-map-actions .cx-btn {
+  max-width: 100%;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  text-align: center;
+}
+
+/* ETA tile: big tabular figure, unit and a caption saying whose estimate it is. */
+.cx-track-eta .cx-eta {
+  font-size: 2rem;
+}
+
+@media (min-width: 1024px) {
+  .cx-track-eta .cx-eta {
+    font-size: 2.5rem;
+  }
+}
+
+.cx-track-eta .cx-eta.cx-eta-text {
+  font-size: 1.25rem;
+  line-height: 1.3;
+}
+
+.cx-track-eta .cx-eta-unit {
+  margin-top: -4px;
+  font-family: var(--cx-font-heading);
+  font-size: 1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.cx-live {
+  display: flex;
+}
+
+/* ---------- Progress: 8px pill with step beads, so the state does not depend on color ---------- */
+.cx-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cx-progress-track {
+  position: relative;
+  height: 8px;
+  margin: 8px 0;
+  border-radius: 999px;
+  background: var(--cx-surface-strong);
+}
+
+.cx-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: var(--cx-primary);
+  transition: width 400ms ease-in-out;
+}
+
+.cx-progress-dot {
+  position: absolute;
+  top: 50%;
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 999px;
+}
+
+.cx-progress-dot[data-state='done'] {
+  border: 2px solid var(--cx-bg);
+  background: var(--cx-primary-text);
+}
+
+.cx-progress-dot[data-state='current'] {
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border: 3px solid var(--cx-primary-text);
+  background: var(--cx-primary-tint);
+}
+
+.cx-progress-dot[data-state='pending'] {
+  border: 2px solid var(--cx-ink-faint);
+  background: var(--cx-bg);
+}
+
+/* ---------- Timeline: vertical, 24px circles joined by a 2px line ---------- */
+.cx-steps {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cx-step {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 16px;
+}
+
+.cx-step:last-child {
+  padding-bottom: 0;
+}
+
+.cx-step::before {
+  content: '';
+  position: absolute;
+  top: 24px;
+  bottom: 0;
+  left: 11px;
+  width: 2px;
+  background: var(--cx-border);
+}
+
+.cx-step:last-child::before {
+  display: none;
+}
+
+.cx-step-dot {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  flex: none;
+  place-items: center;
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.cx-step[data-state='done'] .cx-step-dot {
+  background: var(--cx-primary);
+  color: var(--cx-on-primary);
+}
+
+.cx-step[data-state='current'] .cx-step-dot {
+  border-color: var(--cx-primary-text);
+  background: var(--cx-primary-tint);
+  color: var(--cx-ink);
+}
+
+.cx-step[data-state='pending'] .cx-step-dot {
+  background: var(--cx-surface-strong);
+  color: var(--cx-ink-soft);
+}
+
+.cx-step-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding-top: 1px;
+}
+
+.cx-step-title {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  font-weight: 600;
+  color: var(--cx-ink);
+}
+
+.cx-step[data-state='pending'] .cx-step-title {
+  color: var(--cx-ink-faint);
+}
+
+.cx-step-time {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--cx-ink-soft);
+}
+
+/* ---------- Courier tile ---------- */
+.cx-courier {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+.cx-courier-avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  background: var(--cx-surface-strong);
+  color: var(--cx-ink);
+}
+
+.cx-courier-info {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cx-courier-info .cx-h3 {
+  overflow-wrap: anywhere;
+}
+
+.cx-rating {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Rating star: outlined in --warning (3:1 against the tile) and filled with --accent; the number sits beside it. */
+.cx-rating svg {
+  stroke: var(--cx-warning);
+  fill: var(--cx-amber);
+}
+
+.cx-round-btn {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  background: var(--cx-primary-tint);
+  color: var(--cx-primary-text);
+  cursor: pointer;
+  transition: background-color 150ms ease-out;
+}
+
+.cx-round-btn:hover {
+  background: var(--cx-surface-strong);
+  color: var(--cx-ink);
+}
+
+/* ---------- Order detail (disclosure) ---------- */
+.cx-details-sum {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  color: var(--cx-primary-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  list-style: none;
+  cursor: pointer;
+}
+
+.cx-details-sum::-webkit-details-marker {
+  display: none;
+}
+
+.cx-details-sum svg {
+  flex: none;
+  transition: transform 150ms ease-out;
+}
+
+.cx-details[open] .cx-details-sum svg {
+  transform: rotate(180deg);
+}
+
+.cx-details-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 0 8px;
+}
+
+.cx-details-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cx-details-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--cx-ink-soft);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.cx-details-note {
+  font-style: normal;
+}
+
+.cx-details-address {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cx-details-address svg {
+  flex: none;
+}
+
+/* ---------- Delivered tile and read-only rating ---------- */
+.cx-delivered {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--cx-bg);
+}
+
+.cx-delivered-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: var(--cx-success-tint);
+  color: var(--cx-success-text);
+}
+
+.cx-delivered-text {
+  display: flex;
+  flex: 1 1 160px;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cx-rated {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.cx-rate-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cx-rate-line > .cx-caption {
+  min-width: 68px;
+}
+
+.cx-stars-ro {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.cx-stars-ro svg {
+  stroke: var(--cx-ink-faint);
+  fill: transparent;
+}
+
+.cx-stars-ro svg[data-lleno='true'] {
+  stroke: var(--cx-warning);
+  fill: var(--cx-amber);
+}
+
+.cx-rate-num {
+  font-size: 0.875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Rating input: radiogroup of five 44px buttons, 8px apart ---------- */
+.cx-rate-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cx-stars {
+  display: flex;
+  gap: 8px;
+}
+
+.cx-star {
+  display: inline-grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background-color 150ms ease-out;
+}
+
+.cx-star:hover {
+  background: var(--cx-surface);
+}
+
+.cx-star svg {
+  stroke: var(--cx-ink-faint);
+  fill: transparent;
+}
+
+.cx-star[data-lleno='true'] svg {
+  stroke: var(--cx-warning);
+  fill: var(--cx-amber);
+}
+
+/* On a half-width phone tile the six beads would touch: smaller ones keep the steps readable. */
+@media (max-width: 639px) {
+  .cx-progress-dot {
+    width: 8px;
+    height: 8px;
+    margin: -4px 0 0 -4px;
+  }
+
+  .cx-progress-dot[data-state='current'] {
+    width: 14px;
+    height: 14px;
+    margin: -7px 0 0 -7px;
+    border-width: 2px;
+  }
+}
