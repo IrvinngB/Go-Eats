@@ -81,6 +81,11 @@ function mapTransaccionApi(t) {
   }
 }
 
+// Default delivery address of the caller (UserRead): text + coordinates, all nullable server-side.
+function mapDireccionApi(u) {
+  return { direccion: u.address ?? '', lat: u.lat ?? null, lng: u.lng ?? null }
+}
+
 let notificacionSeq = 0
 
 // Snapshot of the objects a write touches (shallow: their fields are primitives or replaced wholesale).
@@ -104,7 +109,7 @@ export const useGoEatsStore = defineStore('goeats', {
   state: () => ({
     rol: 'customer',
     autenticado: false,
-    usuario: { nombre: '', email: '', telefono: '', consentimientoLey81: null }, // null = unknown until GET /users/me/consent
+    usuario: { nombre: '', email: '', telefono: '', consentimientoLey81: null, direccion: '', lat: null, lng: null }, // consent null = unknown until GET /users/me/consent; direccion/lat/lng = default delivery address
     zonas: ZONAS,
     zonaSeleccionada: 'san-francisco',
     comercios: comercios.map((c) => ({ ...c })),
@@ -199,7 +204,7 @@ export const useGoEatsStore = defineStore('goeats', {
     cerrarSesion(mensaje = 'Has cerrado sesión.') {
       tokenStorage.clear()
       this.autenticado = false
-      this.usuario = { nombre: 'Invitado', email: '', telefono: '', consentimientoLey81: false }
+      this.usuario = { nombre: 'Invitado', email: '', telefono: '', consentimientoLey81: false, direccion: '', lat: null, lng: null }
       this.rol = 'customer'
       this.comercioPropioId = null
       this.repartidorPropioId = null
@@ -229,6 +234,7 @@ export const useGoEatsStore = defineStore('goeats', {
           email: data.user.email,
           telefono: data.user.phone || '6123-4567',
           consentimientoLey81: null,
+          ...mapDireccionApi(data.user),
         }
         this.rol = data.user.role
         this.autenticado = true
@@ -252,6 +258,7 @@ export const useGoEatsStore = defineStore('goeats', {
           email: data.email,
           telefono: data.phone || '',
           consentimientoLey81: null,
+          ...mapDireccionApi(data),
         }
         this.rol = data.role
         this.autenticado = true
@@ -789,13 +796,33 @@ export const useGoEatsStore = defineStore('goeats', {
       })
     },
 
+    // datos: { nombre, telefono, email? } and optionally the default delivery address { direccion, lat, lng }.
+    // Address keys are only sent when present in `datos` (a personal-data save never touches them). Clearing =
+    // direccion '' (sent as null) and lat/lng null; lat and lng always travel together (a lone one clears both).
     guardarPerfil(datos) {
+      const body = { full_name: datos.nombre ?? this.usuario.nombre, phone: datos.telefono ?? this.usuario.telefono }
+      const local = { ...datos, consentimientoLey81: this.usuario.consentimientoLey81 }
+      if ('direccion' in datos) {
+        const texto = (datos.direccion ?? '').trim()
+        body.address = texto || null
+        local.direccion = texto
+      }
+      if ('lat' in datos || 'lng' in datos) {
+        const par = datos.lat != null && datos.lng != null
+        body.lat = par ? datos.lat : null
+        body.lng = par ? datos.lng : null
+        local.lat = body.lat
+        local.lng = body.lng
+      }
       return this.escribir({
         objetivos: [this.usuario],
         // The consent flag is owned by the server (cambiarConsentimiento), never by a profile form copy.
-        aplicar: () => Object.assign(this.usuario, { ...datos, consentimientoLey81: this.usuario.consentimientoLey81 }),
-        llamada: () => api.put('/users/me', { full_name: datos.nombre ?? this.usuario.nombre, phone: datos.telefono ?? this.usuario.telefono }),
-        exito: () => this.notificar('Perfil actualizado correctamente.'),
+        aplicar: () => Object.assign(this.usuario, local),
+        llamada: () => api.put('/users/me', body),
+        exito: (data) => {
+          if (data && 'address' in data) Object.assign(this.usuario, mapDireccionApi(data))
+          this.notificar('Perfil actualizado correctamente.')
+        },
       })
     },
 

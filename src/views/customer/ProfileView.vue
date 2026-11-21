@@ -1,6 +1,9 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 import { useGoEatsStore } from '../../stores/useGoEatsStore'
+
+// Lazy: Leaflet and its CSS stay out of the initial bundle and only load when Perfil is opened.
+const AddressPickerMap = defineAsyncComponent(() => import('../../components/AddressPickerMap.vue'))
 
 const store = useGoEatsStore()
 
@@ -12,6 +15,14 @@ const guardandoConsent = ref(false)
 const tipoARCO = ref('Acceso')
 const detalleARCO = ref('')
 const enviado = ref(false)
+
+// Default delivery address: saved on its own (the personal-data form above never sends these keys).
+const DIRECCION_MIN = 4
+const DIRECCION_MAX = 300
+const direccion = ref(store.usuario.direccion ?? '')
+const punto = ref(store.usuario.lat != null && store.usuario.lng != null ? { lat: store.usuario.lat, lng: store.usuario.lng } : null)
+const guardandoDireccion = ref(false)
+const errorDireccion = ref('')
 
 const ESTADO_ARCO = { pendiente: 'Pendiente', respondida: 'Respondida' }
 
@@ -29,6 +40,30 @@ onMounted(async () => {
 
 function guardarPerfil() {
   store.guardarPerfil({ ...form.value })
+}
+
+async function guardarDireccion() {
+  const texto = direccion.value.trim()
+  errorDireccion.value = ''
+  if (texto && texto.length < DIRECCION_MIN) {
+    errorDireccion.value = `La dirección debe tener al menos ${DIRECCION_MIN} caracteres.`
+    return
+  }
+  if (texto.length > DIRECCION_MAX) {
+    errorDireccion.value = `La dirección no puede superar ${DIRECCION_MAX} caracteres.`
+    return
+  }
+  guardandoDireccion.value = true
+  const r = await store.guardarPerfil({
+    nombre: store.usuario.nombre,
+    telefono: store.usuario.telefono,
+    direccion: texto,
+    lat: punto.value?.lat ?? null,
+    lng: punto.value?.lng ?? null,
+  })
+  guardandoDireccion.value = false
+  // On failure the store rolled back and toasted; what the user typed stays in the form.
+  if (!r.ok) errorDireccion.value = r.error?.message ?? ''
 }
 
 async function cambiarConsentimiento(event) {
@@ -78,6 +113,32 @@ async function enviarARCO() {
         </div>
       </div>
       <button class="btn-primary mt-5" @click="guardarPerfil">Guardar cambios</button>
+    </section>
+
+    <!-- Dirección de entrega predeterminada -->
+    <section class="card p-6" data-test="address-section">
+      <h2 class="font-semibold text-ink">Dirección de entrega predeterminada</h2>
+      <p class="text-sm text-slatebody mt-1">Se usará para llenar tus próximos pedidos. Puedes cambiarla en cada pedido.</p>
+      <div class="mt-4">
+        <label for="perfil-direccion" class="label">Dirección</label>
+        <input
+          id="perfil-direccion"
+          v-model="direccion"
+          data-test="address-input"
+          class="input"
+          maxlength="400"
+          autocomplete="street-address"
+          placeholder="Calle, edificio, referencia"
+          :disabled="guardandoDireccion"
+          :aria-invalid="errorDireccion ? 'true' : undefined"
+          :aria-describedby="errorDireccion ? 'perfil-direccion-error' : undefined"
+        />
+        <p v-if="errorDireccion" id="perfil-direccion-error" data-test="address-error" role="alert" class="mt-2 text-sm text-coral">{{ errorDireccion }}</p>
+      </div>
+      <div class="mt-4">
+        <AddressPickerMap v-model="punto" :disabled="guardandoDireccion" />
+      </div>
+      <button data-test="address-save" class="btn-primary mt-5" :disabled="guardandoDireccion" @click="guardarDireccion">Guardar dirección</button>
     </section>
 
     <!-- Ley 81 -->

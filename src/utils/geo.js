@@ -56,3 +56,19 @@ export function encontrarZonaMasCercana(lat, lng) {
 
   return { slug: zonaCercana, distanciaKm: menorDistancia }
 }
+
+// Distancia haversine en metros, sin redondear (calcularDistanciaKm redondea a 10 m).
+function distanciaMetros(lat1, lng1, lat2, lng2) {
+  const rad = Math.PI / 180
+  const dLat = (lat2 - lat1) * rad
+  const dLng = (lng2 - lng1) * rad
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLng / 2) ** 2
+  return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+// ¿El punto cae dentro del círculo (centro + radioM) de alguna zona? El borde cuenta como dentro.
+// Solo informativo: la cobertura existe únicamente en el frontend y nunca bloquea un pedido.
+export function puntoEnCobertura(lat, lng) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false
+  return Object.values(COORDENADAS_ZONAS).some((z) => distanciaMetros(lat, lng, z.lat, z.lng) <= z.radioM)
+}
