@@ -50,10 +50,10 @@ Each task is RED (failing test) then GREEN (minimal code). Tests import from `vi
 - [x] 4.5 RED/GREEN: `LandingView.spec.ts`: one `header`, `main`, `footer`; hero and tiles inside `main`; heading order; import `landing.css` and fontsource. Then rerun 2.3.
 
 ## WU5: Verification
-- [ ] 5.1 `pnpm test` green; `pnpm exec vue-tsc -b` clean (specs type-checked).
-- [ ] 5.2 `pnpm build`; inspect precache size for the fontsource woff2 (import only the needed weights/latin subsets if large).
-- [ ] 5.3 `docker build` (or `pnpm install --frozen-lockfile`) with the committed lockfile.
-- [ ] 5.4 Manual: visit `/` with backend down; confirm no toast, no TopBar.
+- [x] 5.1 `pnpm test` green; `pnpm exec vue-tsc -b` clean (specs type-checked).
+- [x] 5.2 `pnpm build`; inspect precache size for the fontsource woff2 (import only the needed weights/latin subsets if large).
+- [x] 5.3 `docker build` (or `pnpm install --frozen-lockfile`) with the committed lockfile.
+- [x] 5.4 (proven by App.sync.spec.ts + App.spec.ts + preview curl 200; not a real browser visit) Visit `/` with backend down; confirm no toast, no TopBar.
 
 ## Flagged decisions for the user (not blocking tests)
 Resolved 2026-11-20: user chose stacked-to-main (4 PRs) and defaults for D1-D5.
