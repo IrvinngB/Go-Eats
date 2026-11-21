@@ -36,6 +36,7 @@
   --cx-font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --cx-shadow-active: 0 6px 20px rgba(11, 43, 51, 0.1);
   --cx-shadow-overlay: 0 12px 32px rgba(11, 43, 51, 0.16);
+  --cx-scrim: rgba(11, 43, 51, 0.48); /* flat scrim behind sheets and modals: no blur */
   --cx-gap: 12px;
 
   background: var(--cx-bg);
@@ -617,6 +618,7 @@
 
 .cx-btn-secondary:hover {
   background: var(--cx-surface-strong);
+  color: var(--cx-ink); /* primary-text on surface-strong is 4.49:1, ink is 12+ */
 }
 
 .cx-btn-secondary:active {
@@ -1639,6 +1641,658 @@
   outline-offset: 2px;
 }
 
+/* ================= Checkout: cart sheet, form, summary, payment modal =================
+   Overlays follow desing.md section 7: flat scrim, --bg container with 1px --border and the overlay shadow.
+   Phones get a bottom sheet (top radius 32, 4x36 grab handle, max 90vh); the cart becomes a side panel from
+   768px and the payment dialog a 480px modal (radius 24) from 640px. */
+body.cx-dialog-open {
+  overflow: hidden;
+}
+
+/* A component that brings its own .cx scope but lives inside a larger surface (no page-level box). */
+.cx.cx-embed {
+  min-height: 0;
+  background: transparent;
+}
+
+/* The overlay root carries its own .cx scope (tokens, font) but none of the page-level box of .cx. */
+.cx.cx-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  min-height: 0;
+  background: var(--cx-scrim);
+}
+
+.cx-sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: 90vh;
+  max-height: 90dvh;
+  overflow: hidden;
+  border: 1px solid var(--cx-border);
+  border-bottom: 0;
+  border-radius: 32px 32px 0 0;
+  background: var(--cx-bg);
+  box-shadow: var(--cx-shadow-overlay);
+}
+
+.cx-sheet::before {
+  content: '';
+  flex: none;
+  width: 36px;
+  height: 4px;
+  margin: 12px auto 0;
+  border-radius: 999px;
+  background: var(--cx-border);
+}
+
+.cx-sheet:focus,
+.cx-sheet h2:focus {
+  /* Programmatic focus targets (panel, step titles): transparent keeps a ring in forced-colors mode. */
+  outline: 2px solid transparent;
+}
+
+.cx-sheet-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px 8px 24px;
+}
+
+.cx-sheet-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 24px;
+  min-height: 0;
+  padding: 8px 24px 24px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Sticky checkout bar: total on the left, the one large primary button on the right. */
+.cx-sheet-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 24px max(16px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--cx-border);
+  background: var(--cx-bg);
+}
+
+.cx-sheet-total {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cx-sheet-total .cx-h3 {
+  font-family: var(--cx-font-heading);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.cx-sheet-bar .cx-btn {
+  flex: 1 1 auto;
+  max-width: 260px;
+  padding: 0 20px;
+}
+
+@media (min-width: 768px) {
+  .cx.cx-overlay-side {
+    align-items: stretch;
+    justify-content: flex-end;
+  }
+
+  .cx-sheet-side {
+    width: 440px;
+    max-height: none;
+    border-bottom: 1px solid var(--cx-border);
+    border-radius: 32px 0 0 32px;
+  }
+
+  .cx-sheet-side::before {
+    display: none;
+  }
+
+  .cx-sheet-side .cx-sheet-head {
+    padding-top: 20px;
+  }
+}
+
+@media (min-width: 640px) {
+  .cx.cx-overlay-center {
+    align-items: center;
+    padding: 24px;
+  }
+
+  .cx-modal {
+    width: 480px;
+    max-height: calc(100vh - 48px);
+    border-bottom: 1px solid var(--cx-border);
+    border-radius: 24px;
+  }
+
+  .cx-modal::before {
+    display: none;
+  }
+}
+
+/* Sheet / modal motion: 260ms ease-out, slide up on phones, fade + 8px rise from the modal breakpoint. */
+.cx-sheet-enter-active,
+.cx-sheet-leave-active {
+  transition: opacity 260ms ease-out;
+}
+
+.cx-sheet-enter-active .cx-sheet,
+.cx-sheet-leave-active .cx-sheet {
+  transition: transform 260ms ease-out;
+}
+
+.cx-sheet-enter-from,
+.cx-sheet-leave-to {
+  opacity: 0;
+}
+
+.cx-sheet-enter-from .cx-sheet,
+.cx-sheet-leave-to .cx-sheet {
+  transform: translateY(100%);
+}
+
+@media (min-width: 640px) {
+  .cx-overlay-center.cx-sheet-enter-from .cx-sheet,
+  .cx-overlay-center.cx-sheet-leave-to .cx-sheet {
+    transform: translateY(8px);
+  }
+}
+
+@media (min-width: 768px) {
+  .cx-overlay-side.cx-sheet-enter-from .cx-sheet,
+  .cx-overlay-side.cx-sheet-leave-to .cx-sheet {
+    transform: translateX(100%);
+  }
+}
+
+/* ---------- Form pieces ---------- */
+.cx-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.cx-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  color: var(--cx-ink);
+  font-family: var(--cx-font-heading);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.cx-section-title svg {
+  flex: none;
+  color: var(--cx-primary-text);
+}
+
+.cx-input-plain {
+  padding-left: 16px;
+}
+
+.cx-textarea {
+  min-height: 96px;
+  padding-top: 14px;
+  padding-bottom: 14px;
+  resize: vertical;
+}
+
+.cx-mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.cx-help {
+  color: var(--cx-ink-soft);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* Error: 2px danger border on the field (aria-invalid), icon + message below, never color alone. */
+.cx-field-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 6px;
+  color: var(--cx-danger-text);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.cx-field-error svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--cx-danger);
+}
+
+.cx-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.cx-alert-danger {
+  background: var(--cx-danger-tint);
+}
+
+.cx-alert-danger::before {
+  background: var(--cx-danger);
+}
+
+.cx-alert-danger svg {
+  color: var(--cx-danger);
+}
+
+.cx-alert-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+/* Delivery address: the saved default is a calm surface tile with one action. */
+.cx-address {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 16px 20px;
+  border-radius: 24px;
+  background: var(--cx-surface);
+}
+
+.cx-address-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--cx-ink-soft);
+  font-size: 0.875rem;
+}
+
+.cx-address-meta svg {
+  color: var(--cx-primary-text);
+}
+
+/* Payment choice: two selectable tiles (radio kept in the tab order, drawn as a flat rounded dot). */
+.cx-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 12px 16px;
+  border: 2px solid transparent;
+  border-radius: 16px;
+  background: var(--cx-surface);
+  cursor: pointer;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out;
+}
+
+.cx-option:hover {
+  background: var(--cx-surface-strong);
+}
+
+.cx-option-selected,
+.cx-option-selected:hover {
+  border-color: var(--cx-primary-text);
+  background: var(--cx-primary-tint);
+}
+
+.cx-option-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.cx-option:has(.cx-option-input:focus-visible) {
+  outline: 2px solid var(--cx-primary-text);
+  outline-offset: 2px;
+}
+
+.cx-option-dot {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--cx-ink-faint);
+  border-radius: 999px;
+  background: var(--cx-bg);
+  color: var(--cx-on-primary);
+}
+
+.cx-option-selected .cx-option-dot {
+  border-color: var(--cx-primary-text);
+  background: var(--cx-primary);
+}
+
+.cx-option-text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cx-option-title {
+  color: var(--cx-ink);
+  font-family: var(--cx-font-heading);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.cx-option-sub {
+  color: var(--cx-ink-soft);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.cx-option > svg {
+  flex: none;
+  color: var(--cx-primary-text);
+}
+
+/* Cart lines: one tile of rows separated by 1px --border (not a pile of cards). */
+.cx-lines {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cx-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  padding: 16px 0;
+  border-top: 1px solid var(--cx-border);
+}
+
+.cx-line:first-child {
+  padding-top: 4px;
+  border-top: 0;
+}
+
+.cx-line-name {
+  font-size: 1.0625rem;
+  line-height: 1.3;
+}
+
+.cx-line-total {
+  font-family: var(--cx-font-heading);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.cx-line-controls {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 8px;
+}
+
+/* The stepper keeps its own row; the note gets the full width so its placeholder is never cut off. */
+.cx-line-controls .cx-field {
+  order: 1;
+  flex: 1 1 100%;
+}
+
+.cx-qty {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--cx-surface);
+}
+
+.cx-qty button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  color: var(--cx-ink);
+  cursor: pointer;
+  transition: background-color 150ms ease-out;
+}
+
+.cx-qty button:hover {
+  background: var(--cx-surface-strong);
+  color: var(--cx-ink);
+}
+
+.cx-qty output {
+  min-width: 28px;
+  font-family: var(--cx-font-heading);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* Order summary rows: label left, price right with tabular figures. */
+.cx-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 16px 20px;
+  border-radius: 24px;
+  background: var(--cx-surface);
+}
+
+.cx-summary > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cx-summary dt {
+  color: var(--cx-ink-soft);
+}
+
+.cx-summary dd {
+  margin: 0;
+  color: var(--cx-ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* Map picker: a tile with the map clipped inside (radius 24) and 44px controls. */
+.cx-mapbox {
+  overflow: hidden;
+  border-radius: 24px;
+  background: var(--cx-surface);
+}
+
+.cx-mapbox-attr {
+  padding: 4px 12px;
+  background: var(--cx-surface);
+  color: var(--cx-ink-soft);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.cx .cx-mapbox .leaflet-bar {
+  overflow: hidden;
+  border: 0;
+  border-radius: 16px;
+  box-shadow: none;
+}
+
+.cx .cx-mapbox .leaflet-bar a {
+  width: 44px;
+  height: 44px;
+  background: var(--cx-bg);
+  color: var(--cx-ink);
+  line-height: 44px;
+}
+
+.cx .cx-mapbox .leaflet-bar a:hover {
+  background: var(--cx-surface-strong);
+  color: var(--cx-ink);
+}
+
+.cx-pin-marker {
+  width: 22px;
+  height: 22px;
+  border: 3px solid var(--cx-bg);
+  border-radius: 999px;
+  background: var(--cx-indigo);
+}
+
+/* Payment gateway dialog */
+.cx-gw-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--cx-surface-strong);
+  color: var(--cx-ink-soft);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.cx-gw-note {
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: var(--cx-surface);
+  color: var(--cx-ink-soft);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.cx-gw-note code {
+  color: var(--cx-ink);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.cx-actions {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 12px;
+}
+
+@media (min-width: 640px) {
+  .cx-actions {
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+}
+
+.cx-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  text-align: center;
+}
+
+.cx-result-icon {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+}
+
+.cx-result-ok {
+  background: var(--cx-success-tint);
+  color: var(--cx-success-text);
+}
+
+.cx-result-bad {
+  background: var(--cx-danger-tint);
+  color: var(--cx-danger-text);
+}
+
+/* Reference code: PIN style tile (primary-tint, mono, letter-spaced). */
+.cx-code {
+  display: inline-block;
+  padding: 8px 20px;
+  border-radius: 16px;
+  background: var(--cx-primary-tint);
+  color: var(--cx-ink);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 1.25rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+
+@keyframes cx-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.cx-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--cx-primary-tint);
+  border-top-color: var(--cx-primary-text);
+  border-radius: 999px;
+  animation: cx-spin 0.8s linear infinite;
+}
+
+/* "Ver más" pagination */
+.cx-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+/* An error toast stays until dismissed: while a dialog is open it rides above the sticky bar, never over it. */
+body.cx-dialog-open .cx-toast-region {
+  bottom: 120px;
+}
+
+.cx-toast-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 /* ---------- Reduced motion: colors still change instantly, nothing moves ---------- */
 @media (prefers-reduced-motion: reduce) {
   .cx,
@@ -1653,5 +2307,44 @@
   .cx .cx-btn:active,
   .cx .cx-tile-interactive:active {
     transform: none !important;
+  }
+}
+
+/* ---------- Gateway extras ---------- */
+.cx-otp {
+  min-height: 64px;
+  font-size: 1.5rem;
+  letter-spacing: 0.4em;
+  text-align: center;
+}
+
+.cx-spinner-sm {
+  width: 20px;
+  height: 20px;
+  border-width: 3px;
+  border-color: var(--cx-ink-faint);
+  border-top-color: var(--cx-ink);
+}
+
+.cx-actions .cx-btn {
+  width: 100%;
+}
+
+/* In the payment sheet the actions stay reachable while the form scrolls. */
+.cx-modal .cx-sheet-body {
+  gap: 16px;
+}
+
+.cx-modal .cx-actions {
+  position: sticky;
+  bottom: -24px;
+  margin: 0 -24px -24px;
+  padding: 12px 24px max(16px, env(safe-area-inset-bottom));
+  background: var(--cx-bg);
+}
+
+@media (min-width: 640px) {
+  .cx-actions .cx-btn {
+    width: auto;
   }
 }

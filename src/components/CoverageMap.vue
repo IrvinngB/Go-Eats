@@ -9,6 +9,7 @@ import {
   encontrarZonaMasCercana,
 } from '../utils/geo'
 import { TILE_URL, TILE_ATTRIBUTION } from '../utils/mapTiles'
+import { formatRating } from '../utils/catalog'
 import { Navigation, Locate, Store, Bike, Home, CheckCircle2 } from '@lucide/vue'
 
 const props = defineProps({
@@ -60,7 +61,7 @@ function crearIconoComercio(comercio, activo) {
     html: `
       <div style="transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; cursor: pointer;">
         <div style="background: white; border: 2px solid ${color}; color: #0F172A; font-weight: 700; font-size: 11px; padding: 2px 7px; border-radius: 9999px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 4px; white-space: nowrap;">
-          <span>⭐ ${comercio.rating || 4.5}</span>
+          <span>⭐ ${formatRating(comercio.rating || 4.5)}</span>
           <span style="max-width: 110px; overflow: hidden; text-overflow: ellipsis;">${comercio.nombre}</span>
         </div>
         <div style="width: 14px; height: 14px; background: ${color}; border: 2px solid white; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.3); margin-top: -3px;"></div>
@@ -181,7 +182,7 @@ function renderizarComercios() {
         <strong style="color: #0F172A; font-size: 14px; display: block;">${c.nombre}</strong>
         <span style="color: #64748B; font-size: 11px; display: block; margin-top: 2px;">${c.tipo || ''}</span>
         <div style="margin-top: 6px; display: flex; align-items: center; gap: 8px;">
-          <span style="font-weight: 600; color: #D97706;">★ ${c.rating || 4.5}</span>
+          <span style="font-weight: 600; color: #D97706;">★ ${formatRating(c.rating || 4.5)}</span>
           <span style="color: #64748B;">⏱️ ${c.tiempoEntrega || '20-35 min'}</span>
         </div>
         <button id="btn-ver-${c.id}" style="margin-top: 10px; width: 100%; background: #00B19D; color: white; border: none; border-radius: 6px; padding: 6px 10px; font-weight: 600; font-size: 12px; cursor: pointer;">

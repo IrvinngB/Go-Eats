@@ -79,3 +79,10 @@ export function filtrarProductos<
     return coincideBusqueda(texto, q)
   })
 }
+
+/** Ratings always print with one decimal and a dot ("4.0", never "4" or "4,0"). Backend values stay numbers. */
+export function formatRating(valor: number | string | null | undefined, vacio = '—'): string {
+  const n = typeof valor === 'string' ? Number(valor) : valor
+  if (typeof n !== 'number' || !Number.isFinite(n) || n <= 0) return vacio
+  return n.toFixed(1)
+}

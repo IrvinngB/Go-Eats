@@ -9,7 +9,9 @@ import '@fontsource/nunito/latin-700.css'
 import '@fontsource/nunito/latin-800.css'
 import '../../components/catalog/catalog.css'
 import { MapPin, LayoutGrid, Map, Search, SearchX, Clock, Bike, Sparkles, Star, Check, ChevronDown, CircleCheck, Lock, Hourglass, ChevronLeft, ChevronRight } from '@lucide/vue'
-import { extraerCategorias, filtrarYOrdenarComercios, tienePromocion } from '../../utils/catalog'
+import { extraerCategorias, filtrarYOrdenarComercios, formatRating, tienePromocion } from '../../utils/catalog'
+import { textoVerMas } from '../../utils/pagination'
+import { usePaginacion } from '../../composables/usePaginacion'
 import { layoutGrid, cellClass } from '../../utils/grid'
 
 const store = useGoEatsStore()
@@ -28,7 +30,24 @@ const comerciosFiltrados = computed(() =>
   }),
 )
 
-const celdas = computed(() => layoutGrid(comerciosFiltrados.value.length).map(cellClass))
+// "Ver más": 12 merchants at a time; search, category, sort or zone changes go back to the first page.
+const {
+  visibles: comerciosVisibles,
+  restantes: comerciosRestantes,
+  verMas,
+} = usePaginacion(comerciosFiltrados, [busqueda, categoriaSeleccionada, orden, () => store.zonaSeleccionada])
+// The grid lays out only the visible subset, so every desktop row is full at any page.
+const celdas = computed(() => layoutGrid(comerciosVisibles.value.length).map(cellClass))
+
+// Keyboard users continue from the first newly revealed merchant instead of tabbing back up the list.
+async function verMasComercios() {
+  const antes = comerciosVisibles.value.length
+  verMas()
+  await nextTick()
+  const nuevas = [...document.querySelectorAll('[data-test="merchant-card"]')].slice(antes)
+  const foco = nuevas.find((el) => !el.disabled) ?? document.querySelector('[data-test="merchants-more"]')
+  foco?.focus({ preventScroll: false })
+}
 // Cover tones cycle through the pale brand tints (tone, never border or shadow).
 const TONOS_PORTADA = ['', 'cx-cover-b', 'cx-cover-c']
 
@@ -280,7 +299,7 @@ function alSeleccionarZonaDesdeMapa(slug) {
 
           <div v-if="comerciosFiltrados.length > 0" class="cx-cards" data-test="merchant-grid">
             <button
-              v-for="(c, idx) in comerciosFiltrados" :key="c.id"
+              v-for="(c, idx) in comerciosVisibles" :key="c.id"
               type="button"
               data-test="merchant-card"
               class="cx-tile cx-tile-interactive cx-merchant"
@@ -306,9 +325,9 @@ function alSeleccionarZonaDesdeMapa(slug) {
               <div class="cx-merchant-body">
                 <div class="cx-row cx-row-between" style="flex-wrap: nowrap; align-items: flex-start">
                   <h3 class="cx-h3">{{ c.nombre }}</h3>
-                  <span class="cx-badge cx-badge-promo" style="flex: none">
+                  <span class="cx-badge cx-badge-promo" style="flex: none" data-test="merchant-rating">
                     <Star :size="16" aria-hidden="true" />
-                    <span class="cx-price-old" style="text-decoration: none; color: inherit; font-weight: 700">{{ c.rating }}</span>
+                    <span class="cx-price-old" style="text-decoration: none; color: inherit; font-weight: 700">{{ formatRating(c.rating) }}</span>
                   </span>
                 </div>
                 <p class="cx-small cx-link" style="font-weight: 600">{{ c.tipo }}</p>
@@ -322,7 +341,16 @@ function alSeleccionarZonaDesdeMapa(slug) {
             </button>
           </div>
 
-          <div v-else data-test="stores-empty" class="cx-tile cx-empty">
+          <div v-if="comerciosRestantes > 0" class="cx-more">
+            <button type="button" data-test="merchants-more" class="cx-btn cx-btn-secondary" @click="verMasComercios">
+              {{ textoVerMas(comerciosRestantes, 'comercios') }}
+            </button>
+          </div>
+          <p v-if="comerciosFiltrados.length > 0" class="cx-sr-only" role="status" aria-live="polite" data-test="stores-shown">
+            Mostrando {{ comerciosVisibles.length }} de {{ comerciosFiltrados.length }} comercios
+          </p>
+
+          <div v-if="comerciosFiltrados.length === 0" data-test="stores-empty" class="cx-tile cx-empty">
             <span class="cx-empty-icon"><SearchX :size="32" aria-hidden="true" /></span>
             <h3 class="cx-h3">No encontramos comercios con esos filtros</h3>
             <p>Prueba con otro plato o cambia la categoría.</p>

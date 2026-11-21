@@ -72,3 +72,26 @@ export function shellPairs(t: Theme = catalogTheme): Pair[] {
     ui('primary-text', 'bg'),
   ]
 }
+
+/** Pairs the checkout adds (cart sheet, form states, payment options, gateway result, summary). */
+export function checkoutPairs(t: Theme = catalogTheme): Pair[] {
+  const text = (fg: string, bg: string): Pair => ({ label: `${fg} on ${bg}`, fg: t[fg], bg: t[bg], min: 4.5 })
+  const ui = (fg: string, bg: string): Pair => ({ label: `${fg} on ${bg} (UI)`, fg: t[fg], bg: t[bg], min: 3, ui: true })
+  return [
+    // Secondary button hover keeps ink: primary-text on surface-strong is 4.49 (< 4.5).
+    text('ink', 'surface-strong'),
+    text('ink', 'primary-tint'), // selected payment option, reference code tile
+    text('ink', 'danger-tint'), // consent alert body
+    text('ink-soft', 'surface'), // summary labels, helper text on tiles
+    text('danger-text', 'bg'), // field error message
+    text('danger-text', 'surface'), // field error on a tile
+    text('success-text', 'success-tint'), // approved result icon
+    text('danger-text', 'danger-tint'), // declined result icon
+    text('ink-soft', 'surface-strong'), // chips, disabled button
+    ui('danger', 'bg'), // 2px invalid border on a white sheet
+    ui('primary-text', 'primary-tint'), // selected option border and dot
+    ui('primary-text', 'surface'), // section icons
+    ui('ink-faint', 'bg'), // unselected radio dot and checkbox border
+    ui('indigo', 'bg'), // destination pin
+  ]
+}

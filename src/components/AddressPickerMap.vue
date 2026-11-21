@@ -5,6 +5,11 @@ import 'leaflet/dist/leaflet.css'
 // @ts-expect-error geo.js ships no type declarations
 import { CENTRO_PANAMA, puntoEnCobertura } from '../utils/geo'
 import { TILE_URL, TILE_ATTRIBUTION } from '../utils/mapTiles'
+import { CircleAlert, Info, MapPinOff } from '@lucide/vue'
+import '@fontsource/nunito/latin-400.css'
+import '@fontsource/nunito/latin-700.css'
+import '@fontsource/nunito/latin-800.css'
+import './catalog/catalog.css'
 
 type Pin = { lat: number; lng: number }
 
@@ -62,7 +67,8 @@ const hayAlgo = computed(() => pin.value !== null || latTxt.value !== '' || lngT
 function crearIcono() {
   return L.divIcon({
     className: 'address-picker-marker',
-    html: '<div style="width:22px;height:22px;background:#EF4444;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.35);"></div>',
+    // Destination pin in the brand indigo (desing.md map tile); styled by .cx-pin-marker in catalog.css.
+    html: '<div class="cx-pin-marker"></div>',
     iconSize: [22, 22],
     iconAnchor: [11, 11],
   })
@@ -167,30 +173,31 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div role="group" aria-label="Ubicación de entrega en el mapa" class="space-y-3">
-    <div class="rounded-2xl overflow-hidden border border-line shadow-card bg-slate-50">
+  <!-- Own .cx scope so the tokens resolve even when the picker is mounted outside a catalog view. -->
+  <div role="group" aria-label="Ubicación de entrega en el mapa" class="cx cx-embed cx-stack" style="gap: 12px">
+    <div class="cx-mapbox">
       <div
         ref="contenedorMapa"
         data-test="map-canvas"
         role="region"
         aria-label="Mapa: haz clic para fijar la ubicación de entrega"
         :aria-describedby="idHint"
-        class="w-full"
+        style="width: 100%"
         :style="{ height: altura }"
       />
-      <p data-test="map-attribution" class="m-0 bg-white px-2 py-1 text-right text-[11px] text-slatebody">{{ TILE_ATTRIBUTION }}</p>
+      <p data-test="map-attribution" class="cx-mapbox-attr">{{ TILE_ATTRIBUTION }}</p>
     </div>
 
-    <p :id="idHint" data-test="map-hint" class="text-xs text-slatebody">Haz clic en el mapa o arrastra el marcador para fijar tu ubicación. También puedes escribir la latitud y la longitud.</p>
+    <p :id="idHint" data-test="map-hint" class="cx-help">Haz clic en el mapa o arrastra el marcador para fijar tu ubicación. También puedes escribir la latitud y la longitud.</p>
 
-    <div class="grid gap-3 sm:grid-cols-2">
+    <div class="cx-grid-2">
       <div>
-        <label :for="idLat" class="label">Latitud</label>
+        <label :for="idLat" class="cx-label">Latitud</label>
         <input
           :id="idLat"
           v-model="latTxt"
           data-test="lat-input"
-          class="input"
+          class="cx-input cx-input-plain cx-mono"
           type="text"
           inputmode="decimal"
           autocomplete="off"
@@ -203,12 +210,12 @@ onBeforeUnmount(() => {
         />
       </div>
       <div>
-        <label :for="idLng" class="label">Longitud</label>
+        <label :for="idLng" class="cx-label">Longitud</label>
         <input
           :id="idLng"
           v-model="lngTxt"
           data-test="lng-input"
-          class="input"
+          class="cx-input cx-input-plain cx-mono"
           type="text"
           inputmode="decimal"
           autocomplete="off"
@@ -222,16 +229,19 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <p v-if="validacion.error" :id="idError" data-test="coord-error" role="alert" class="text-sm text-coral">{{ validacion.error }}</p>
+    <p v-if="validacion.error" :id="idError" data-test="coord-error" role="alert" class="cx-field-error" style="margin-top: 0">
+      <CircleAlert :size="16" aria-hidden="true" /><span>{{ validacion.error }}</span>
+    </p>
 
     <div role="status" aria-live="polite">
-      <p v-if="!enCobertura" data-test="coverage-hint" class="text-sm rounded-lg border border-sky-200 bg-sky-50 text-sky-800 p-3">
-        Esta ubicación está fuera de las zonas de cobertura
-      </p>
+      <div v-if="!enCobertura" data-test="coverage-hint" class="cx-alert">
+        <Info :size="20" aria-hidden="true" />
+        <p>Esta ubicación está fuera de las zonas de cobertura</p>
+      </div>
     </div>
 
-    <button v-if="hayAlgo" type="button" data-test="clear-pin" class="btn-secondary" :disabled="disabled" @click="quitarPin">
-      Quitar ubicación
+    <button v-if="hayAlgo" type="button" data-test="clear-pin" class="cx-btn cx-btn-ghost" style="align-self: flex-start; margin-left: -16px" :disabled="disabled" @click="quitarPin">
+      <MapPinOff :size="20" aria-hidden="true" />Quitar ubicación
     </button>
   </div>
 </template>

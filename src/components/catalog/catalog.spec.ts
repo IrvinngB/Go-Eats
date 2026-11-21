@@ -119,3 +119,32 @@ describe('catalog contrast pairs', () => {
     expect(contrast(catalogTheme.danger, catalogTheme['danger-tint'])).toBeLessThan(4.5)
   })
 })
+
+describe('hover states keep readable text (desing.md outdoor contrast)', () => {
+  const t = catalogTheme as Record<string, string>
+  const hoverRules = [...css.matchAll(/([^{}]*:hover[^{}]*)\{([^}]*)\}/g)].map((m) => ({ sel: m[1].trim().replace(/\s+/g, ' '), body: m[2] }))
+  const withBoth = hoverRules
+    .map((r) => ({
+      ...r,
+      bg: r.body.match(/background:\s*var\(--cx-([\w-]+)\)/)?.[1],
+      fg: r.body.match(/(?<![\w-])color:\s*var\(--cx-([\w-]+)\)/)?.[1],
+    }))
+    .filter((r) => r.bg && r.fg)
+
+  it('finds hover rules that set both a fill and a text color', () => {
+    expect(withBoth.length).toBeGreaterThan(2)
+  })
+
+  for (const r of withBoth) {
+    it(`${r.sel}: ${r.fg} on ${r.bg} >= 4.5`, () => {
+      expect(contrast(t[r.fg!], t[r.bg!])).toBeGreaterThanOrEqual(4.5)
+    })
+  }
+
+  it('the secondary button hover keeps ink text on surface-strong (primary-text there is 4.49)', () => {
+    const b = block('.cx-btn-secondary:hover {')
+    expect(b).toMatch(/background:\s*var\(--cx-surface-strong\)/)
+    expect(b).toMatch(/(?<![\w-])color:\s*var\(--cx-ink\)/)
+    expect(contrast(t['primary-text'], t['surface-strong'])).toBeLessThan(4.5)
+  })
+})

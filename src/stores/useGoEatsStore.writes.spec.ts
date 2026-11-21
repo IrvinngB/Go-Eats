@@ -350,3 +350,111 @@ describe('crearPedido typed errors and cart', () => {
     expect(store.notificacion).toBeNull()
   })
 })
+
+describe('persistent error toasts (desing.md: errors stay until dismissed)', () => {
+  const orderBody = { code: 'PED-7', merchant_code: 'c9', merchant_name: 'C', customer_name: 'Ana', customer_phone: '', zone_slug: 'z1', delivery_address: 'Calle', items: [], subtotal: 5, delivery_fee: 2, total: 7, status: 'pendiente', payment_method: 'contr_entrega', courier_code: null, notes: '', cancellation_reason: null, rating: null, created_at: '2026-01-01T10:00:00Z' }
+  const pagoOk = { data: { code: 'TX-9', order_code: 'PED-7', method: 'contr_entrega', subtotal: 5, delivery_fee: 2, commission: 1, total: 7, status: 'pendiente', provider_reference: 'COD-1', created_at: '2026-01-01T10:00:00Z' } }
+
+  function withCart() {
+    const store = useGoEatsStore()
+    store.autenticado = true
+    store.comercios = [{ id: 'c9', nombre: 'C' }]
+    store.zonaSeleccionada = 'z1'
+    store.agregarAlCarrito('c9', { id: 'p1', nombre: 'Plato', precio: 5 }, 2, '')
+    return store
+  }
+  const datos = { direccion: 'Calle 45', metodoPago: 'contr_entrega', observaciones: '' }
+
+  it('an error toast is still visible long after the info timeout', () => {
+    vi.useFakeTimers()
+    const store = useGoEatsStore()
+    store.notificar('Fallo', 'error')
+    vi.advanceTimersByTime(60_000)
+    expect(store.notificacion).toMatchObject({ texto: 'Fallo', tipo: 'error' })
+  })
+
+  it('info and success toasts keep auto-dismissing after the same timeout', () => {
+    vi.useFakeTimers()
+    const store = useGoEatsStore()
+    store.notificar('Hecho', 'success')
+    vi.advanceTimersByTime(2801)
+    expect(store.notificacion).toBeNull()
+    store.notificar('Aviso')
+    vi.advanceTimersByTime(2801)
+    expect(store.notificacion).toBeNull()
+  })
+
+  it('a new error replaces the previous one', () => {
+    vi.useFakeTimers()
+    const store = useGoEatsStore()
+    store.notificar('Primero', 'error')
+    store.notificar('Segundo', 'error')
+    vi.advanceTimersByTime(60_000)
+    expect(store.notificacion.texto).toBe('Segundo')
+  })
+
+  it('an older info timer never clears a newer error', () => {
+    vi.useFakeTimers()
+    const store = useGoEatsStore()
+    store.notificar('Aviso')
+    vi.advanceTimersByTime(1000)
+    store.notificar('Fallo', 'error')
+    vi.advanceTimersByTime(5000)
+    expect(store.notificacion.texto).toBe('Fallo')
+  })
+
+  it('a successful retry of the same order clears the error from the failed attempt', async () => {
+    const store = withCart()
+    post.mockRejectedValueOnce(http(500))
+    expect(await store.crearPedido(datos)).toBeNull()
+    expect(store.notificacion.tipo).toBe('error')
+    post.mockImplementation(async (url: string) => (url === '/orders/' ? { data: orderBody } : pagoOk))
+    expect(await store.crearPedido(datos)).not.toBeNull()
+    expect(store.notificacion).toBeNull()
+  })
+
+  it('a failed payment is cleared by the retry that pays the remembered order', async () => {
+    const store = withCart()
+    post.mockImplementation(async (url: string) => {
+      if (url === '/orders/') return { data: orderBody }
+      throw http(500)
+    })
+    expect(await store.crearPedido(datos)).toBeNull()
+    expect(store.notificacion.tipo).toBe('error')
+    post.mockImplementation(async () => pagoOk)
+    expect(await store.crearPedido(datos)).not.toBeNull()
+    expect(store.notificacion).toBeNull()
+  })
+
+  it('a success of another action leaves the error alone', async () => {
+    const store = withCart()
+    post.mockRejectedValueOnce(http(500))
+    await store.crearPedido(datos)
+    put.mockResolvedValue({ data: { full_name: 'Ana', phone: '600' } })
+    await store.guardarPerfil({ nombre: 'Ana', telefono: '600' })
+    expect(store.notificacion.texto).toBe('Perfil actualizado correctamente.') // replaced by its own success toast, never silently dropped
+    store.notificar('Falló otra cosa', 'error')
+    const r = await store.guardarPerfil({ nombre: 'Ana', telefono: '600' })
+    expect(r.ok).toBe(true)
+  })
+
+  it('a successful write clears the error of the same write action', async () => {
+    const store = seeded()
+    patch.mockRejectedValueOnce(http(500))
+    await store.avanzarEstadoPedido('PED-1', 'confirmado')
+    expect(store.notificacion.tipo).toBe('error')
+    patch.mockResolvedValue({ data: { code: 'PED-1' } })
+    await store.avanzarEstadoPedido('PED-1', 'confirmado')
+    expect(store.notificacion).toBeNull()
+  })
+
+  it('a success of a different write does not clear someone else\'s error', async () => {
+    const store = seeded()
+    store.pedidos.push({ id: 'PED-2', estado: 'pendiente', repartidorId: null, comercioId: 'c1' })
+    patch.mockRejectedValueOnce(http(500))
+    await store.avanzarEstadoPedido('PED-1', 'confirmado')
+    patch.mockResolvedValue({ data: { code: 'PED-2' } })
+    await store.avanzarEstadoPedido('PED-2', 'confirmado')
+    expect(store.notificacion).toMatchObject({ tipo: 'error' })
+  })
+})
