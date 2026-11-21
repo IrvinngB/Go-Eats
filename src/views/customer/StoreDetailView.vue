@@ -6,6 +6,7 @@ import CommerceIcon from '../../components/CommerceIcon.vue'
 import PaymentGatewayModal from '../../components/PaymentGatewayModal.vue'
 import { puntoEnCobertura } from '../../utils/geo'
 import { extraerCategorias, filtrarProductos, tienePromocion } from '../../utils/catalog'
+import { layoutGrid, cellClass } from '../../utils/grid'
 import '@fontsource/nunito/latin-400.css'
 import '@fontsource/nunito/latin-700.css'
 import '@fontsource/nunito/latin-800.css'
@@ -31,6 +32,8 @@ const productosFiltrados = computed(() =>
     categoria: categoriaProducto.value,
   }),
 )
+
+const celdasProductos = computed(() => layoutGrid(productosFiltrados.value.length).map(cellClass))
 
 const carritoAbierto = ref(false)
 const checkoutPaso = ref(false)
@@ -303,11 +306,12 @@ function verPedido() {
         </p>
       </div>
 
-      <div v-if="productosFiltrados.length > 0" class="cx-cards">
+      <div v-if="productosFiltrados.length > 0" class="cx-cards" data-test="product-grid">
         <div
-          v-for="p in productosFiltrados" :key="p.id"
+          v-for="(p, idx) in productosFiltrados" :key="p.id"
           data-test="product-card"
           class="cx-tile cx-tile-compact cx-product"
+          :class="celdasProductos[idx]"
           :data-unavailable="!p.disponible || !comercioAbierto ? 'true' : undefined"
         >
           <div class="cx-product-main">

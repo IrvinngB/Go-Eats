@@ -124,11 +124,29 @@
   .cx-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  /* Tablet: two columns; an odd last tile spans both so the row stays full. */
+  .cx-cell-md-wide {
+    grid-column: 1 / -1;
+  }
 }
 
+/* Desktop: 6 columns; src/utils/grid.ts picks span 2 / 3 / 6 per tile so every row adds up to 6. */
 @media (min-width: 1024px) {
-  .cx-cards-3 {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .cx-cards {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .cx-cell-2 {
+    grid-column: span 2;
+  }
+
+  .cx-cell-3 {
+    grid-column: span 3;
+  }
+
+  .cx-cell-6 {
+    grid-column: span 6;
   }
 }
 
@@ -816,6 +834,75 @@
 
 .cx-scroll-x::-webkit-scrollbar {
   display: none;
+}
+
+/* Zone chips: proximity snap + scroll padding so the selected chip is never left clipped mid-label. */
+.cx-zone-scroller {
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 16px;
+}
+
+.cx-zone-scroller .cx-chip {
+  flex: none;
+  scroll-snap-align: center;
+}
+
+.cx-zone-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+}
+
+.cx-scroll-btns {
+  display: flex;
+  gap: 8px;
+}
+
+/* Solid 44px chevron: tonal, no shadow. Muted (not hidden) at either end so the row never shifts. */
+.cx-scroll-btn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: var(--cx-bg);
+  color: var(--cx-ink);
+  cursor: pointer;
+  transition: background-color 150ms ease-out;
+}
+
+.cx-scroll-btn:hover:not(:disabled) {
+  background: var(--cx-surface);
+}
+
+.cx-scroll-btn:disabled {
+  color: var(--cx-ink-faint);
+  cursor: default;
+  opacity: 0.55;
+}
+
+/* Hero merchant (a lone result): cover left, info right. */
+@media (min-width: 768px) {
+  .cx-merchant.cx-cell-hero {
+    display: grid;
+    grid-template-columns: minmax(220px, 2fr) 3fr;
+    gap: 8px;
+  }
+
+  .cx-cell-hero .cx-cover {
+    min-height: 200px;
+  }
+
+  .cx-cell-hero .cx-merchant-body {
+    justify-content: center;
+    padding: 16px 24px;
+  }
+
+  .cx-cell-hero .cx-h3 {
+    font-size: 1.5rem;
+  }
 }
 
 .cx-fab {
