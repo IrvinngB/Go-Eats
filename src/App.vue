@@ -1,16 +1,23 @@
+
 <script setup>
 import { useGoEatsStore } from './stores/useGoEatsStore'
 import TopBar from './components/TopBar.vue'
+import PwaStatus from './components/PwaStatus.vue'
 import { useRoute } from 'vue-router'
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 
 const store = useGoEatsStore()
 const route = useRoute()
 const esLogin = computed(() => route.path === '/login')
+
+onMounted(() => {
+  store.sincronizarConBackend()
+})
 </script>
 
 <template>
   <div class="min-h-screen flex flex-col">
+    <PwaStatus />
     <TopBar v-if="!esLogin" />
     <main class="flex-1">
       <router-view v-slot="{ Component }">

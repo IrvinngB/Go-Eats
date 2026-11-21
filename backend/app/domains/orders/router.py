@@ -1,0 +1,82 @@
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
+from sqlalchemy.orm import Session
+from app.core.database import get_db
+from app.core.rbac import CurrentUser, UserRole, get_current_user, get_optional_user, require_roles
+from app.domains.orders.schemas import (
+    OrderAssignCourier,
+    OrderCreate,
+    OrderRatingCreate,
+    OrderRead,
+    OrderStatusUpdate,
+)
+from app.domains.orders.service import OrderService
+
+router = APIRouter(prefix="/orders", tags=["orders"])
+
+
+@router.get("/", response_model=list[OrderRead])
+def list_orders(
+    merchant_code: str | None = Query(default=None),
+    courier_code: str | None = Query(default=None),
+    current_user: CurrentUser | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+) -> list[OrderRead]:
+    service = OrderService(db)
+    return service.list_orders(merchant_code=merchant_code, courier_code=courier_code)
+
+
+@router.get("/{code}", response_model=OrderRead)
+def get_order(
+    code: str,
+    _: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> OrderRead:
+    return OrderService(db).get_order(code)
+
+
+@router.post("/", response_model=OrderRead, status_code=201)
+def create_order(
+    payload: OrderCreate,
+    background_tasks: BackgroundTasks,
+    current_user: CurrentUser = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN)),
+    db: Session = Depends(get_db),
+) -> OrderRead:
+    return OrderService(db).create_order(current_user.user_id, payload, background_tasks)
+
+
+@router.patch("/{code}/status", response_model=OrderRead)
+def update_order_status(
+    code: str,
+    payload: OrderStatusUpdate,
+    background_tasks: BackgroundTasks,
+    current_user: CurrentUser = Depends(
+        require_roles(UserRole.MERCHANT, UserRole.COURIER, UserRole.ADMIN)
+    ),
+    db: Session = Depends(get_db),
+) -> OrderRead:
+    return OrderService(db).update_status(
+        code=code,
+        payload=payload,
+        actor=f"{current_user.role}:{current_user.user_id}",
+        background_tasks=background_tasks,
+    )
+
+
+@router.patch("/{code}/courier", response_model=OrderRead)
+def assign_order_courier(
+    code: str,
+    payload: OrderAssignCourier,
+    _: CurrentUser = Depends(require_roles(UserRole.MERCHANT, UserRole.ADMIN)),
+    db: Session = Depends(get_db),
+) -> OrderRead:
+    return OrderService(db).assign_courier(code, payload)
+
+
+@router.post("/{code}/rating", response_model=OrderRead)
+def rate_order(
+    code: str,
+    payload: OrderRatingCreate,
+    _: CurrentUser = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN)),
+    db: Session = Depends(get_db),
+) -> OrderRead:
+    return OrderService(db).rate_order(code, payload)

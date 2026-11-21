@@ -1,5 +1,38 @@
-# Vue 3 + TypeScript + Vite
+# Go Eats — Multi-Merchant Delivery Platform (PWA + Modular Monolith API)
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Full-stack delivery platform for **Comercios Unidos del Istmo, S.A.** built as an installable Vue 3 Progressive Web App (PWA) backed by a 9-domain FastAPI modular monolith.
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+## Quick path
+
+1. **Start the full stack (PWA + FastAPI + PostgreSQL 16 + MinIO)**:
+   ```bash
+   docker compose up -d --build
+   ```
+2. **Verify**:
+   - Frontend PWA (Caddy): `http://localhost:5173`
+   - FastAPI OpenAPI Docs: `http://localhost:8000/docs`
+   - MinIO Console: `http://localhost:9001`
+3. **Sign in** with any seeded user (password `demo1234`), e.g. `carlos@ejemplo.pa` (customer) or `admin@goeats.pa` (admin).
+
+> Frontend-only hot reload while developing: `pnpm install && pnpm dev` (Vite proxies `/api/v1` to `localhost:8000`).
+
+## Details
+
+| Area | Decision |
+|------|----------|
+| **Frontend PWA** | Vue 3 (`<script setup>`), Vite, `vite-plugin-pwa` (Workbox Service Worker + `manifest.webmanifest`), Pinia, Vue Router 4, Tailwind CSS, `@lucide/vue` icons, and Axios JWT/refresh interceptors. |
+| **Backend Architecture** | FastAPI modular monolith strictly layered (`Router -> Service -> Repository -> Model`) across 9 isolated domains: `auth`, `users`, `zones`, `merchants`, `catalog`, `delivery`, `orders`, `payments`, and `reports`. |
+| **Data & Compliance** | 3NF relational schema in SQLAlchemy 2.x + Alembic, historical price/address snapshots on orders, append-only audit tables, and Panama Ley 81 consent + ARCO workflows. |
+| **Offline Resilience** | Pinia store synchronizes with `/api/v1/*` when the backend is reachable and falls back seamlessly to local state and client-side PDF generation when offline. |
+
+## Checklist
+
+- [x] Package manager migrated to `pnpm` (`pnpm-lock.yaml`).
+- [x] All UI emojis replaced with SVG icons via `@lucide/vue`.
+- [x] Installable PWA generated with Service Worker (`sw.js`) and PNG/SVG icons.
+- [x] 9 FastAPI domains with zero cross-domain service imports.
+- [x] Full coverage of `RF-01` through `RF-20`.
+
+## Next step
+
+See [arquitectura_tech_stack_y_rf_go_eats.md](./arquitectura_tech_stack_y_rf_go_eats.md) for the complete functional requirements catalog and architectural specification.

@@ -3,6 +3,8 @@ import { ref, computed } from 'vue'
 import { useGoEatsStore } from '../../stores/useGoEatsStore'
 import { ESTADOS_PEDIDO } from '../../mockData'
 import StatusBadge from '../../components/StatusBadge.vue'
+import CoverageMap from '../../components/CoverageMap.vue'
+import { Bike, Star, MapPin, Map } from '@lucide/vue'
 
 const store = useGoEatsStore()
 
@@ -16,15 +18,30 @@ function indiceEstado(p) {
 
 const modalCalificar = ref(null)
 const estrellas = ref(5)
+const estrellasRepartidor = ref(5)
+const comentarioCalificacion = ref('')
 const hoverEstrella = ref(0)
+const hoverEstrellaRepartidor = ref(0)
+const pedidoEnMapa = ref(null) // ID del pedido con mapa tracking abierto
+
+function toggleMapa(pedidoId) {
+  pedidoEnMapa.value = pedidoEnMapa.value === pedidoId ? null : pedidoId
+}
 
 function abrirCalificar(p) {
   modalCalificar.value = p
-  estrellas.value = p.calificacion || 5
+  estrellas.value = p.calificacionComercio || p.calificacion || 5
+  estrellasRepartidor.value = p.calificacionRepartidor || 5
+  comentarioCalificacion.value = p.comentarioCalificacion || ''
 }
 
 function enviarCalificacion() {
-  store.calificarPedido(modalCalificar.value.id, estrellas.value)
+  store.calificarPedido(
+    modalCalificar.value.id,
+    estrellas.value,
+    estrellasRepartidor.value,
+    comentarioCalificacion.value,
+  )
   store.notificar('¡Gracias por calificar tu pedido!')
   modalCalificar.value = null
 }
@@ -36,11 +53,18 @@ function progresoEstado(estado) {
 
 <template>
   <div class="mx-auto max-w-3xl px-4 py-8">
-    <h1 class="text-2xl font-bold">Mis pedidos</h1>
-    <p class="text-sm text-slatebody mt-1">Sigue el estado de tus entregas en tiempo real.</p>
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold">Mis pedidos</h1>
+        <p class="text-sm text-slatebody mt-1">Sigue el estado y geolocalización de tus entregas en tiempo real.</p>
+      </div>
+      <span class="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slatebody border border-line">
+        {{ store.usuario?.nombre }}
+      </span>
+    </div>
 
     <div v-if="misPedidos.length === 0" class="card p-10 mt-6 text-center">
-      <p class="text-slatebody">Aún no tienes pedidos. Explora comercios y haz tu primer pedido.</p>
+      <p class="text-slatebody">Aún no tienes pedidos registrados con esta cuenta.</p>
       <router-link to="/tiendas" class="btn-primary mt-4 inline-flex">Explorar comercios</router-link>
     </div>
 
@@ -86,14 +110,40 @@ function progresoEstado(estado) {
           Cancelado: {{ p.motivoCancelacion || 'Sin motivo registrado.' }}
         </p>
 
-        <!-- Repartidor asignado -->
-        <div v-if="p.repartidorId && p.estado === 'en camino'" class="mt-5 flex items-center gap-3 rounded-lg bg-canvas p-3">
-          <span class="grid place-items-center w-10 h-10 rounded-full bg-brand-light text-lg">🛵</span>
-          <div class="flex-1">
-            <p class="text-sm font-semibold text-ink">{{ store.repartidorPorId(p.repartidorId)?.nombre }}</p>
-            <p class="text-xs text-slatebody">Tu repartidor · {{ store.repartidorPorId(p.repartidorId)?.telefono }}</p>
+        <!-- Botón para Ver Mapa de Seguimiento en Vivo -->
+        <div v-if="['en preparación', 'listo para recoger', 'en camino'].includes(p.estado)" class="mt-4">
+          <button
+            class="w-full flex items-center justify-center gap-2 rounded-xl py-2 px-3 text-xs font-semibold border transition-all"
+            :class="pedidoEnMapa === p.id ? 'bg-brand text-white border-brand shadow-sm' : 'bg-canvas text-brand-dark border-brand/30 hover:bg-brand-light/50'"
+            @click="toggleMapa(p.id)"
+          >
+            <Map class="w-4 h-4" />
+            <span>{{ pedidoEnMapa === p.id ? 'Ocultar mapa en vivo' : 'Ver seguimiento en mapa en vivo (GPS)' }}</span>
+          </button>
+
+          <!-- Mapa Embebido de Tracking -->
+          <div v-if="pedidoEnMapa === p.id" class="mt-3">
+            <CoverageMap
+              modo="tracking"
+              :pedido="p"
+              altura="320px"
+            />
           </div>
-          <span class="text-xs text-slatebody">⭐ {{ store.repartidorPorId(p.repartidorId)?.rating }}</span>
+        </div>
+
+        <!-- Repartidor asignado -->
+        <div v-if="p.repartidorId && p.estado === 'en camino'" class="mt-4 flex items-center gap-3 rounded-xl bg-canvas p-3 border border-line">
+          <span class="grid place-items-center w-10 h-10 rounded-full bg-brand-light text-brand">
+            <Bike class="w-5 h-5" />
+          </span>
+          <div class="flex-1">
+            <p class="text-sm font-semibold text-ink">{{ store.repartidorPorId(p.repartidorId)?.nombre || p.repartidorNombre }}</p>
+            <p class="text-xs text-slatebody">Tu repartidor en camino · {{ store.repartidorPorId(p.repartidorId)?.telefono || '6812-3344' }}</p>
+          </div>
+          <span class="text-xs text-slatebody flex items-center gap-1">
+            <Star class="w-3.5 h-3.5 text-amber-500 fill-amber-500 inline" />
+            {{ store.repartidorPorId(p.repartidorId)?.rating || 4.9 }}
+          </span>
         </div>
 
         <!-- Detalle de items -->
@@ -105,7 +155,10 @@ function progresoEstado(estado) {
               <span>B/ {{ (it.cantidad * it.precio).toFixed(2) }}</span>
             </li>
           </ul>
-          <p class="text-[11px] text-slatebody mt-2">Dir.: {{ p.direccion }}</p>
+          <p class="text-[11px] text-slatebody mt-2 flex items-center gap-1">
+            <MapPin class="w-3.5 h-3.5 text-slatebody" />
+            Dir.: {{ p.direccion }}
+          </p>
         </details>
 
         <!-- Calificación -->
@@ -127,16 +180,38 @@ function progresoEstado(estado) {
         <div class="modal-panel card p-6 w-full max-w-sm" @click.stop>
           <h3 class="text-lg font-semibold text-ink text-center">¿Cómo fue tu pedido?</h3>
           <p class="text-sm text-slatebody text-center mt-1">{{ modalCalificar.comercioNombre }} · {{ modalCalificar.id }}</p>
-          <div class="flex justify-center gap-2 mt-6" @mouseleave="hoverEstrella = 0">
+
+          <p class="text-xs font-semibold text-ink text-center mt-5">Servicio del comercio</p>
+          <div class="flex justify-center gap-2 mt-2" @mouseleave="hoverEstrella = 0">
             <button
-              v-for="n in 5" :key="n"
+              v-for="n in 5" :key="`c-${n}`"
               class="transition-transform duration-100 hover:scale-110"
               @mouseenter="hoverEstrella = n"
               @click="estrellas = n"
             >
-              <svg class="w-9 h-9 transition-colors" :class="(hoverEstrella || estrellas) >= n ? 'text-amber-400 fill-current' : 'text-line fill-current'" viewBox="0 0 20 20"><path d="M9.05 2.93c.3-.92 1.6-.92 1.9 0l1.1 3.4a1 1 0 00.95.7h3.6c.97 0 1.37 1.24.59 1.81l-2.9 2.1a1 1 0 00-.36 1.12l1.1 3.4c.3.92-.75 1.69-1.54 1.12l-2.9-2.1a1 1 0 00-1.18 0l-2.9 2.1c-.79.57-1.84-.2-1.54-1.12l1.1-3.4a1 1 0 00-.36-1.12L2.8 8.84c-.78-.57-.38-1.81.59-1.81h3.6a1 1 0 00.95-.7l1.1-3.4z"/></svg>
+              <svg class="w-8 h-8 transition-colors" :class="(hoverEstrella || estrellas) >= n ? 'text-amber-400 fill-current' : 'text-line fill-current'" viewBox="0 0 20 20"><path d="M9.05 2.93c.3-.92 1.6-.92 1.9 0l1.1 3.4a1 1 0 00.95.7h3.6c.97 0 1.37 1.24.59 1.81l-2.9 2.1a1 1 0 00-.36 1.12l1.1 3.4c.3.92-.75 1.69-1.54 1.12l-2.9-2.1a1 1 0 00-1.18 0l-2.9 2.1c-.79.57-1.84-.2-1.54-1.12l1.1-3.4a1 1 0 00-.36-1.12L2.8 8.84c-.78-.57-.38-1.81.59-1.81h3.6a1 1 0 00.95-.7l1.1-3.4z"/></svg>
             </button>
           </div>
+
+          <p class="text-xs font-semibold text-ink text-center mt-4">Atención del repartidor</p>
+          <div class="flex justify-center gap-2 mt-2" @mouseleave="hoverEstrellaRepartidor = 0">
+            <button
+              v-for="n in 5" :key="`r-${n}`"
+              class="transition-transform duration-100 hover:scale-110"
+              @mouseenter="hoverEstrellaRepartidor = n"
+              @click="estrellasRepartidor = n"
+            >
+              <svg class="w-8 h-8 transition-colors" :class="(hoverEstrellaRepartidor || estrellasRepartidor) >= n ? 'text-amber-400 fill-current' : 'text-line fill-current'" viewBox="0 0 20 20"><path d="M9.05 2.93c.3-.92 1.6-.92 1.9 0l1.1 3.4a1 1 0 00.95.7h3.6c.97 0 1.37 1.24.59 1.81l-2.9 2.1a1 1 0 00-.36 1.12l1.1 3.4c.3.92-.75 1.69-1.54 1.12l-2.9-2.1a1 1 0 00-1.18 0l-2.9 2.1c-.79.57-1.84-.2-1.54-1.12l1.1-3.4a1 1 0 00-.36-1.12L2.8 8.84c-.78-.57-.38-1.81.59-1.81h3.6a1 1 0 00.95-.7l1.1-3.4z"/></svg>
+            </button>
+          </div>
+
+          <textarea
+            v-model="comentarioCalificacion"
+            rows="2"
+            class="input mt-4 text-xs"
+            placeholder="Comentario opcional sobre el comercio o la entrega…"
+          />
+
           <div class="mt-6 grid grid-cols-2 gap-3">
             <button class="btn-secondary" @click="modalCalificar = null">Cancelar</button>
             <button class="btn-primary" @click="enviarCalificacion">Enviar</button>

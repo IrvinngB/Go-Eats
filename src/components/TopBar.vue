@@ -1,19 +1,38 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useGoEatsStore } from '../stores/useGoEatsStore'
+import { useGoEatsStore, CUENTAS_DEMO } from '../stores/useGoEatsStore'
+import {
+  ShoppingBag,
+  Store,
+  Bike,
+  BarChart3,
+  ShieldCheck,
+  User,
+  LogOut,
+  ChevronDown,
+  Check,
+} from '@lucide/vue'
 
 const store = useGoEatsStore()
 const router = useRouter()
 const route = useRoute()
 
-const roles = [
-  { id: 'customer', nombre: 'Cliente', icono: '🛍️' },
-  { id: 'merchant', nombre: 'Comercio', icono: '🏪' },
-  { id: 'courier', nombre: 'Repartidor', icono: '🛵' },
-  { id: 'accountant', nombre: 'Contabilidad', icono: '📊' },
-  { id: 'admin', nombre: 'Admin', icono: '🛡️' },
-]
+const rolesIconos = {
+  customer: ShoppingBag,
+  merchant: Store,
+  courier: Bike,
+  accountant: BarChart3,
+  admin: ShieldCheck,
+}
+
+const rolesNombres = {
+  customer: 'Cliente',
+  merchant: 'Comercio',
+  courier: 'Repartidor',
+  accountant: 'Contabilidad',
+  admin: 'Administrador',
+}
 
 const rutaPorRol = {
   customer: '/tiendas',
@@ -23,27 +42,53 @@ const rutaPorRol = {
   admin: '/panel-admin',
 }
 
-function cambiarRol(id) {
-  store.setRol(id)
-  router.push(rutaPorRol[id])
-}
-
 const menuAbierto = ref(false)
+const cambiandoCuenta = ref(false)
 const esRolCliente = computed(() => store.rol === 'customer')
+
+const inicialesUsuario = computed(() => {
+  const n = store.usuario?.nombre || 'Go Eats'
+  return n
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase()
+})
+
+const rolLabel = computed(() => rolesNombres[store.rol] || store.rol)
 
 const linksCliente = [
   { to: '/tiendas', label: 'Explorar' },
   { to: '/pedidos', label: 'Mis pedidos' },
   { to: '/perfil', label: 'Perfil' },
 ]
+
+async function seleccionarCuenta(cuenta) {
+  cambiandoCuenta.value = true
+  menuAbierto.value = false
+  try {
+    await store.cambiarACuentaDemo(cuenta)
+    router.push(rutaPorRol[cuenta.role])
+  } finally {
+    cambiandoCuenta.value = false
+  }
+}
+
+function salir() {
+  menuAbierto.value = false
+  store.cerrarSesion()
+  router.push('/login')
+}
 </script>
 
 <template>
   <header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-line">
     <div class="mx-auto max-w-6xl px-4 h-16 flex items-center gap-3">
       <!-- Logo -->
-      <button class="flex items-center gap-2 shrink-0" @click="cambiarRol(store.rol)">
-        <span class="grid place-items-center w-8 h-8 rounded-lg bg-brand text-white text-base font-bold">G</span>
+      <button class="flex items-center gap-2 shrink-0" @click="router.push(rutaPorRol[store.rol] || '/tiendas')">
+        <span class="grid place-items-center w-8 h-8 rounded-lg bg-brand text-white text-base font-bold shadow-sm">G</span>
         <span class="text-lg font-bold text-ink hidden sm:block">Go Eats</span>
       </button>
 
@@ -61,38 +106,80 @@ const linksCliente = [
 
       <div class="flex-1" />
 
-      <!-- Role switcher -->
+      <!-- Account Switcher Dropdown (Real Accounts with JWT) -->
       <div class="relative">
         <button
-          class="flex items-center gap-2 rounded-full border border-line bg-white pl-1 pr-2.5 py-1 hover:border-brand/50 transition-colors"
+          class="flex items-center gap-2.5 rounded-full border border-line bg-white pl-1.5 pr-3 py-1 hover:border-brand/50 shadow-sm transition-all"
+          :disabled="cambiandoCuenta"
           @click="menuAbierto = !menuAbierto"
         >
-          <span class="grid place-items-center w-7 h-7 rounded-full bg-brand-light text-brand-dark text-sm">
-            {{ roles.find((r) => r.id === store.rol)?.icono }}
+          <span class="grid place-items-center w-8 h-8 rounded-full bg-brand text-white text-xs font-bold tracking-wider">
+            {{ inicialesUsuario }}
           </span>
-          <span class="text-sm font-medium text-ink hidden sm:block">{{ roles.find((r) => r.id === store.rol)?.nombre }}</span>
-          <svg class="w-3.5 h-3.5 text-slatebody" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>
+          <div class="hidden sm:block text-left leading-tight">
+            <p class="text-xs font-semibold text-ink line-clamp-1 max-w-[130px]">{{ store.usuario?.nombre || 'Usuario' }}</p>
+            <p class="text-[10px] text-slatebody font-medium flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
+              {{ rolLabel }}
+            </p>
+          </div>
+          <ChevronDown class="w-3.5 h-3.5 text-slatebody" />
         </button>
 
+        <!-- Backdrop -->
         <div v-if="menuAbierto" class="fixed inset-0 z-10" @click="menuAbierto = false" />
-        <div v-if="menuAbierto" class="absolute right-0 mt-2 w-52 rounded-xl bg-white border border-line shadow-lg z-20 py-1.5 overflow-hidden">
-          <p class="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slatebody/60">Ver como</p>
-          <button
-            v-for="r in roles" :key="r.id"
-            class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors"
-            :class="store.rol === r.id ? 'bg-brand-light text-brand-dark font-semibold' : 'text-ink hover:bg-canvas'"
-            @click="cambiarRol(r.id); menuAbierto = false"
-          >
-            <span class="text-base">{{ r.icono }}</span> {{ r.nombre }}
-            <svg v-if="store.rol === r.id" class="w-4 h-4 ml-auto" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-8 8a1 1 0 01-1.4 0l-4-4a1 1 0 011.4-1.4L8 12.6l7.3-7.3a1 1 0 011.4 0z" clip-rule="evenodd" /></svg>
-          </button>
+
+        <!-- Popover -->
+        <div
+          v-if="menuAbierto"
+          class="absolute right-0 mt-2 w-72 rounded-2xl bg-white border border-line shadow-xl z-20 py-2 overflow-hidden animate-in fade-in"
+        >
+          <!-- Current User Info -->
+          <div class="px-4 py-2.5 border-b border-line bg-slate-50/70">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-slatebody/70">Sesión Activa</p>
+            <p class="text-sm font-bold text-ink mt-0.5">{{ store.usuario?.nombre }}</p>
+            <p class="text-xs text-slatebody truncate">{{ store.usuario?.email }}</p>
+            <span class="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full bg-brand-light text-brand-dark text-[11px] font-semibold">
+              <component :is="rolesIconos[store.rol] || User" class="w-3 h-3" />
+              Rol: {{ rolLabel }}
+            </span>
+          </div>
+
+          <!-- Switch to Another Real Account -->
+          <div class="py-1">
+            <p class="px-4 pt-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-slatebody/70">
+              Cambiar de Cuenta (Autenticación Real)
+            </p>
+            <button
+              v-for="c in CUENTAS_DEMO"
+              :key="c.email"
+              class="w-full flex items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-canvas"
+              :class="store.usuario?.email === c.email ? 'bg-brand-light/60 font-medium' : ''"
+              @click="seleccionarCuenta(c)"
+            >
+              <span class="grid place-items-center w-7 h-7 rounded-full bg-slate-100 text-ink text-xs font-bold border border-line shrink-0">
+                {{ c.avatar }}
+              </span>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-semibold text-ink truncate">{{ c.name }}</p>
+                <p class="text-[10px] text-slatebody truncate">{{ c.email }}</p>
+              </div>
+              <Check v-if="store.usuario?.email === c.email" class="w-4 h-4 text-brand shrink-0" />
+            </button>
+          </div>
+
+          <!-- Logout and Login options -->
+          <div class="border-t border-line pt-1 mt-1">
+            <button
+              class="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-coral hover:bg-coral/5 transition-colors"
+              @click="salir"
+            >
+              <LogOut class="w-4 h-4 shrink-0" />
+              Cerrar sesión
+            </button>
+          </div>
         </div>
       </div>
-
-      <!-- Logout -->
-      <button class="shrink-0 grid place-items-center w-9 h-9 rounded-lg text-slatebody hover:bg-canvas transition-colors" title="Cerrar sesión" @click="router.push('/login')">
-        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m4 4H5a2 2 0 01-2-2V6a2 2 0 012-2h6" /></svg>
-      </button>
     </div>
   </header>
 </template>

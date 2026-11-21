@@ -1,9 +1,14 @@
 <script setup>
+import { ref } from 'vue'
 import { useGoEatsStore } from '../../stores/useGoEatsStore'
 import { useRouter } from 'vue-router'
+import CommerceIcon from '../../components/CommerceIcon.vue'
+import CoverageMap from '../../components/CoverageMap.vue'
+import { MapPin, LayoutGrid, Map, Locate } from '@lucide/vue'
 
 const store = useGoEatsStore()
 const router = useRouter()
+const vistaActiva = ref('grid') // 'grid' | 'mapa'
 
 function abrirTienda(c) {
   if (!c.activo || c.estadoAfiliacion !== 'activo') return
@@ -14,14 +19,42 @@ function abrirTienda(c) {
   }
   router.push(`/tiendas/${c.id}`)
 }
+
+function alSeleccionarZonaDesdeMapa(slug) {
+  store.seleccionarZona(slug)
+}
 </script>
 
 <template>
   <div class="mx-auto max-w-6xl px-4 py-8">
-    <h1 class="text-2xl font-bold">Explora comercios cerca de ti</h1>
-    <p class="text-sm text-slatebody mt-1">Elige tu zona para ver comercios disponibles y tarifas de envío.</p>
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold">Explora comercios cerca de ti</h1>
+        <p class="text-sm text-slatebody mt-1">Elige tu zona para ver comercios disponibles y tarifas de envío en Ciudad de Panamá.</p>
+      </div>
 
-    <!-- Selector de zona -->
+      <!-- Switch de Vista Cuadrícula / Mapa -->
+      <div class="inline-flex items-center rounded-xl border border-line bg-white p-1 shadow-sm">
+        <button
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+          :class="vistaActiva === 'grid' ? 'bg-brand text-white shadow-sm' : 'text-slatebody hover:text-ink'"
+          @click="vistaActiva = 'grid'"
+        >
+          <LayoutGrid class="w-3.5 h-3.5" />
+          <span>Lista</span>
+        </button>
+        <button
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+          :class="vistaActiva === 'mapa' ? 'bg-brand text-white shadow-sm' : 'text-slatebody hover:text-ink'"
+          @click="vistaActiva = 'mapa'"
+        >
+          <Map class="w-3.5 h-3.5" />
+          <span>Mapa en Vivo</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Selector de zona horizontal -->
     <div class="mt-6 -mx-4 px-4 flex gap-2 overflow-x-auto no-scrollbar pb-1">
       <button
         v-for="z in store.zonas" :key="z.id"
@@ -37,7 +70,7 @@ function abrirTienda(c) {
     <!-- Info de zona -->
     <div class="mt-5 card p-4 flex flex-wrap items-center gap-x-8 gap-y-2">
       <div class="flex items-center gap-2 text-sm">
-        <svg class="w-4 h-4 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.6 7.2a8 8 0 10.4 6.4M18 3v4.4h-4.4" /></svg>
+        <MapPin class="w-4 h-4 text-brand" />
         <span class="font-semibold text-ink">{{ store.zonaActual.nombre }}</span>
       </div>
       <div class="text-sm"><span class="text-slatebody">Tarifa de envío: </span><span class="font-semibold text-ink">B/ {{ store.zonaActual.tarifa.toFixed(2) }}</span></div>
@@ -45,8 +78,23 @@ function abrirTienda(c) {
       <div class="text-sm"><span class="text-slatebody">Comercios activos: </span><span class="font-semibold text-ink">{{ store.comerciosPorZona.filter((c) => c.activo).length }}</span></div>
     </div>
 
+    <!-- Vista Mapa Interactivo -->
+    <div v-if="vistaActiva === 'mapa'" class="mt-6 space-y-4">
+      <CoverageMap
+        modo="coverage"
+        :zona-seleccionada="store.zonaSeleccionada"
+        :comercios="store.comercios"
+        altura="500px"
+        @seleccionar-comercio="abrirTienda"
+        @seleccionar-zona="alSeleccionarZonaDesdeMapa"
+      />
+      <p class="text-xs text-slatebody text-center">
+        💡 Hacé clic en los polígonos de zona para filtrar comercios o en los pines para ver su menú y calificación.
+      </p>
+    </div>
+
     <!-- Grid de comercios -->
-    <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div v-show="vistaActiva === 'grid'" class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <button
         v-for="c in store.comerciosPorZona" :key="c.id"
         class="card p-5 text-left transition-all duration-200 hover:shadow-md hover:border-brand/40 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
@@ -54,7 +102,9 @@ function abrirTienda(c) {
         @click="abrirTienda(c)"
       >
         <div class="flex items-start justify-between">
-          <span class="grid place-items-center w-12 h-12 rounded-xl bg-brand-light text-2xl">{{ c.emoji }}</span>
+          <span class="grid place-items-center w-12 h-12 rounded-xl bg-brand-light text-brand">
+            <CommerceIcon :name="c.icono" class="w-6 h-6" />
+          </span>
           <span
             v-if="!c.activo"
             class="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"

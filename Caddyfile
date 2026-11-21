@@ -1,0 +1,22 @@
+:80 {
+	root * /srv
+	encode gzip
+
+	# API and health are served by the FastAPI container
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+	handle /health {
+		reverse_proxy api:8000
+	}
+
+	# Service worker must never be cached so PWA updates propagate
+	@sw path /sw.js /registerSW.js /manifest.webmanifest
+	header @sw Cache-Control "no-cache"
+
+	# SPA fallback for Vue Router (history mode)
+	handle {
+		try_files {path} /index.html
+		file_server
+	}
+}

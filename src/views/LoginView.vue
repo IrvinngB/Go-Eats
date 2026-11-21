@@ -2,16 +2,23 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGoEatsStore } from '../stores/useGoEatsStore'
+import {
+  ShoppingBag,
+  Store,
+  Bike,
+  BarChart3,
+  ShieldCheck,
+} from '@lucide/vue'
 
 const store = useGoEatsStore()
 const router = useRouter()
 
 const roles = [
-  { id: 'customer', nombre: 'Cliente', desc: 'Pide comida a domicilio', icono: '🛍️' },
-  { id: 'merchant', nombre: 'Comercio', desc: 'Gestiona tu local y pedidos', icono: '🏪' },
-  { id: 'courier', nombre: 'Repartidor', desc: 'Entrega pedidos en tu zona', icono: '🛵' },
-  { id: 'accountant', nombre: 'Contabilidad', desc: 'Concilia pagos y comprobantes', icono: '📊' },
-  { id: 'admin', nombre: 'Administrador', desc: 'Supervisa toda la plataforma', icono: '🛡️' },
+  { id: 'customer', nombre: 'Cliente', desc: 'Pide comida a domicilio', icono: ShoppingBag },
+  { id: 'merchant', nombre: 'Comercio', desc: 'Gestiona tu local y pedidos', icono: Store },
+  { id: 'courier', nombre: 'Repartidor', desc: 'Entrega pedidos en tu zona', icono: Bike },
+  { id: 'accountant', nombre: 'Contabilidad', desc: 'Concilia pagos y comprobantes', icono: BarChart3 },
+  { id: 'admin', nombre: 'Administrador', desc: 'Supervisa toda la plataforma', icono: ShieldCheck },
 ]
 
 const rolElegido = ref('customer')
@@ -30,7 +37,7 @@ const rutaPorRol = {
   admin: '/panel-admin',
 }
 
-function entrar() {
+async function entrar() {
   error.value = ''
   if (!email.value || !password.value) {
     error.value = 'Ingresa tu correo y contraseña para continuar.'
@@ -40,8 +47,18 @@ function entrar() {
     error.value = 'Debes aceptar la política de protección de datos personales (Ley 81) para continuar.'
     return
   }
-  store.setRol(rolElegido.value)
-  store.autenticado = true
+  const resultado = await store.autenticarUsuario({
+    email: email.value,
+    password: password.value,
+    rol: rolElegido.value,
+    nombre: nombre.value,
+    modoRegistro: modoRegistro.value,
+    aceptaPolitica: aceptaPolitica.value,
+  })
+  if (!resultado.ok) {
+    error.value = resultado.mensaje
+    return
+  }
   router.push(rutaPorRol[rolElegido.value])
 }
 </script>
@@ -83,7 +100,9 @@ function entrar() {
             :class="rolElegido === r.id ? 'border-brand bg-brand-light ring-1 ring-brand' : 'border-line bg-white hover:border-brand/40'"
             @click="rolElegido = r.id"
           >
-            <span class="text-xl">{{ r.icono }}</span>
+            <span class="grid place-items-center w-8 h-8 rounded-lg bg-brand-light text-brand shrink-0">
+              <component :is="r.icono" class="w-5 h-5" />
+            </span>
             <span class="flex-1">
               <span class="block text-sm font-semibold text-ink">{{ r.nombre }}</span>
               <span class="block text-xs text-slatebody">{{ r.desc }}</span>
