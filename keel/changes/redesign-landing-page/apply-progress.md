@@ -108,3 +108,25 @@ pnpm test 11 files/115 tests; vue-tsc -b OK; pnpm build OK (dist wordmarks: colo
 
 ### Remaining
 WU4-WU8.
+
+## WU4: Categories, steps, role panels (branch feat/landing-redesign-wu4-sections) - DONE
+Tasks 4.1-4.5 complete. Not committed.
+
+### TDD Cycle Evidence
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 4.1 | src/components/landing/content.spec.ts | unit | pnpm test 115 | suite failed: `Failed to resolve import ./content` | pass | exact ENVIO_COPY, steps 1-4 order, 3 points per role, prohibited-claims + no-digit scan, no price words | test regex tightened to `\bvisa\b` ("revisa" false positive) |
+| 4.2 | CategoryStrip.spec.ts | component | same | failed: cannot resolve `./CategoryStrip.vue` | pass | names in order, aria-hidden svg per chip, no digits, no a/button/tabindex, labelled section | none |
+| 4.3 | StepsSection.spec.ts | component | same | failed: cannot resolve `./StepsSection.vue` | pass | id como-funciona, 4 li numbered 1-4, h3s, cash + shipping sentence, aria-hidden, no links/articles | none |
+| 4.4 | RolePanels.spec.ts | component | same | failed: cannot resolve `./RolePanels.vue` | pass | two sections/ids/bands, one /login lp-btn-secondary each, router navigation (flushPromises), h3s, no digits | DOM order copy-first for mobile after visual review |
+| 4.5 | LandingView.spec.ts + landing.spec.ts | view/css | same | new order/heading/one-primary tests | pass | section order, heading levels, one solid primary, anchor exists, hero-CTA test scoped to hero section | none |
+
+### Files
+New: content.ts, CategoryStrip.vue, StepsSection.vue, RolePanels.vue (+4 specs). Modified: landing.css (+.lp-title, .lp-eyebrow, .lp-chip, .lp-icon-disc, .lp-step*), landing.spec.ts (+2), LandingView.vue (+wiring), LandingView.spec.ts (+5, 1 scoped).
+No new token pairs needed: ink/ink-soft/primary-text on surface/bg/amber-tint, on-indigo(-soft) on indigo, ink on bg (secondary CTA on bands), primary on indigo (icons) are all already covered.
+
+### Gates
+pnpm test 15 files/145 tests; vue-tsc -b OK; pnpm build OK; pnpm test:e2e 1 passed.
+
+### Visual self-review (360x800, 1440x900; no horizontal overflow; preview stopped)
+Fixed: couriers copy came after its list on mobile (reordered DOM). Remaining flaws: (1) 8 chips wrap 6+2 at desktop; (2) step icon above each title adds a little redundancy with the numeral; (3) band order is currently white, surface, indigo, amber, indigo footer until WU5 inserts stores/coverage; (4) no mascot/photo; (5) nav anchors #cobertura and #preguntas still dead until WU5/7.

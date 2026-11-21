@@ -241,6 +241,101 @@
   outline-offset: 3px;
 }
 
+/* Section rhythm: big titles, eyebrow labels, static chips, connected steps. */
+.lp-title {
+  font-size: 2rem;
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+@media (min-width: 768px) {
+  .lp-title {
+    font-size: 2.75rem;
+  }
+}
+
+.lp-eyebrow {
+  font-size: 0.875rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0 1.25rem;
+  border-radius: 9999px;
+  font-size: 1rem;
+  font-weight: 700;
+  background: var(--lp-surface);
+  color: var(--lp-ink);
+}
+
+.lp-icon-disc {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 9999px;
+  background: var(--lp-bg);
+  color: var(--lp-ink);
+}
+
+.lp-step {
+  position: relative;
+  display: flex;
+  gap: 1.25rem;
+}
+
+.lp-step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 24px;
+  font-size: 2rem;
+  line-height: 1;
+  font-weight: 800;
+  background: var(--lp-indigo);
+  color: var(--lp-on-indigo);
+}
+
+/* Connector (decorative): vertical on mobile, horizontal from lg. */
+.lp-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 31px;
+  top: 72px;
+  bottom: -32px;
+  width: 2px;
+  background: var(--lp-primary);
+}
+
+@media (min-width: 1024px) {
+  .lp-step {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .lp-step:not(:last-child)::after {
+    left: 80px;
+    right: -16px;
+    top: 31px;
+    bottom: auto;
+    width: auto;
+    height: 2px;
+  }
+}
+
 /* Smooth anchor scrolling only when motion is allowed. */
 @media (prefers-reduced-motion: no-preference) {
   html {

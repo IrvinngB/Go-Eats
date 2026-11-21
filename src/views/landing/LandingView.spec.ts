@@ -54,7 +54,42 @@ describe('LandingView', () => {
 
   it('shows the hero CTAs to /tiendas and /login only', async () => {
     const w = await mountView()
-    expect(w.findAll('main a.lp-btn').map((a) => a.attributes('href'))).toEqual(['/tiendas', '/login'])
+    expect(w.findAll('main section:first-child a.lp-btn').map((a) => a.attributes('href'))).toEqual(['/tiendas', '/login'])
+  })
+
+  it('orders the sections: hero, categories, steps, merchants, couriers', async () => {
+    const w = await mountView()
+    const sections = w.findAll('main > section')
+    expect(sections.map((s) => s.attributes('id') ?? s.attributes('aria-label') ?? s.attributes('aria-labelledby'))).toEqual([
+      'lp-hero-title',
+      'Tipos de comercio',
+      'como-funciona',
+      'comercios',
+      'repartidores',
+    ])
+  })
+
+  it('keeps headings in order under the single h1: h2 per section, h3 inside', async () => {
+    const w = await mountView()
+    const levels = w.findAll('main h1, main h2, main h3').map((h) => h.element.tagName)
+    expect(levels[0]).toBe('H1')
+    expect(levels.filter((l) => l === 'H1')).toHaveLength(1)
+    expect(w.findAll('main h2').map((h) => h.text())).toEqual([
+      'Así funciona',
+      'Vende a tu zona con Go Eats',
+      'Reparte los pedidos que te asignan',
+    ])
+    expect(levels.slice(0, 3)).toEqual(['H1', 'H2', 'H3'])
+  })
+
+  it('keeps one solid primary: only the hero uses a non-secondary lp-btn', async () => {
+    const w = await mountView()
+    expect(w.findAll('main a.lp-btn:not(.lp-btn-secondary)')).toHaveLength(1)
+  })
+
+  it('provides the como-funciona anchor the nav links to', async () => {
+    const w = await mountView()
+    expect(w.find('main #como-funciona').exists()).toBe(true)
   })
 
   it('shows the sobre-indigo wordmark on the indigo footer band', async () => {
