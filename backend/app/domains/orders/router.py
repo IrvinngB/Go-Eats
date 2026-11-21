@@ -1,7 +1,7 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.core.rbac import CurrentUser, UserRole, get_current_user, get_optional_user, require_roles
+from app.core.rbac import CurrentUser, UserRole, get_current_user, require_roles
 from app.domains.orders.schemas import (
     OrderAssignCourier,
     OrderCreate,
@@ -18,20 +18,21 @@ router = APIRouter(prefix="/orders", tags=["orders"])
 def list_orders(
     merchant_code: str | None = Query(default=None),
     courier_code: str | None = Query(default=None),
-    current_user: CurrentUser | None = Depends(get_optional_user),
+    current_user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[OrderRead]:
-    service = OrderService(db)
-    return service.list_orders(merchant_code=merchant_code, courier_code=courier_code)
+    return OrderService(db).list_for(
+        current_user, merchant_code=merchant_code, courier_code=courier_code
+    )
 
 
 @router.get("/{code}", response_model=OrderRead)
 def get_order(
     code: str,
-    _: CurrentUser = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> OrderRead:
-    return OrderService(db).get_order(code)
+    return OrderService(db).get_order_for(current_user, code)
 
 
 @router.post("/", response_model=OrderRead, status_code=201)

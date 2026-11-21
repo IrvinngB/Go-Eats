@@ -14,6 +14,12 @@ class DeliveryService:
     def list_couriers(self, only_available: bool = False) -> list[Courier]:
         return self.repo.list_couriers(only_available=only_available)
 
+    def get_mine(self, user_id: int) -> Courier:
+        courier = self.repo.get_by_user(user_id)
+        if not courier:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no_linked_entity")
+        return courier
+
     def get_courier(self, code: str) -> Courier:
         courier = self.repo.get_by_code(code)
         if not courier:

@@ -7,23 +7,13 @@ import { Bike, Star, Inbox, Banknote, CheckCircle2, Map } from '@lucide/vue'
 
 const store = useGoEatsStore()
 
-// Repartidor dinámico según la cuenta con sesión activa
-const yo = computed(() => {
-  if (store.usuario?.email) {
-    const encontrado = store.repartidores.find(
-      (r) =>
-        (r.email && r.email.toLowerCase() === store.usuario.email.toLowerCase()) ||
-        (r.nombre && r.nombre.toLowerCase().includes(store.usuario.nombre.toLowerCase().split(' ')[0]))
-    )
-    if (encontrado) return encontrado
-  }
-  return store.repartidores.find((r) => r.id === 'r2') || store.repartidores[0] || { id: 'r2', nombre: 'Repartidor Demo', disponible: true, rating: 4.8 }
-})
+// Repartidor vinculado a la cuenta por el servidor (GET /delivery/couriers/me); sin respaldo por nombre ni r2.
+const yo = computed(() => store.repartidorPropio)
 
-const courierId = computed(() => yo.value?.id || 'r2')
+const courierId = computed(() => yo.value?.id || null)
 
-const entregas = computed(() => store.pedidosAsignadosA(courierId.value))
-const historial = computed(() => store.pedidos.filter((p) => p.repartidorId === courierId.value && ['entregado', 'cancelado'].includes(p.estado)))
+const entregas = computed(() => (courierId.value ? store.pedidosAsignadosA(courierId.value) : []))
+const historial = computed(() => (courierId.value ? store.pedidos.filter((p) => p.repartidorId === courierId.value && ['entregado', 'cancelado'].includes(p.estado)) : []))
 
 const reportarModal = ref(null)
 const motivo = ref('')
@@ -58,6 +48,11 @@ function reportar() {
 
 <template>
   <div class="mx-auto max-w-md px-4 py-6 pb-16">
+    <div v-if="!yo" class="card p-10 text-center" data-test="sin-repartidor">
+      <h1 class="text-lg font-bold text-ink">Cuenta sin repartidor asignado</h1>
+      <p class="mt-2 text-sm text-slatebody">Tu cuenta aún no está vinculada a un repartidor. Contacta al administrador de Go Eats.</p>
+    </div>
+    <template v-else>
     <!-- Cabecera con disponibilidad -->
     <div class="card p-5 flex items-center gap-4">
       <span class="grid place-items-center w-12 h-12 rounded-full bg-brand-light text-brand">
@@ -200,5 +195,6 @@ function reportar() {
         </div>
       </div>
     </transition>
+    </template>
   </div>
 </template>

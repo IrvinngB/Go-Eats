@@ -48,12 +48,12 @@ Every PR gate: `cd backend && .venv/bin/pytest`, `pnpm test`, `pnpm exec vue-tsc
 - [x] 3.4 RED LoginView spec (navigates by server role); GREEN: LoginView uses `store.rol`; role picker gated (hidden unless backend override flag path is irrelevant: remove picker), checkbox only on register; store no longer sends `role`/default consent True.
 
 ## PR4: Scoped reads + locks + sync + session restore
-- [ ] 4.1 RED `test_orders_scope.py` (customer own, merchant linked, unlinked `[]`, courier, admin/accountant all, anon 401, other-order GET 404); GREEN: `OrderService.list_for`, `MerchantRepository.get_by_owner`, `CourierRepository.get_by_user`.
-- [ ] 4.2 RED `GET /merchants/mine` and `/delivery/couriers/me` (404 `no_linked_entity`; `mine` before `/{code}`); GREEN.
-- [ ] 4.3 RED 401/403 tests for payments GET, users/arco GET, reports kpis/financial/audit-logs; GREEN role locks.
-- [ ] 4.4 RED vitest: anonymous sync calls only public; 403 does not drop zones; empty orders replace mocks; no toast; `App.sync.spec` unchanged green. GREEN: `Promise.allSettled`, gate `/users/arco` admin, `payments`+`audit-logs` accountant/admin.
-- [ ] 4.5 RED store spec `restaurarSesion` (token -> `GET /users/me`; 401 anonymous; network error keeps tokens); GREEN; call in `main.ts` before sync/`app.use(router)` (`App.spec` mock safe).
-- [ ] 4.6 Remove offline fake-login fallback (F6) and `c1`/`r2` fallbacks and name matching in MerchantView/CourierView; add `comercioPropio`/`repartidorPropio`, "Cuenta sin comercio/repartidor asignado" empty state (RED component specs).
+- [x] 4.1 RED `test_orders_scope.py` (customer own, merchant linked, unlinked `[]`, courier, admin/accountant all, anon 401, other-order GET 404); GREEN: `OrderService.list_for`, `MerchantRepository.get_by_owner`, `CourierRepository.get_by_user`.
+- [x] 4.2 RED `GET /merchants/mine` and `/delivery/couriers/me` (404 `no_linked_entity`; `mine` before `/{code}`); GREEN.
+- [x] 4.3 RED 401/403 tests for payments GET, users/arco GET, reports kpis/financial/audit-logs; GREEN role locks.
+- [x] 4.4 RED vitest: anonymous sync calls only public; 403 does not drop zones; empty orders replace mocks; no toast; `App.sync.spec` unchanged green. GREEN: `Promise.allSettled`, gate `/users/arco` admin, `payments`+`audit-logs` accountant/admin.
+- [x] 4.5 RED store spec `restaurarSesion` (token -> `GET /users/me`; 401 anonymous; network error keeps tokens); GREEN; call in `main.ts` before sync/`app.use(router)` (`App.spec` mock safe).
+- [x] 4.6 Remove offline fake-login fallback (F6) and `c1`/`r2` fallbacks and name matching in MerchantView/CourierView; add `comercioPropio`/`repartidorPropio`, "Cuenta sin comercio/repartidor asignado" empty state (RED component specs).
 
 ## PR5: State machine + canonical states
 - [ ] 5.1 RED `test_status.py` parametrized transitions, spaced -> 422, blank reason 400, customer 403, merchant out of scope 404, role-target 403, rating non-owner 404, courier-assign scope; GREEN `Literal[8]`, matrix.

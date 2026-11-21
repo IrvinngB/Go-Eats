@@ -127,3 +127,43 @@ def make_product(
 def auth_headers(user: User) -> dict[str, str]:
     token = create_access_token(str(user.id), user.role)
     return {"Authorization": f"Bearer {token}"}
+
+
+def link_merchant(db: Session, merchant: Merchant, user: User) -> None:
+    merchant.owner_user_id = user.id
+    db.commit()
+
+
+def link_courier(db: Session, courier: Courier, user: User) -> None:
+    courier.user_id = user.id
+    db.commit()
+
+
+def make_order(
+    db: Session,
+    code: str,
+    customer_id: int,
+    merchant_code: str = "M-TEST",
+    courier_code: str | None = None,
+    status: str = "pendiente",
+):
+    from app.domains.orders.models import Order
+
+    order = Order(
+        code=code,
+        merchant_code=merchant_code,
+        merchant_name="Merchant",
+        customer_id=customer_id,
+        customer_name="Customer",
+        zone_slug="zona-test",
+        delivery_address="Calle 1",
+        payment_method="contr_entrega",
+        status=status,
+        courier_code=courier_code,
+        subtotal=10.0,
+        delivery_fee=1.5,
+        total=11.5,
+    )
+    db.add(order)
+    db.commit()
+    return order

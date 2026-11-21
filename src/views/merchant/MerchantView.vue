@@ -1,23 +1,14 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useGoEatsStore } from '../../stores/useGoEatsStore'
 import StatusBadge from '../../components/StatusBadge.vue'
 
 const store = useGoEatsStore()
 const tab = ref('pedidos')
-const comercio = computed(() => {
-  if (store.usuario?.email) {
-    const encontrado = store.comercios.find(
-      (c) =>
-        c.email === store.usuario.email ||
-        (c.nombre && c.nombre.toLowerCase().includes(store.usuario.nombre.toLowerCase().split(' ')[0]))
-    )
-    if (encontrado) return encontrado
-  }
-  return store.comercios[0] || { id: 'c1', nombre: 'Comercio', horario: { abre: '09:00', cierra: '21:00' } }
-})
-const productos = computed(() => store.productosDe(comercio.value?.id || 'c1'))
-const pedidos = computed(() => store.pedidosPorComercio(comercio.value?.id || 'c1'))
+// Comercio vinculado a la cuenta por el servidor (GET /merchants/mine); sin respaldo por nombre ni c1.
+const comercio = computed(() => store.comercioPropio)
+const productos = computed(() => (comercio.value ? store.productosDe(comercio.value.id) : []))
+const pedidos = computed(() => (comercio.value ? store.pedidosPorComercio(comercio.value.id) : []))
 
 const activos = computed(() => pedidos.value.filter((p) => !['entregado', 'cancelado'].includes(p.estado)))
 const historial = computed(() => pedidos.value.filter((p) => ['entregado', 'cancelado'].includes(p.estado)))
@@ -26,7 +17,8 @@ const rechazarModal = ref(null)
 const motivoRechazo = ref('')
 const editarProducto = ref(null) // null | {} | producto
 const formProducto = ref({ nombre: '', precio: 0, descripcion: '' })
-const horario = ref({ ...comercio.value.horario })
+const horario = ref({ ...(comercio.value?.horario || { abre: '', cierra: '' }) })
+watch(comercio, (c) => { if (c) horario.value = { ...c.horario } })
 const horarioGuardado = ref(false)
 
 function siguiente(p) {
@@ -77,6 +69,11 @@ function guardarHorario() {
 
 <template>
   <div class="mx-auto max-w-6xl px-4 py-8">
+    <div v-if="!comercio" class="card p-10 text-center" data-test="sin-comercio">
+      <h1 class="text-lg font-bold text-ink">Cuenta sin comercio asignado</h1>
+      <p class="mt-2 text-sm text-slatebody">Tu cuenta aún no está vinculada a un comercio. Contacta al administrador de Go Eats.</p>
+    </div>
+    <template v-else>
     <div class="flex flex-wrap items-center justify-between gap-4">
       <div>
         <h1 class="text-2xl font-bold">{{ comercio.nombre }}</h1>
@@ -279,5 +276,6 @@ function guardarHorario() {
         </div>
       </div>
     </transition>
+    </template>
   </div>
 </template>
