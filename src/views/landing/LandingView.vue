@@ -9,8 +9,13 @@ import LandingNav from '../../components/landing/LandingNav.vue'
 import HeroSection from '../../components/landing/HeroSection.vue'
 import CategoryStrip from '../../components/landing/CategoryStrip.vue'
 import StepsSection from '../../components/landing/StepsSection.vue'
+import StoresSection from '../../components/landing/StoresSection.vue'
 import RolePanels from '../../components/landing/RolePanels.vue'
 import BrandLogo from '../../components/landing/BrandLogo.vue'
+import { useLandingData } from '../../composables/useLandingData'
+
+// `zonas` is exposed for the coverage chips (WU5b).
+const { estado, tiendas } = useLandingData()
 </script>
 
 <template>
@@ -20,7 +25,8 @@ import BrandLogo from '../../components/landing/BrandLogo.vue'
       <HeroSection />
       <CategoryStrip />
       <StepsSection />
-      <!-- WU5 inserts stores and coverage here; WU6-7 add install, FAQ and the CTA band after the roles. -->
+      <StoresSection :estado="estado" :tiendas="tiendas" />
+      <!-- WU5b inserts coverage here; WU6-7 add install, FAQ and the CTA band after the roles. -->
       <RolePanels />
     </main>
     <!-- Minimal footer; WU7 replaces it with LandingFooter. -->

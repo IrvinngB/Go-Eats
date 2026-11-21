@@ -130,3 +130,25 @@ pnpm test 15 files/145 tests; vue-tsc -b OK; pnpm build OK; pnpm test:e2e 1 pass
 
 ### Visual self-review (360x800, 1440x900; no horizontal overflow; preview stopped)
 Fixed: couriers copy came after its list on mobile (reordered DOM). Remaining flaws: (1) 8 chips wrap 6+2 at desktop; (2) step icon above each title adds a little redundancy with the numeral; (3) band order is currently white, surface, indigo, amber, indigo footer until WU5 inserts stores/coverage; (4) no mascot/photo; (5) nav anchors #cobertura and #preguntas still dead until WU5/7.
+
+## WU5a: Data layer and stores (branch feat/landing-redesign-wu5a-data-stores) - DONE
+Tasks 5.1, 5.2 and the stores part of 5.6 complete. 5.3-5.5 and the coverage wiring remain for WU5b. Not committed.
+
+### TDD Cycle Evidence
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 5.1 | src/composables/useLandingData.spec.ts | unit | pnpm test 145/145 | suite failed: `Failed to resolve import ./useLandingData` | 10 pass | filter activo, cap 6 (8 in), `/merchants/` + `/zones/` with `timeout: 5000` and AbortSignal, empty + non-array payload, both fail => error + exactly one warn + no console.error, only zones fail => stores kept + slug label, abort on unmount silent, zone name lookup vs humanized slug, only 5 public keys | none |
+| 5.2 | src/components/landing/StoresSection.spec.ts | component | same | suite failed: `Failed to resolve import ./StoresSection.vue` | 11 pass (one assertion rewritten: textContent concatenates block elements) | ready/loading/empty/error, icon resolver known/unknown/prototype names, no promo words in any state, no digits/price/ETA/fee/open claims, single secondary /tiendas link, no role=alert | none |
+| 5.6 (stores) | src/views/landing/LandingView.spec.ts | view | same | 3 failed: section order lacked stores, h2 list lacked title, no fallback tile | 167/167 | order, headings, API-down fallback with a single warn and the other sections intact | mobile tiles made horizontal after visual review |
+
+### Files
+New: src/composables/useLandingData.ts (+spec), src/components/landing/StoresSection.vue (+spec), src/components/landing/storeIcons.ts. Modified: content.ts (+STORES_COPY), landing.css (+.lp-store-*), LandingView.vue (+composable and section), LandingView.spec.ts (api mock, +order/heading/fallback tests), tasks.md.
+
+### Decisions
+- `useLandingData()` returns `{ estado, loading, empty, error, tiendas, zonas, zonasError }`; WU5b reuses `zonas` (active only, `{id, slug, name}`). LandingView owns the single fetch and passes props to a presentational StoresSection (no duplicate requests).
+- Section id is `tiendas` (the merchants panel already owns `comercios`).
+- Stores failing and zones failing are independent; any failure logs one `console.warn`; aborted requests are silent.
+- Gates: pnpm test 17 files/167 tests, vue-tsc -b OK, pnpm build OK, pnpm test:e2e 1 passed. tsconfig.app.tsbuildinfo restored.
+
+### Visual self-review (API mocked via page.route, preview stopped; scratchpad outside repo)
+360x800 and 1440x900, ok / error / pending: no horizontal overflow, 6 tiles (inactive and 7th+ dropped), error shows the static message with one warn. Fixed: stacked tall tiles on mobile became a horizontal icon+text row. Remaining flaws: 3-column grid has no photo/imagery per store; 1 icon per tile only (unknown icon falls back to Store); the browser logs `net::ERR_FAILED` for aborted requests (browser-level, not app code).
