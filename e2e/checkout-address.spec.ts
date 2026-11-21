@@ -13,11 +13,13 @@ const SAVED_ADDRESS = {
 
 interface CapturedCalls {
   orders: Array<Record<string, unknown>>
+  payments: Array<Record<string, unknown>>
   profileUpdates: Array<Record<string, unknown>>
+  rawBodies: string[]
 }
 
 async function setupCheckoutMock(page: Page): Promise<CapturedCalls> {
-  const captured: CapturedCalls = { orders: [], profileUpdates: [] }
+  const captured: CapturedCalls = { orders: [], payments: [], profileUpdates: [], rawBodies: [] }
   let currentUser = {
     id: 1,
     full_name: 'Carlos Andrade',
@@ -33,6 +35,8 @@ async function setupCheckoutMock(page: Page): Promise<CapturedCalls> {
 
   await page.route('**/api/v1/**', async (route) => {
     const req = route.request()
+    const raw = req.postData()
+    if (raw) captured.rawBodies.push(raw)
     const path = new URL(req.url()).pathname.replace('/api/v1', '')
 
     if (req.method() === 'POST' && path === '/auth/login') {
@@ -78,6 +82,21 @@ async function setupCheckoutMock(page: Page): Promise<CapturedCalls> {
           notes: body.notes ?? '',
           items: [],
           created_at: '2026-11-20T22:30:00Z',
+        },
+      })
+    }
+    if (req.method() === 'POST' && path === '/payments/') {
+      const body = req.postDataJSON() as Record<string, unknown>
+      captured.payments.push(body)
+      return route.fulfill({
+        status: 201,
+        json: {
+          id: 1,
+          order_code: body.order_code,
+          method: body.method,
+          status: 'pagado',
+          amount: 10.25,
+          provider_reference: 'YPY-E2E-01',
         },
       })
     }
@@ -171,5 +190,37 @@ test.describe('checkout delivery address (real browser)', () => {
       lat: 9.015,
       lng: -79.467,
     })
+  })
+
+  test('simulated payment gateway completes card -> OTP -> approved and never sends card data over the network', async ({ page }) => {
+    const captured = await setupCheckoutMock(page)
+    await loginAndOpenStore(page)
+    await addFirstProductAndOpenCheckout(page)
+
+    await page.locator('input[value="electronico"]').check()
+    await page.getByRole('button', { name: 'Realizar pedido' }).click()
+
+    await expect(page.locator('[data-test="step-card"]')).toBeVisible()
+    await page.locator('[data-test="card-holder"]').fill('Titular Secreto')
+    await page.locator('[data-test="card-number"]').fill('4111 1111 1111 1111')
+    await page.locator('[data-test="card-expiry"]').fill('12/29')
+    await page.locator('[data-test="card-cvv"]').fill('987')
+    await page.locator('[data-test="card-submit"]').click()
+
+    await expect(page.locator('[data-test="step-otp"]')).toBeVisible()
+    await page.locator('[data-test="otp-code"]').fill('654321')
+    await page.locator('[data-test="otp-submit"]').click()
+
+    await expect(page.locator('[data-test="step-result"]')).toBeVisible()
+    await expect(page.locator('[data-test="referencia-pago"]')).toHaveText('YPY-E2E-01')
+
+    expect(captured.payments).toEqual([{ order_code: 'PED-9001', method: 'yappy' }])
+    const allNetworkTraffic = captured.rawBodies.join(' ')
+    expect(allNetworkTraffic).not.toContain('4111111111111111')
+    expect(allNetworkTraffic).not.toContain('4111 1111 1111 1111')
+    expect(allNetworkTraffic).not.toContain('Titular Secreto')
+    expect(allNetworkTraffic).not.toContain('12/29')
+    expect(allNetworkTraffic).not.toContain('987')
+    expect(allNetworkTraffic).not.toContain('654321')
   })
 })

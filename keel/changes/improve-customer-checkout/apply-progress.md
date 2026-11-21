@@ -80,3 +80,25 @@ src/views/customer/StoreDetailView.vue, src/views/customer/StoreDetailView.spec.
 
 ### Remaining
 B (simulated gateway), C (catalog browsing), Final.
+
+## Unit B (PR 4): simulated gateway — DONE
+
+Branch `feat/checkout-pr4-simulated-gateway`. Tasks 4.1-4.6 complete (+ Playwright E2E network traffic assertion).
+
+### TDD Cycle Evidence
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|-----------|-----|-------|-------------|----------|
+| 4.1/4.2 | src/utils/card.spec.ts | unit | n/a (new) | module `./card` missing | 5 passed | Luhn approve/decline/formatted/invalid, brand detection, MM/YY vs reference Date, CVV 3-4, full form Spanish errors | none |
+| 4.3 | src/components/PaymentGatewayModal.spec.ts | component | n/a (new) | module `./PaymentGatewayModal.vue` missing | 3 passed | card -> OTP -> processing -> result, invalid Luhn/expiry/CVV/OTP blocks, fields wiped on close, zero leakage to Pinia/Storage/console | spied Storage.prototype.setItem for Node 22 jsdom compatibility |
+| 4.4/4.5 | src/views/customer/StoreDetailView.spec.ts, e2e/checkout-address.spec.ts | component + store + E2E | 622 passed | old single-button modal lacked card/OTP steps and demo-gated `simulate_failure` | 31 passed in StoreDetailView.spec, 33 in Playwright E2E | `/payments/` keys strictly `['method','order_code']` when flag off (even with decline card); `simulate_failure: true` only with `VITE_ENABLE_DEMO_SWITCHER='true'` + decline card; zero card fields in raw HTTP bodies | extracted `PaymentGatewayModal.vue` |
+| 4.6 | backend/tests/test_payments.py | backend API | 386 passed | - | 24 passed in test_payments.py | unchanged backend honors `simulate_failure` only under `DEV_SIMULATE_FAILURE` | none |
+
+### Totals
+`pnpm test` 631 passed (46 files); `vue-tsc -b` 0; `pnpm build` OK; `pnpm test:e2e` 33 passed; backend `pytest -q tests/test_payments.py` 24 passed (full suite 386 passed). `tsconfig.app.tsbuildinfo` restored.
+
+### Files
+src/utils/card.ts (new), src/utils/card.spec.ts (new), src/components/PaymentGatewayModal.vue (new), src/components/PaymentGatewayModal.spec.ts (new), src/stores/useGoEatsStore.js, src/views/customer/StoreDetailView.vue, src/views/customer/StoreDetailView.spec.ts, e2e/checkout-address.spec.ts.
+
+### Remaining
+C (catalog browsing), Final.

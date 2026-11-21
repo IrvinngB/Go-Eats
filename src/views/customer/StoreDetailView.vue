@@ -3,6 +3,7 @@ import { ref, computed, defineAsyncComponent, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useGoEatsStore } from '../../stores/useGoEatsStore'
 import CommerceIcon from '../../components/CommerceIcon.vue'
+import PaymentGatewayModal from '../../components/PaymentGatewayModal.vue'
 import { puntoEnCobertura } from '../../utils/geo'
 
 // Leaflet only loads when the user chooses to change the address for this order.
@@ -142,19 +143,15 @@ async function confirmarPedido() {
   if (nuevaDireccion && pedido.estado !== 'cancelado') await guardarComoPredeterminada(nuevaDireccion, mensaje)
 }
 
-async function pagar() {
-  pagoEstado.value = 'procesando'
-  const datos = datosPedido()
+async function procesarPagoPasarela({ simulateFailure = false } = {}) {
+  const datos = { ...datosPedido(), simularFalloPago: Boolean(simulateFailure) }
   const nuevaDireccion = direccionAGuardar(datos)
   const pedido = await store.crearPedido(datos)
-  if (!pedido) {
-    pagoEstado.value = 'error'
-    return
-  }
+  if (!pedido) return null
   pedidoCreado.value = pedido
   limpiarFormulario()
-  pagoEstado.value = pedido.pagoEstado === 'pagado' ? 'aprobado' : pedido.pagoEstado === 'fallido' ? 'rechazado' : 'error'
   if (nuevaDireccion && pedido.estado !== 'cancelado') await guardarComoPredeterminada(nuevaDireccion, null)
+  return pedido
 }
 
 function irAPerfil() {
@@ -164,7 +161,7 @@ function irAPerfil() {
 }
 
 function cerrarModal() {
-  if (pagoEstado.value !== 'procesando') modalPago.value = false
+  modalPago.value = false
 }
 
 function verPedido() {
@@ -353,39 +350,14 @@ function verPedido() {
     </transition>
 
     <!-- Modal de pago simulado -->
-    <transition name="modal">
-      <div v-if="modalPago" class="fixed inset-0 z-50 bg-ink/40 grid place-items-center p-4" @click="cerrarModal">
-        <div class="modal-panel card p-6 w-full max-w-sm" @click.stop>
-          <template v-if="!pagoEstado || pagoEstado === 'procesando'">
-            <h3 class="text-lg font-semibold text-ink">Pago electrónico (simulado)</h3>
-            <p class="text-sm text-slatebody mt-1">Total a pagar <strong>B/ {{ totalAPagar.toFixed(2) }}</strong></p>
-            <p class="text-xs text-slatebody mt-3 bg-canvas rounded-lg p-3">Por cumplimiento PCI-DSS, esta demo no solicita datos reales de tarjeta. El cobro lo procesa la pasarela simulada.</p>
-            <div class="mt-5">
-              <button class="btn-primary w-full" :disabled="pagoEstado === 'procesando'" @click="pagar">{{ pagoEstado === 'procesando' ? 'Procesando…' : 'Pagar (simulado)' }}</button>
-            </div>
-          </template>
-          <template v-else>
-            <div class="text-center py-4">
-              <div class="mx-auto grid place-items-center w-14 h-14 rounded-full" :class="pagoEstado === 'aprobado' ? 'bg-emerald-50' : 'bg-red-50'">
-                <svg v-if="pagoEstado === 'aprobado'" class="w-7 h-7 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                <svg v-else class="w-7 h-7 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-              </div>
-              <h3 class="mt-4 text-lg font-semibold text-ink">{{ pagoEstado === 'aprobado' ? 'Pago aprobado' : pagoEstado === 'rechazado' ? 'Pago rechazado' : 'No se pudo completar' }}</h3>
-              <p v-if="pagoEstado === 'aprobado'" class="text-sm text-slatebody mt-1">
-                Pedido {{ pedidoCreado.id }} · Referencia <span data-test="referencia-pago" class="font-mono">{{ pedidoCreado.referenciaPasarela }}</span>
-              </p>
-              <p v-else-if="pagoEstado === 'rechazado'" class="text-sm text-slatebody mt-1">El pedido fue cancelado. Puedes intentarlo de nuevo con pago contra entrega.</p>
-              <div v-else-if="store.consentimientoRequerido" data-test="consent-required" class="mt-2 text-sm text-slatebody">
-                <p>Debes aceptar el tratamiento de tus datos para continuar. Tu carrito se conserva.</p>
-                <button type="button" class="mt-2 font-semibold text-brand-dark underline underline-offset-2" @click="irAPerfil">Ir a mi perfil para aceptar</button>
-              </div>
-              <p v-else class="text-sm text-slatebody mt-1">No pudimos procesar el pago. Revisa tus pedidos o inténtalo de nuevo.</p>
-              <button v-if="pagoEstado === 'error' && !pedidoCreado" class="btn-primary w-full mt-5" @click="modalPago = false">Cerrar</button>
-              <button v-else class="btn-primary w-full mt-5" @click="verPedido">Ver mis pedidos</button>
-            </div>
-          </template>
-        </div>
-      </div>
-    </transition>
+    <PaymentGatewayModal
+      :open="modalPago"
+      :total="totalAPagar"
+      :consent-required="store.consentimientoRequerido"
+      :on-process="procesarPagoPasarela"
+      @close="cerrarModal"
+      @view-orders="verPedido"
+      @go-profile="irAPerfil"
+    />
   </div>
 </template>

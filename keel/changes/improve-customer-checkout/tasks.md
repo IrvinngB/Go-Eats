@@ -65,12 +65,12 @@ Each PR must pass `cd backend && .venv/bin/pytest -q`, `pnpm test`, `pnpm exec v
 
 ## Unit B (PR 4): simulated gateway
 
-- [ ] 4.1 RED `src/utils/card.spec.ts`: Luhn valid/invalid, expiry past/format, CVV 3-4, test-card hints (approve, decline).
-- [ ] 4.2 GREEN `src/utils/card.ts`.
-- [ ] 4.3 RED `src/components/PaymentGatewayModal.spec.ts`: step order card -> OTP -> processing -> result; invalid card blocks; copy says "simulado"; fields cleared on close; Pinia state, localStorage, console contain no card data.
-- [ ] 4.4 RED payload test (`StoreDetailView.spec.ts` with mocked api): `/payments` body keys exactly `['order_code','method']`; decline card adds `simulate_failure` only with `VITE_ENABLE_DEMO_SWITCHER='true'` (`vi.stubEnv`); prod build never sends it and approves; no card field in any request.
-- [ ] 4.5 GREEN `PaymentGatewayModal.vue`, `crearPedido` option for simulate_failure, wire in `StoreDetailView.vue`; declined shows cancelled order (PR7 behavior); update existing "Pagar (simulado)" spec.
-- [ ] 4.6 Backend regression: existing `test_payments.py` flag tests stay green (no backend change).
+- [x] 4.1 RED `src/utils/card.spec.ts`: Luhn valid/invalid, expiry past/format, CVV 3-4, test-card hints (approve, decline).
+- [x] 4.2 GREEN `src/utils/card.ts`.
+- [x] 4.3 RED `src/components/PaymentGatewayModal.spec.ts`: step order card -> OTP -> processing -> result; invalid card blocks; copy says "simulado"; fields cleared on close; Pinia state, localStorage, console contain no card data.
+- [x] 4.4 RED payload test (`StoreDetailView.spec.ts` with mocked api): `/payments` body keys exactly `['order_code','method']`; decline card adds `simulate_failure` only with `VITE_ENABLE_DEMO_SWITCHER='true'` (`vi.stubEnv`); prod build never sends it and approves; no card field in any request.
+- [x] 4.5 GREEN `PaymentGatewayModal.vue`, `crearPedido` option for simulate_failure, wire in `StoreDetailView.vue`; declined shows cancelled order (PR7 behavior); update existing "Pagar (simulado)" spec.
+- [x] 4.6 Backend regression: existing `test_payments.py` flag tests stay green (no backend change).
 - [ ] 4.7 Real-browser check on throwaway backend with `DEV_SIMULATE_FAILURE=true` and a demo build: approve path and decline path cancel the order; inspect network tab for card data.
 
 ## Unit C (PR 5): catalog browsing (frontend only)
