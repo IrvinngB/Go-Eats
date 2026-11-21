@@ -152,3 +152,38 @@ New: src/composables/useLandingData.ts (+spec), src/components/landing/StoresSec
 
 ### Visual self-review (API mocked via page.route, preview stopped; scratchpad outside repo)
 360x800 and 1440x900, ok / error / pending: no horizontal overflow, 6 tiles (inactive and 7th+ dropped), error shows the static message with one warn. Fixed: stacked tall tiles on mobile became a horizontal icon+text row. Remaining flaws: 3-column grid has no photo/imagery per store; 1 icon per tile only (unknown icon falls back to Store); the browser logs `net::ERR_FAILED` for aborted requests (browser-level, not app code).
+
+## WU5b: Coverage (branch feat/landing-redesign-wu5b-coverage) - DONE (5.3, 5.4, 5.5, coverage wiring of 5.6)
+
+### TDD Cycle Evidence
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 5.4 pre (characterization) | src/components/CoverageMap.spec.ts | component (real Leaflet in jsdom, `L.map` spied) | none existed | n/a: written against UNEDITED component, 14 pass (one wrong zoom assertion fixed: mount flyTo jumps zoom to 14 in jsdom, so setView args are pinned instead) | 14/14 | coverage and tracking modes, buttons, flyTo/fitBounds args, geolocation ok + alert paths, zone re-render, interval + unmount | none |
+| 5.4 | same, `estatico` block | component | 14 pass | 4 failed for the right reason (interactions still on, zoom control and buttons present, no caption, fitBounds never called) | 19/19 | all 6 interactions, controls, caption, fit with animate:false covering every zone center, no fly, default false unchanged | dropped a vacuous "never geolocates" test |
+| 5.3 | src/components/landing/CoverageSection.spec.ts | component | n/a (new) | file failed to resolve `./CoverageSection.vue`; then 3 observer tests failed (watcher arms the observer one tick after mount; tests await it) | 15/15 | chips, empty, error, loading, no observer, intersect/no-intersect, zones arriving late, unmount | fallback goes single-column after visual review |
+| 5.6 (coverage) | src/views/landing/LandingView.spec.ts | view | 11 pass | 5 failed: order lacked cobertura, h2 list, anchor, fallback, chips | 16/16 | order, h2, anchor + nav link, API-down fallback, single `/zones/` call with inactive zone filtered | none |
+
+### Files
+New: CoverageMap.spec.ts (242), CoverageSection.vue (90), CoverageSection.spec.ts (206). Modified: CoverageMap.vue (+prop `estatico`, +leaflet.css import), main.ts (-leaflet.css import), content.ts (+COVERAGE_COPY), landing.css (+chips/frame/fallback modifiers), LandingView.vue (+CoverageSection after stores), LandingView.spec.ts, tasks.md.
+
+### Decisions and deviations
+- `estatico` diff is additive: default branch code paths are untouched (`...(props.estatico && {...})` spreads nothing when false; the caption uses a new `v-if` and the old `v-if` became `v-else-if`, same chain semantics). Circles get `interactive: !estatico` (Leaflet default is true).
+- Leaflet CSS moved from `main.ts` to `import 'leaflet/dist/leaflet.css'` in CoverageMap.vue (spec asks for Leaflet CSS in the lazy chunk). All three other consumers import CoverageMap, so they still get it. Initial CSS 50.67 -> 36.03 kB; CoverageMap css chunk 0.31 -> 15.34 kB.
+- CoverageSection props: `zonas`, `zonasError`, `cargando` (= `loading` from the single composable). Map only renders when there are zones AND the observer fired; zones error/empty hide the map (the map draws hardcoded `COORDENADAS_ZONAS`, so with no API zones it would claim coverage the API did not confirm).
+- Known gap: map circles come from the static `COORDENADAS_ZONAS` (10 slugs), chips from the API; if the API activates/deactivates zones the two can differ. Not filtered (would need another CoverageMap prop).
+- Wrapper `role="img"` also swallows the attribution caption for assistive tech (children of role=img are presentational); the caption is visible text for sighted users, which is what the licence needs.
+- No resize refit: static map is fitted once on mount.
+
+### Chunks (pnpm build)
+Initial: index-BPwiIs0G.js 223.75 kB (no Leaflet: `leaflet-container` only in CoverageMap chunk), index-Dc1T-LNk.css 36.03 kB. Lazy: CoverageMap-Bm9eef-8.js 161.88 kB (48.01 gz), CoverageMap-Dk73cH-a.css 15.34 kB, LandingView-Bv_8ksWi.js 23.39 kB. index.html has no modulepreload for it. Precached by the PWA glob (`**/*.{js,css,...}`): sw.js lists both CoverageMap files; precache 39 entries, 677.84 KiB (was 38 / 671.51 KiB). Browser proof: landing at 4173, 0 requests for CoverageMap or tiles before scrolling to #cobertura, then the js + css and 6 tiles.
+Note: CoverageMap was ALREADY its own chunk on develop (all consumers are lazy routes); the real change for the landing is that nothing on `/` requests it until the section nears the viewport.
+
+### 5.5 Manual verification (real Chromium, throwaway script outside the repo)
+Baseline = `git worktree add --detach` of HEAD (== develop, dca2951) built with vite, vs this branch build. API aborted via page.route (store falls back to mockData), tiles fulfilled with a fixed PNG, session faked by patching the Pinia `goeats` store (`usuario.nombre`; the router has no guards). Views: StoresView map tab (1280x900 and 390x844), OrdersView tracking (Roberto Kim, ORD-1044), CourierView route map (Ókil Tuñón). Result: element screenshots are byte-identical (same sha256) before vs after in all 4 cases, and also stable across two baseline runs; DOM metrics identical (touch-action none, leaflet-grab/touch-drag/touch-zoom classes, tabindex 0, 1 zoom control, buttons `Mi ubicación`+`Centrar` / `Centrar`, 10 circles + 8 markers coverage, 2 paths + 3 markers tracking, root radius/border/shadow, tile request counts), no dialogs. Not verified: the geolocation click paths in a real browser (covered by the jsdom characterization instead), real CARTO tiles (mocked), authenticated flows against a live API.
+Worktree removed; screenshots and scripts live in the scratchpad.
+
+### Gates
+pnpm test 19 files / 203 tests, vue-tsc -b OK, pnpm build OK, pnpm test:e2e 1 passed. tsconfig.app.tsbuildinfo restored.
+
+### Visual self-review (360x800 and 1440x900, API mocked, ok / error / empty; previews stopped)
+No horizontal overflow, 8 chips, static map with caption visible, touch-action auto (no scroll trap), no dialogs, no controls, map in a 32px flat frame around a 24px map. Fixed: with the fallback the right half was an empty grid column; the section now collapses to one column. Remaining flaws: the real CARTO basemap was replaced by a plain mock tile in screenshots; zone circles cluster in the south-west because the coordinates are real; the lead leaves a one-word orphan ("tuya.") at 1440 in the fallback layout; no imagery beyond the map.
