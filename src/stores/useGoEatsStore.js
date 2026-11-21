@@ -52,6 +52,18 @@ function mapPedidoApi(o) {
   }
 }
 
+function mapArcoApi(a) {
+  return {
+    id: a.id,
+    usuario: a.user_name,
+    tipo: a.request_type,
+    detalle: a.detail,
+    estado: a.status,
+    respuesta: a.admin_response,
+    fecha: new Date(a.created_at).toLocaleString('es-PA', FORMATO_FECHA),
+  }
+}
+
 function mapTransaccionApi(t) {
   return {
     id: t.code,
@@ -100,7 +112,7 @@ export const useGoEatsStore = defineStore('goeats', {
   state: () => ({
     rol: 'customer',
     autenticado: false,
-    usuario: { nombre: 'Carlos Andrade', email: 'carlos@ejemplo.pa', telefono: '6123-4567', consentimientoLey81: true },
+    usuario: { nombre: 'Carlos Andrade', email: 'carlos@ejemplo.pa', telefono: '6123-4567', consentimientoLey81: null }, // null = unknown until GET /users/me/consent
     zonas: ZONAS,
     zonaSeleccionada: 'san-francisco',
     comercios: comercios.map((c) => ({ ...c })),
@@ -109,7 +121,10 @@ export const useGoEatsStore = defineStore('goeats', {
     pedidos: pedidosIniciales.map((p) => ({ ...p, items: p.items.map((i) => ({ ...i })) })),
     transacciones: transacciones.map((t) => ({ ...t })),
     afiliaciones: afiliacionesPendientes.map((a) => ({ ...a })),
-    solicitudesARCO: solicitudesARCO.map((s) => ({ ...s })),
+    solicitudesARCO: solicitudesARCO.map((s) => ({ ...s })), // admin-wide list
+    misSolicitudesARCO: [], // own requests (GET /users/me/arco), newest first
+    consentimientoRequerido: false, // the server answered consent_required to an order/payment
+    pedidoPendientePago: null, // { codigo, firma }: created order whose payment still has to succeed
     eventos: eventosAuditoria.map((e) => ({ ...e })),
     carrito: [], // items {id, nombre, precio, cantidad, observacion, comercioId}
     carritoComercioId: null,
@@ -194,6 +209,9 @@ export const useGoEatsStore = defineStore('goeats', {
       this.rol = 'customer'
       this.comercioPropioId = null
       this.repartidorPropioId = null
+      this.misSolicitudesARCO = []
+      this.consentimientoRequerido = false
+      this.pedidoPendientePago = null
       this.notificar('Has cerrado sesión.')
     },
 
@@ -216,7 +234,7 @@ export const useGoEatsStore = defineStore('goeats', {
           nombre: data.user.full_name,
           email: data.user.email,
           telefono: data.user.phone || '6123-4567',
-          consentimientoLey81: true,
+          consentimientoLey81: null,
         }
         this.rol = data.user.role
         this.autenticado = true
@@ -239,7 +257,7 @@ export const useGoEatsStore = defineStore('goeats', {
           nombre: data.full_name,
           email: data.email,
           telefono: data.phone || '',
-          consentimientoLey81: true,
+          consentimientoLey81: null,
         }
         this.rol = data.role
         this.autenticado = true
@@ -350,20 +368,7 @@ export const useGoEatsStore = defineStore('goeats', {
           this.transacciones = paymentsRes.data.map(mapTransaccionApi)
         }
         if (Array.isArray(arcoRes.data)) {
-          this.solicitudesARCO = arcoRes.data.map((a) => ({
-            id: a.id,
-            usuario: a.user_name,
-            tipo: a.request_type,
-            detalle: a.detail,
-            estado: a.status,
-            respuesta: a.admin_response,
-            fecha: new Date(a.created_at).toLocaleString('es-PA', {
-              day: '2-digit',
-              month: 'short',
-              hour: '2-digit',
-              minute: '2-digit',
-            }),
-          }))
+          this.solicitudesARCO = arcoRes.data.map(mapArcoApi)
         }
         if (Array.isArray(auditRes.data)) {
           this.eventos = auditRes.data.map((e) => ({
@@ -423,6 +428,7 @@ export const useGoEatsStore = defineStore('goeats', {
     vaciarCarrito() {
       this.carrito = []
       this.carritoComercioId = null
+      this.pedidoPendientePago = null // the cart changed or was cancelled: forget the unpaid order
     },
 
     // POST /orders then POST /payments for the server order code (both awaited).
@@ -432,28 +438,46 @@ export const useGoEatsStore = defineStore('goeats', {
       const comercio = this.carritoComercio
       if (!this.autenticado || !comercio || this.carrito.length === 0) return null
       const metodo = metodoPago === 'electronico' ? 'yappy' : 'contr_entrega'
-      let pedido
-      try {
-        const { data: orden } = await api.post('/orders/', {
-          // The server recomputes prices, fee and names: only identifiers and choices travel.
-          merchant_code: comercio.id,
-          zone_slug: this.zonaSeleccionada,
-          delivery_address: direccion,
-          notes: observaciones || '',
-          // 'electronico' is the UI id; `yappy` is the wire id of the single simulated gateway.
-          payment_method: metodo,
-          items: this.carrito.map((i) => ({
-            product_code: String(i.id),
-            quantity: i.cantidad,
-            notes: i.observacion || '',
-          })),
-        })
-        pedido = mapPedidoApi(orden)
-      } catch (err) {
-        this.notificar(toWriteError(err).message, 'error')
-        return null
+      const firma = JSON.stringify([
+        comercio.id,
+        this.zonaSeleccionada,
+        direccion,
+        observaciones || '',
+        metodo,
+        this.carrito.map((i) => [String(i.id), i.cantidad, i.observacion || '']),
+      ])
+      // Retry-safe: an order whose payment failed is reused while the cart and data are unchanged.
+      let pedido = null
+      if (this.pedidoPendientePago?.firma === firma) {
+        pedido = this.pedidos.find((p) => p.id === this.pedidoPendientePago.codigo) || null
       }
-      this.pedidos.unshift(pedido)
+      if (!pedido) {
+        this.pedidoPendientePago = null
+        try {
+          const { data: orden } = await api.post('/orders/', {
+            // The server recomputes prices, fee and names: only identifiers and choices travel.
+            merchant_code: comercio.id,
+            zone_slug: this.zonaSeleccionada,
+            delivery_address: direccion,
+            notes: observaciones || '',
+            // 'electronico' is the UI id; `yappy` is the wire id of the single simulated gateway.
+            payment_method: metodo,
+            items: this.carrito.map((i) => ({
+              product_code: String(i.id),
+              quantity: i.cantidad,
+              notes: i.observacion || '',
+            })),
+          })
+          pedido = mapPedidoApi(orden)
+        } catch (err) {
+          const error = toWriteError(err)
+          if (error.code === 'consent_required') this.consentimientoRequerido = true
+          this.notificar(error.message, 'error')
+          return null
+        }
+        this.pedidos.unshift(pedido)
+        this.pedidoPendientePago = { codigo: pedido.id, firma }
+      }
       try {
         // Amounts are never sent: the server takes them from the persisted order.
         const { data: pago } = await api.post('/payments/', { order_code: pedido.id, method: metodo })
@@ -466,11 +490,14 @@ export const useGoEatsStore = defineStore('goeats', {
         }
         this.transacciones.unshift(mapTransaccionApi(pago))
       } catch (err) {
-        // The order exists on the server (pending); the cart stays so the user can see what happened.
-        this.notificar(`El pedido ${pedido.id} se creó, pero el pago falló. ${toWriteError(err).message}`, 'error')
+        // The order exists on the server (pending): it is remembered so a retry only repeats the payment.
+        const error = toWriteError(err)
+        if (error.code === 'consent_required') this.consentimientoRequerido = true
+        this.notificar(`El pedido ${pedido.id} se creó, pero el pago falló. ${error.message}`, 'error')
         return null
       }
-      this.vaciarCarrito()
+      this.consentimientoRequerido = false
+      this.vaciarCarrito() // also clears pedidoPendientePago
       return pedido
     },
 
@@ -705,6 +732,16 @@ export const useGoEatsStore = defineStore('goeats', {
       })
     },
 
+    async cargarMisSolicitudesARCO() {
+      try {
+        const { data } = await api.get('/users/me/arco')
+        if (Array.isArray(data)) this.misSolicitudesARCO = data.map(mapArcoApi)
+        return { ok: true }
+      } catch (err) {
+        return { ok: false, error: toWriteError(err) }
+      }
+    },
+
     enviarSolicitudARCO(tipo, detalle) {
       const solicitud = {
         id: nextId('ARCO'),
@@ -713,22 +750,56 @@ export const useGoEatsStore = defineStore('goeats', {
         detalle,
         fecha: `Hoy, ${ahora()}`,
         estado: 'pendiente',
+        respuesta: null,
+      }
+      const quitar = () => {
+        const i = this.misSolicitudesARCO.findIndex((x) => x.id === solicitud.id)
+        if (i >= 0) this.misSolicitudesARCO.splice(i, 1)
       }
       return this.escribir({
-        aplicar: () => this.solicitudesARCO.unshift(solicitud),
+        aplicar: () => this.misSolicitudesARCO.unshift(solicitud),
         llamada: () => api.post('/users/me/arco', { request_type: tipo, detail: detalle }),
-        revertir: () => {
-          const i = this.solicitudesARCO.findIndex((x) => x.id === solicitud.id)
-          if (i >= 0) this.solicitudesARCO.splice(i, 1)
+        revertir: quitar,
+        exito: (data) => {
+          const i = this.misSolicitudesARCO.findIndex((x) => x.id === solicitud.id)
+          if (i >= 0 && data?.id) this.misSolicitudesARCO.splice(i, 1, mapArcoApi(data))
+          this.notificar('Tu solicitud fue enviada. El administrador la responderá pronto.')
         },
-        exito: () => this.notificar('Tu solicitud fue enviada. El administrador la responderá pronto.'),
+      })
+    },
+
+    // GET /users/me/consent: the state shown in Perfil always comes from the server (null = unknown).
+    async cargarConsentimiento() {
+      try {
+        const { data } = await api.get('/users/me/consent')
+        this.usuario.consentimientoLey81 = data.accepted === true
+        if (data.accepted === true) this.consentimientoRequerido = false
+        return { ok: true, data }
+      } catch (err) {
+        return { ok: false, error: toWriteError(err) }
+      }
+    },
+
+    // PUT /users/me/consent: revoke and re-grant are the same call (history is kept server-side).
+    cambiarConsentimiento(aceptado) {
+      return this.escribir({
+        objetivos: [this.usuario],
+        aplicar: () => {
+          this.usuario.consentimientoLey81 = aceptado
+        },
+        llamada: () => api.put('/users/me/consent', { accepted: aceptado }),
+        exito: (data) => {
+          this.usuario.consentimientoLey81 = data?.accepted ?? aceptado
+          if (this.usuario.consentimientoLey81) this.consentimientoRequerido = false
+        },
       })
     },
 
     guardarPerfil(datos) {
       return this.escribir({
         objetivos: [this.usuario],
-        aplicar: () => Object.assign(this.usuario, datos),
+        // The consent flag is owned by the server (cambiarConsentimiento), never by a profile form copy.
+        aplicar: () => Object.assign(this.usuario, { ...datos, consentimientoLey81: this.usuario.consentimientoLey81 }),
         llamada: () => api.put('/users/me', { full_name: datos.nombre ?? this.usuario.nombre, phone: datos.telefono ?? this.usuario.telefono }),
         exito: () => this.notificar('Perfil actualizado correctamente.'),
       })

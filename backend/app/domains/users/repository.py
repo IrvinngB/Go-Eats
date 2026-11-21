@@ -42,6 +42,27 @@ class UserRepository:
         self.db.refresh(user)
         return user
 
+    def latest_consent(self, user_id: int) -> DataConsent | None:
+        # Latest = highest id (timestamps can tie within one second).
+        stmt = (
+            select(DataConsent)
+            .where(DataConsent.user_id == user_id)
+            .order_by(DataConsent.id.desc())
+            .limit(1)
+        )
+        return self.db.scalars(stmt).first()
+
+    def append_consent(self, user_id: int, accepted: bool) -> DataConsent:
+        record = DataConsent(
+            user_id=user_id,
+            policy_version=settings.privacy_policy_version,
+            accepted=accepted,
+        )
+        self.db.add(record)
+        self.db.commit()
+        self.db.refresh(record)
+        return record
+
     def update(self, user: User, full_name: str | None = None, phone: str | None = None) -> User:
         if full_name is not None:
             user.full_name = full_name

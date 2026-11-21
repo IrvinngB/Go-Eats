@@ -83,6 +83,12 @@ async function pagar() {
   pagoEstado.value = pedido.pagoEstado === 'pagado' ? 'aprobado' : pedido.pagoEstado === 'fallido' ? 'rechazado' : 'error'
 }
 
+function irAPerfil() {
+  modalPago.value = false
+  carritoAbierto.value = false
+  router.push({ name: 'profile' })
+}
+
 function cerrarModal() {
   if (pagoEstado.value !== 'procesando') modalPago.value = false
 }
@@ -197,6 +203,10 @@ function verPedido() {
 
             <!-- Checkout -->
             <div v-else class="space-y-4">
+              <div v-if="store.consentimientoRequerido" data-test="consent-required" class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                <p>Debes aceptar el tratamiento de tus datos para continuar. Tu pedido no se creó y tu carrito se conserva.</p>
+                <button type="button" class="mt-2 font-semibold underline underline-offset-2" @click="irAPerfil">Ir a mi perfil para aceptar</button>
+              </div>
               <div>
                 <label class="label">Dirección de entrega</label>
                 <input v-model="direccion" class="input" placeholder="Ej. Calle 45, Ed. Nogal, Apto 2B" />
@@ -271,6 +281,10 @@ function verPedido() {
                 Pedido {{ pedidoCreado.id }} · Referencia <span data-test="referencia-pago" class="font-mono">{{ pedidoCreado.referenciaPasarela }}</span>
               </p>
               <p v-else-if="pagoEstado === 'rechazado'" class="text-sm text-slatebody mt-1">El pedido fue cancelado. Puedes intentarlo de nuevo con pago contra entrega.</p>
+              <div v-else-if="store.consentimientoRequerido" data-test="consent-required" class="mt-2 text-sm text-slatebody">
+                <p>Debes aceptar el tratamiento de tus datos para continuar. Tu carrito se conserva.</p>
+                <button type="button" class="mt-2 font-semibold text-brand-dark underline underline-offset-2" @click="irAPerfil">Ir a mi perfil para aceptar</button>
+              </div>
               <p v-else class="text-sm text-slatebody mt-1">No pudimos procesar el pago. Revisa tus pedidos o inténtalo de nuevo.</p>
               <button v-if="pagoEstado === 'error' && !pedidoCreado" class="btn-primary w-full mt-5" @click="modalPago = false">Cerrar</button>
               <button v-else class="btn-primary w-full mt-5" @click="verPedido">Ver mis pedidos</button>

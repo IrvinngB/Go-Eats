@@ -10,6 +10,7 @@ from app.domains.orders.schemas import (
     OrderStatusUpdate,
 )
 from app.domains.orders.service import OrderService
+from app.domains.users.dependencies import require_active_consent
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -40,6 +41,7 @@ def create_order(
     payload: OrderCreate,
     background_tasks: BackgroundTasks,
     current_user: CurrentUser = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN)),
+    _consent: CurrentUser = Depends(require_active_consent),
     db: Session = Depends(get_db),
 ) -> OrderRead:
     return OrderService(db).create_order(current_user.user_id, payload, background_tasks)
