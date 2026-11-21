@@ -22,12 +22,12 @@ Estimated changed lines: ~850-1100 (excluding pnpm-lock.yaml, ~3-5k generated) Â
 Each task is RED (failing test) then GREEN (minimal code). Tests import from `vitest` explicitly.
 
 ## WU1: Testing infra
-- [ ] 1.1 Run `pnpm view vitest@2 peerDependencies version`, plus `@vue/test-utils`, `jsdom`, `@fontsource/nunito`, `@fontsource/jetbrains-mono`; record the chosen pins (design versions are unverified).
-- [ ] 1.2 RED: create `src/smoke.spec.ts` mounting a trivial inline component; `pnpm test` fails (no script/runner).
-- [ ] 1.3 GREEN: `pnpm add -D vitest @vue/test-utils jsdom`; `pnpm add @fontsource/nunito @fontsource/jetbrains-mono`; add `"test": "vitest run"` to `package.json`.
-- [ ] 1.4 GREEN: `vite.config.ts` import `defineConfig` from `vitest/config`; add `test: { environment: 'jsdom', include: ['src/**/*.spec.ts'] }`; smoke passes.
-- [ ] 1.5 Check `pnpm-workspace.yaml` `allowBuilds` (only esbuild today); add entries if jsdom/vitest postinstall is blocked.
-- [ ] 1.6 Regenerate `pnpm-lock.yaml`; run `pnpm install --frozen-lockfile` to confirm; commit it with `package.json` (Dockerfile:6-9 BREAKS otherwise).
+- [x] 1.1 Run `pnpm view vitest@2 peerDependencies version`, plus `@vue/test-utils`, `jsdom`, `@fontsource/nunito`, `@fontsource/jetbrains-mono`; record the chosen pins (design versions are unverified).
+- [x] 1.2 RED: create `src/smoke.spec.ts` mounting a trivial inline component; `pnpm test` fails (no script/runner).
+- [x] 1.3 GREEN: `pnpm add -D vitest @vue/test-utils jsdom`; `pnpm add @fontsource/nunito @fontsource/jetbrains-mono`; add `"test": "vitest run"` to `package.json`.
+- [x] 1.4 GREEN: `vite.config.ts` import `defineConfig` from `vitest/config`; add `test: { environment: 'jsdom', include: ['src/**/*.spec.ts'] }`; smoke passes.
+- [x] 1.5 Check `pnpm-workspace.yaml` `allowBuilds` (only esbuild today); add entries if jsdom/vitest postinstall is blocked.
+- [x] 1.6 Regenerate `pnpm-lock.yaml`; run `pnpm install --frozen-lockfile` to confirm; commit it with `package.json` (Dockerfile:6-9 BREAKS otherwise).
 
 ## WU2: Router + App shell
 - [ ] 2.1 RED: `src/router.spec.ts`: `/` named `landing`, no `redirect`; catch-all still `/tiendas`; `/tiendas` and `/login` resolve.
