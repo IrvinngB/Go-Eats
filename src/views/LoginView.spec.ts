@@ -13,6 +13,7 @@ vi.mock('../services/api', () => ({
 }))
 
 import LoginView from './LoginView.vue'
+import { routes } from '../router'
 // @ts-expect-error the store is plain JS without declarations
 import { useGoEatsStore } from '../stores/useGoEatsStore'
 
@@ -133,5 +134,84 @@ describe('store autenticarUsuario payloads', () => {
     const store = useGoEatsStore()
     await store.autenticarUsuario({ email: 'a@b.pa', password: 'secret1', nombre: 'A B', modoRegistro: true })
     expect(post.mock.calls[0][1].accepts_privacy_policy).toBe(false)
+  })
+})
+
+describe('LoginView ?redirect (PR10)', () => {
+  beforeEach(() => {
+    post.mockReset()
+    get.mockReset()
+    get.mockRejectedValue(new Error('sync skipped'))
+  })
+
+  // Real named routes (no guards installed): redirect validation resolves route names.
+  async function setupRedirect(redirect?: string | string[]) {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const router = createRouter({ history: createMemoryHistory(), routes })
+    await router.push({ name: 'login', query: redirect === undefined ? {} : { redirect } })
+    await router.isReady()
+    const wrapper = mount(LoginView, { global: { plugins: [pinia, router] } })
+    return { wrapper, router }
+  }
+
+  // Real routes are lazy-loaded views: wait until the navigation left /login.
+  async function submit(wrapper: ReturnType<typeof mount>, router?: { currentRoute: { value: { name?: unknown } } }) {
+    await wrapper.find('button.btn-primary').trigger('click')
+    await flushPromises()
+    if (router) await vi.waitFor(() => expect(router.currentRoute.value.name).not.toBe('login'), { timeout: 5000 })
+  }
+
+  it('a customer returns to the checkout store from ?redirect', async () => {
+    post.mockResolvedValue(session('customer'))
+    const { wrapper, router } = await setupRedirect('/tiendas/c1')
+    await submit(wrapper, router)
+    expect(router.currentRoute.value.fullPath).toBe('/tiendas/c1')
+  })
+
+  it('a role-valid panel redirect is honored (admin to /panel-admin)', async () => {
+    post.mockResolvedValue(session('admin'))
+    const { wrapper, router } = await setupRedirect('/panel-admin')
+    await submit(wrapper, router)
+    expect(router.currentRoute.value.fullPath).toBe('/panel-admin')
+  })
+
+  it('a redirect to a panel of another role goes to the role home', async () => {
+    post.mockResolvedValue(session('customer'))
+    const { wrapper, router } = await setupRedirect('/panel-admin')
+    await submit(wrapper, router)
+    expect(router.currentRoute.value.fullPath).toBe('/tiendas')
+  })
+
+  it('a customer route for a merchant goes to the merchant home', async () => {
+    post.mockResolvedValue(session('merchant'))
+    const { wrapper, router } = await setupRedirect('/pedidos')
+    await submit(wrapper, router)
+    expect(router.currentRoute.value.fullPath).toBe('/panel-comercio')
+  })
+
+  it.each(['//evil.com', 'https://evil.example', 'javascript:alert(1)', '/\\evil.com', '%2F%2Fevil.com'])(
+    'malicious redirect %j is ignored',
+    async (evil) => {
+      post.mockResolvedValue(session('customer'))
+      const { wrapper, router } = await setupRedirect(evil)
+      await submit(wrapper, router)
+      expect(router.currentRoute.value.fullPath).toBe('/tiendas')
+    },
+  )
+
+  it('no redirect goes to the role home', async () => {
+    post.mockResolvedValue(session('accountant'))
+    const { wrapper, router } = await setupRedirect()
+    await submit(wrapper, router)
+    expect(router.currentRoute.value.fullPath).toBe('/panel-contabilidad')
+  })
+
+  it('a failed login does not navigate', async () => {
+    post.mockRejectedValue({ response: { status: 401, data: { detail: 'Credenciales inválidas.' } } })
+    const { wrapper, router } = await setupRedirect('/tiendas/c1')
+    await submit(wrapper)
+    expect(router.currentRoute.value.name).toBe('login')
+    expect(wrapper.text()).toContain('Credenciales inválidas.')
   })
 })

@@ -1,10 +1,12 @@
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useGoEatsStore } from '../stores/useGoEatsStore'
+import { rutaPorRol, safeRedirect } from '../guards'
 
 const store = useGoEatsStore()
 const router = useRouter()
+const route = useRoute()
 
 const modoRegistro = ref(false)
 const aceptaPolitica = ref(false)
@@ -12,14 +14,6 @@ const email = ref('carlos@ejemplo.pa')
 const password = ref('demo1234')
 const nombre = ref('')
 const error = ref('')
-
-const rutaPorRol = {
-  customer: '/tiendas',
-  merchant: '/panel-comercio',
-  courier: '/panel-repartidor',
-  accountant: '/panel-contabilidad',
-  admin: '/panel-admin',
-}
 
 async function entrar() {
   error.value = ''
@@ -42,8 +36,9 @@ async function entrar() {
     error.value = resultado.mensaje
     return
   }
-  // Navigate by the role the SERVER returned, never a client-side choice.
-  router.push(rutaPorRol[store.rol] || '/tiendas')
+  // Navigate by the role the SERVER returned, never a client-side choice. `?redirect` is honored only
+  // when it is an internal path that role may open; anything else goes to the role home.
+  router.push(safeRedirect(router, route.query.redirect, store.rol) ?? rutaPorRol[store.rol] ?? '/tiendas')
 }
 </script>
 

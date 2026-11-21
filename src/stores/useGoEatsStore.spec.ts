@@ -222,6 +222,14 @@ describe('autenticarUsuario without offline fake login', () => {
     expect(store.comercioPropio).toBeNull()
     expect(store.autenticado).toBe(false)
   })
+
+  it('logout toasts the default message, and a custom one when the session expired', () => {
+    const store = loggedIn('customer')
+    store.cerrarSesion()
+    expect(store.notificacion.texto).toBe('Has cerrado sesión.')
+    store.cerrarSesion('Tu sesión expiró. Inicia sesión de nuevo.')
+    expect(store.notificacion.texto).toBe('Tu sesión expiró. Inicia sesión de nuevo.')
+  })
 })
 
 describe('canonical states in order actions', () => {

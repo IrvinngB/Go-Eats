@@ -18,6 +18,21 @@ export const tokenStorage = {
   },
 }
 
+// Set once by the router installer: logs the user out through the router when a REAL session expires.
+let sessionExpiredHandler: (() => void) | null = null
+
+export function setSessionExpiredHandler(handler: (() => void) | null) {
+  sessionExpiredHandler = handler
+}
+
+function notifySessionExpired() {
+  try {
+    sessionExpiredHandler?.()
+  } catch {
+    // A faulty handler must never mask the original request error.
+  }
+}
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api/v1',
   timeout: 10000,
@@ -65,7 +80,10 @@ api.interceptors.response.use(
 
     const refreshToken = tokenStorage.getRefreshToken()
     if (!refreshToken) {
+      // Only a session that held an access token expired; anonymous public calls stay silent.
+      const teniaSesion = Boolean(tokenStorage.getAccessToken())
       tokenStorage.clear()
+      if (teniaSesion) notifySessionExpired()
       return Promise.reject(error)
     }
 
@@ -100,6 +118,7 @@ api.interceptors.response.use(
     } catch (refreshError) {
       processQueue(refreshError, null)
       tokenStorage.clear()
+      notifySessionExpired()
       return Promise.reject(refreshError)
     } finally {
       isRefreshing = false

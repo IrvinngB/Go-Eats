@@ -2,6 +2,8 @@
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useGoEatsStore, CUENTAS_DEMO } from '../stores/useGoEatsStore'
+import { rutaPorRol } from '../guards'
+import { DEMO_SWITCHER } from '../config'
 import {
   ShoppingBag,
   Store,
@@ -34,17 +36,11 @@ const rolesNombres = {
   admin: 'Administrador',
 }
 
-const rutaPorRol = {
-  customer: '/tiendas',
-  merchant: '/panel-comercio',
-  courier: '/panel-repartidor',
-  accountant: '/panel-contabilidad',
-  admin: '/panel-admin',
-}
-
 const menuAbierto = ref(false)
 const cambiandoCuenta = ref(false)
-const esRolCliente = computed(() => store.rol === 'customer')
+// The role is the SERVER role of the restored/logged-in session; anonymous has none.
+const esRolCliente = computed(() => store.autenticado && store.rol === 'customer')
+const homeActual = computed(() => (store.autenticado ? rutaPorRol[store.rol] : null) || '/tiendas')
 
 const inicialesUsuario = computed(() => {
   const n = store.usuario?.nombre || 'Go Eats'
@@ -59,6 +55,7 @@ const inicialesUsuario = computed(() => {
 
 const rolLabel = computed(() => rolesNombres[store.rol] || store.rol)
 
+const linksAnonimo = [{ to: '/tiendas', label: 'Explorar' }]
 const linksCliente = [
   { to: '/tiendas', label: 'Explorar' },
   { to: '/pedidos', label: 'Mis pedidos' },
@@ -69,8 +66,9 @@ async function seleccionarCuenta(cuenta) {
   cambiandoCuenta.value = true
   menuAbierto.value = false
   try {
-    await store.cambiarACuentaDemo(cuenta)
-    router.push(rutaPorRol[cuenta.role])
+    const res = await store.cambiarACuentaDemo(cuenta)
+    // Navigate by the role the SERVER returned (store.rol), never the one listed in the demo accounts.
+    if (res?.ok) router.push(rutaPorRol[store.rol] || '/tiendas')
   } finally {
     cambiandoCuenta.value = false
   }
@@ -87,15 +85,15 @@ function salir() {
   <header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-line">
     <div class="mx-auto max-w-6xl px-4 h-16 flex items-center gap-3">
       <!-- Logo -->
-      <button class="flex items-center gap-2 shrink-0" @click="router.push(rutaPorRol[store.rol] || '/tiendas')">
+      <button class="flex items-center gap-2 shrink-0" @click="router.push(homeActual)">
         <span class="grid place-items-center w-8 h-8 rounded-lg bg-brand text-white text-base font-bold shadow-sm">G</span>
         <span class="text-lg font-bold text-ink hidden sm:block">Go Eats</span>
       </button>
 
-      <!-- Cliente nav links -->
-      <nav v-if="esRolCliente" class="hidden md:flex items-center gap-1 ml-4">
+      <!-- Customer nav links (anonymous visitors only see the public store list) -->
+      <nav v-if="esRolCliente || !store.autenticado" class="hidden md:flex items-center gap-1 ml-4">
         <button
-          v-for="l in linksCliente" :key="l.to"
+          v-for="l in (esRolCliente ? linksCliente : linksAnonimo)" :key="l.to"
           class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
           :class="route.path.startsWith(l.to) ? 'bg-brand-light text-brand-dark' : 'text-slatebody hover:bg-canvas'"
           @click="router.push(l.to)"
@@ -106,8 +104,13 @@ function salir() {
 
       <div class="flex-1" />
 
-      <!-- Account Switcher Dropdown (Real Accounts with JWT) -->
-      <div class="relative">
+      <!-- Anonymous: no user, just the way in -->
+      <button v-if="!store.autenticado" class="btn-primary !py-2 !px-4" @click="router.push('/login')">
+        Iniciar sesión
+      </button>
+
+      <!-- Session menu (real server session) -->
+      <div v-else class="relative">
         <button
           class="flex items-center gap-2.5 rounded-full border border-line bg-white pl-1.5 pr-3 py-1 hover:border-brand/50 shadow-sm transition-all"
           :disabled="cambiandoCuenta"
@@ -145,8 +148,8 @@ function salir() {
             </span>
           </div>
 
-          <!-- Switch to Another Real Account -->
-          <div class="py-1">
+          <!-- Demo switcher: only in builds with VITE_ENABLE_DEMO_SWITCHER=true (real logins, server role) -->
+          <div v-if="DEMO_SWITCHER" class="py-1">
             <p class="px-4 pt-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-slatebody/70">
               Cambiar de Cuenta (Autenticación Real)
             </p>

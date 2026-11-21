@@ -202,7 +202,7 @@ export const useGoEatsStore = defineStore('goeats', {
       return res
     },
 
-    cerrarSesion() {
+    cerrarSesion(mensaje = 'Has cerrado sesión.') {
       tokenStorage.clear()
       this.autenticado = false
       this.usuario = { nombre: 'Invitado', email: '', telefono: '', consentimientoLey81: false }
@@ -212,7 +212,7 @@ export const useGoEatsStore = defineStore('goeats', {
       this.misSolicitudesARCO = []
       this.consentimientoRequerido = false
       this.pedidoPendientePago = null
-      this.notificar('Has cerrado sesión.')
+      this.notificar(mensaje)
     },
 
     async autenticarUsuario({ email, password, nombre, modoRegistro = false, aceptaPolitica = false }) {

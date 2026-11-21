@@ -16,6 +16,16 @@ Full-stack delivery platform for **Comercios Unidos del Istmo, S.A.** built as a
 
 > Frontend-only hot reload while developing: `pnpm install && pnpm dev` (Vite proxies `/api/v1` to `localhost:8000`).
 
+### Demo account switcher (build-time flag, local only)
+
+The TopBar account switcher is gated by `VITE_ENABLE_DEMO_SWITCHER` (only the exact string `true` enables it; default OFF):
+
+- `docker compose up` / `docker compose build` also load `docker-compose.override.yml`, which builds the web image with the switcher ON (local demo).
+- `docker compose -f docker-compose.yml up --build` does NOT load the override: the switcher stays OFF (production / CI default).
+- `pnpm dev`: put `VITE_ENABLE_DEMO_SWITCHER=true` in `.env.development` (or `.env.development.local`); `pnpm build` never reads development env files (OFF).
+
+The flag is baked into the bundle at build time, so changing it requires rebuilding the web image.
+
 ## Details
 
 | Area | Decision |
