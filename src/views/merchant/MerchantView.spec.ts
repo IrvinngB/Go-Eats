@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 
 vi.mock('../../services/api', () => ({
@@ -136,5 +136,84 @@ describe('MerchantView canonical states', () => {
   it('shows no action buttons for spaced (legacy) states', () => {
     const w = withOrders([pedido('PED-1', 'en preparación')])
     expect(button(w, 'Marcar listo para recoger')).toBeUndefined()
+  })
+})
+
+const apiPut = api.put as unknown as ReturnType<typeof vi.fn>
+const apiPost = api.post as unknown as ReturnType<typeof vi.fn>
+const apiDelete = api.delete as unknown as ReturnType<typeof vi.fn>
+
+describe('MerchantView RF-13 catalog, promos, schedule and open/close toggle', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    apiPut.mockResolvedValue({ data: {} })
+    apiPost.mockResolvedValue({ data: { code: 'c2-p105' } })
+    apiDelete.mockResolvedValue({ data: null })
+  })
+
+  it('toggles store is_open from the header and calls PUT /merchants/:code/schedule', async () => {
+    const w = setup('c2')
+    const store = useGoEatsStore()
+    const c2 = store.comercios.find((c: { id: string }) => c.id === 'c2')
+    const inicial = Boolean(c2.activo)
+
+    await w.find('[data-test="toggle-store-open"]').trigger('click')
+    await flushPromises()
+
+    expect(apiPut).toHaveBeenCalledWith('/merchants/c2/schedule', {
+      opens_at: c2.horario.abre,
+      closes_at: c2.horario.cierra,
+      is_open: !inicial,
+    })
+    expect(c2.activo).toBe(!inicial)
+  })
+
+  it('creates and edits products with category and promo_price, validates promo < regular, and supports deleting', async () => {
+    const w = setup('c2')
+    const store = useGoEatsStore()
+    store.catalogo.c2 = [
+      { id: 'p-1', nombre: 'Bowl Verde', categoria: 'Bowls', precio: 8, precioRegular: 8, descripcion: 'Fresco', disponible: true },
+    ]
+    await w.find('[data-test="tab-catalogo"]').trigger('click')
+
+    // Open New Product modal
+    await w.find('[data-test="new-product-btn"]').trigger('click')
+    await w.find('[data-test="product-name-input"]').setValue('Jugo Detox')
+    await w.find('[data-test="product-category-input"]').setValue('Bebidas')
+    await w.find('[data-test="product-price-input"]').setValue('4.50')
+    // Invalid promo >= regular blocks submission
+    await w.find('[data-test="product-promo-input"]').setValue('5.00')
+    await w.find('[data-test="save-product-btn"]').trigger('click')
+    expect(w.find('[data-test="product-form-error"]').text()).toContain('menor al precio regular')
+    expect(apiPost).not.toHaveBeenCalled()
+
+    // Valid promo < regular submits to API
+    await w.find('[data-test="product-promo-input"]').setValue('3.50')
+    await w.find('[data-test="product-description-input"]').setValue('Con jengibre')
+    await w.find('[data-test="save-product-btn"]').trigger('click')
+    await flushPromises()
+
+    expect(apiPost).toHaveBeenCalledWith('/catalog/merchants/c2/products', {
+      name: 'Jugo Detox',
+      category: 'Bebidas',
+      price: 4.5,
+      promo_price: 3.5,
+      description: 'Con jengibre',
+      is_available: true,
+    })
+    expect(store.catalogo.c2).toHaveLength(2)
+
+    // Filter by category chip
+    const chips = w.findAll('[data-test="merchant-category-chip"]')
+    const bebidasChip = chips.find((c) => c.text() === 'Bebidas')!
+    await bebidasChip.trigger('click')
+    expect(w.findAll('[data-test="merchant-product-card"]')).toHaveLength(1)
+    expect(w.find('[data-test="merchant-product-promo"]').text()).toContain('Promo')
+
+    // Delete product calls DELETE /catalog/products/:id and removes from catalog
+    await w.find('[data-test="delete-product-btn"]').trigger('click')
+    await flushPromises()
+    expect(apiDelete).toHaveBeenCalledWith('/catalog/products/c2-p105')
+    expect(store.catalogo.c2).toHaveLength(1)
   })
 })

@@ -37,10 +37,10 @@ def get_merchant(code: str, db: Session = Depends(get_db)) -> MerchantRead:
 def update_merchant_schedule(
     code: str,
     payload: MerchantScheduleUpdate,
-    _: CurrentUser = Depends(require_roles(UserRole.MERCHANT, UserRole.ADMIN)),
+    current_user: CurrentUser = Depends(require_roles(UserRole.MERCHANT, UserRole.ADMIN)),
     db: Session = Depends(get_db),
 ) -> MerchantRead:
-    return MerchantService(db).update_schedule(code, payload)
+    return MerchantService(db).update_schedule(current_user, code, payload)
 
 
 @router.patch("/{code}/affiliation", response_model=MerchantRead)

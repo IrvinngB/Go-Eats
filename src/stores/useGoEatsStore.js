@@ -613,21 +613,42 @@ export const useGoEatsStore = defineStore('goeats', {
 
     guardarProducto(comercioId, datos, productoId = null) {
       const lista = this.catalogo[comercioId] || []
-      const body = { name: datos.nombre, price: Number(datos.precio), description: datos.descripcion || '' }
+      const precioBase = Number(datos.precioRegular ?? datos.precio)
+      const tienePromoInput = datos.precioPromo !== undefined
+      const promoNum =
+        tienePromoInput && datos.precioPromo !== null && datos.precioPromo !== '' && Number(datos.precioPromo) > 0
+          ? Number(datos.precioPromo)
+          : null
+      const precioEfectivo = promoNum && promoNum < precioBase ? promoNum : Number(datos.precio ?? precioBase)
+      const body = {
+        name: datos.nombre,
+        price: precioBase,
+        description: datos.descripcion || '',
+        ...(datos.categoria !== undefined ? { category: datos.categoria || 'General' } : {}),
+        ...(tienePromoInput ? { promo_price: promoNum } : {}),
+      }
+      const camposLocales = {
+        ...datos,
+        precio: precioEfectivo,
+        ...(datos.precioRegular !== undefined || tienePromoInput ? { precioRegular: precioBase } : {}),
+      }
       if (productoId) {
         const existente = lista.find((p) => p.id === productoId)
         return this.escribir({
           objetivos: [existente],
           aplicar: () => {
-            if (existente) Object.assign(existente, datos)
+            if (existente) Object.assign(existente, camposLocales)
           },
           llamada: () => api.put(`/catalog/products/${productoId}`, body),
         })
       }
-      const nuevo = { id: nextId('P'), disponible: true, ...datos }
+      const nuevo = { id: nextId('P'), disponible: true, ...camposLocales }
       return this.escribir({
         aplicar: () => lista.push(nuevo),
         llamada: () => api.post(`/catalog/merchants/${comercioId}/products`, { ...body, is_available: true }),
+        exito: (data) => {
+          if (data?.code) nuevo.id = data.code
+        },
         revertir: () => {
           const i = lista.indexOf(nuevo)
           if (i >= 0) lista.splice(i, 1)
@@ -639,14 +660,54 @@ export const useGoEatsStore = defineStore('goeats', {
       })
     },
 
+    eliminarProducto(comercioId, productoId) {
+      const lista = this.catalogo[comercioId] || []
+      const idx = lista.findIndex((p) => p.id === productoId)
+      if (idx < 0) return Promise.resolve({ ok: false, error: null })
+      const eliminado = lista[idx]
+      return this.escribir({
+        aplicar: () => lista.splice(idx, 1),
+        llamada: () => api.delete(`/catalog/products/${productoId}`),
+        revertir: () => lista.splice(idx, 0, eliminado),
+      })
+    },
+
     guardarHorarioComercio(comercioId, horario) {
       const c = this.comercios.find((x) => x.id === comercioId)
+      const tieneAbierto = typeof horario.abierto === 'boolean'
+      const body = {
+        opens_at: horario.abre,
+        closes_at: horario.cierra,
+        ...(tieneAbierto ? { is_open: horario.abierto } : {}),
+      }
       return this.escribir({
         objetivos: [c],
         aplicar: () => {
-          if (c) c.horario = { ...horario }
+          if (c) {
+            c.horario = { abre: horario.abre, cierra: horario.cierra }
+            if (tieneAbierto) c.activo = horario.abierto
+          }
         },
-        llamada: () => api.put(`/merchants/${comercioId}/schedule`, { opens_at: horario.abre, closes_at: horario.cierra }),
+        llamada: () => api.put(`/merchants/${comercioId}/schedule`, body),
+      })
+    },
+
+    cambiarAperturaComercio(comercioId, abierto) {
+      const c = this.comercios.find((x) => x.id === comercioId)
+      if (!c) return Promise.resolve({ ok: false, error: null })
+      const abre = c.horario?.abre || '09:00'
+      const cierra = c.horario?.cierra || '21:00'
+      return this.escribir({
+        objetivos: [c],
+        aplicar: () => {
+          c.activo = Boolean(abierto)
+        },
+        llamada: () =>
+          api.put(`/merchants/${comercioId}/schedule`, {
+            opens_at: abre,
+            closes_at: cierra,
+            is_open: Boolean(abierto),
+          }),
       })
     },
 

@@ -230,6 +230,11 @@ class OrderService:
 
     def assign_courier(self, user: CurrentUser, code: str, payload: OrderAssignCourier) -> Order:
         order = self.get_order_for(user, code)  # merchant: only its own orders; admin: any
+        if order.status in {"en_camino", "entregado", "cancelado", "rechazado"}:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot assign courier when order status is '{order.status}' (RF-01).",
+            )
         courier = self.courier_repo.get_by_code(payload.courier_code)
         if not courier or not courier.is_available or courier.affiliation_status != "activo":
             raise HTTPException(
