@@ -21,19 +21,15 @@ Last refreshed: 2026-11-20
 - Frontend API base: `src/services/api.ts` (axios, bearer token + refresh interceptors per spec).
 
 ## Testing and quality (Strict TDD: ON)
-- No test runner exists yet. The FIRST change must add vitest (frontend) and pytest (backend, with httpx TestClient) before any feature work; tests precede code.
-- Commands today: typecheck `pnpm exec vue-tsc -b`; build `pnpm build`; dev `pnpm dev`; install `pnpm install --frozen-lockfile`; backend install `pip install -r backend/requirements.txt`; stack `docker compose up --build`.
-- Lint/format: none configured.
-- security_review: ON. Review auth, RBAC, secrets, CORS, PII/ARCO and payments on every change.
+- Automated runners active and verified:
+  - Frontend unit/component/store/build: `pnpm test` (Vitest 2.1 + `@vue/test-utils` + `jsdom`, 50 test files).
+  - Frontend E2E: `pnpm test:e2e` (Playwright Chromium against production build, 33 tests).
+  - Backend API/integration: `cd backend && .venv/bin/pytest -q` (pytest + FastAPI TestClient + SQLite in-memory, 416 tests).
+  - Typecheck & build: `pnpm exec vue-tsc -b` and `pnpm build`.
+- security_review: ON. Review auth, RBAC, ownership (`owner_user_id` / `user_id`), secrets, CORS, PII/ARCO and payments on every change.
 
-## Known gaps vs spec (do not treat as settled)
-1. No CI (GitHub Actions) and no Terraform; spec calls for both plus DigitalOcean/Hostinger deploy.
-2. Alembic has `env.py` but no `versions/`; `alembic.ini` points to `sqlite:///./goeats.db`. Schema is created by `Base.metadata.create_all` plus seed in the FastAPI lifespan. `core/config.py` also defaults `DATABASE_URL` to sqlite when unset.
-3. Store mixes mocks (`mockData.js`) and API calls; several writes use fire-and-forget `.catch(() => {})`.
-4. Duplicated order-state strings in `backend/app/domains/orders/service.py` ("en preparación"/"en_preparacion", "listo para recoger"/"listo_para_recoger"); `seed.py` also uses the spaced form. Canonical (spec + schema): snake_case.
-5. Cross-domain imports to audit against the isolation rule: orders -> delivery (`CourierRepository`, repository-level), reports -> merchants/orders/payments (repository), auth -> users (`UserRepository`, `users.schemas`). Observed imports are repository/schema level, not service level; not yet formally verified.
-6. Security items seen: CORS `allow_origins=["*"]` with credentials; default JWT secret and plaintext dev credentials in `docker-compose.yml` and `config.py`; JWT is HS256 only.
-7. Spec mentions Google Maps, FCM: only `shared/geo.py`, `shared/push.py` stubs exist (not verified as real integrations).
-8. package.json name is still `vite-vue-typescript-starter`; `HelloWorld.vue` and `assets/vue.svg` are leftovers.
-9. Palette conflict: spec says `#00B19D` primary (also used in vite PWA `theme_color`); `desing.md` says `#00C2A8`. To confirm with the user.
-10. Icon conflict: spec says Phosphor/Lucide; `desing.md` says Lucide only (and `@lucide/vue` is the installed package). Treat Lucide as current.
+## Resolved architecture items (formerly gaps)
+1. Startup migrations (`backend/app/core/migrations.py`) run idempotently under a Postgres advisory lock in `main.lifespan` and `init_db.py` (adds `owner_user_id`, `user_id`, `address`, `lat`, `lng`, `delivery_lat`, `delivery_lng`, backfills `ENTITY_LINKS`, and normalizes legacy spaced order statuses to canonical `snake_case`).
+2. Store writes use `store.escribir` (`src/stores/useGoEatsStore.js`, `src/services/errors.ts`) with snapshot rollback and typed Spanish error toasts; `sincronizarConBackend` uses role-gated `Promise.allSettled`.
+3. Merchant schedule/catalog mutations (`merchants/service.py`, `catalog/service.py`) and courier availability mutations (`delivery/service.py`) enforce strict entity ownership (`owner_user_id` / `user_id`); admin user account status (`PATCH /users/{id}/status`) prevents self-suspension.
+4. Remaining external-infra items outside local Docker scope: GitHub Actions CI workflow, Terraform DigitalOcean/Hostinger provisioning, and live FCM credentials (`shared/push.py` runs via `BackgroundTasks` log adapter).
