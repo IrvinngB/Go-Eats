@@ -131,6 +131,8 @@ export const useGoEatsStore = defineStore('goeats', {
     notificacion: null,
     comercioPropioId: null, // comercio vinculado a la cuenta (GET /merchants/mine)
     repartidorPropioId: null, // repartidor vinculado a la cuenta (GET /delivery/couriers/me)
+    usuariosAdmin: [], // lista de cuentas de usuario (GET /users/, solo admin)
+    kpisAdmin: null, // métricas reales (GET /reports/kpis, admin/accountant)
   }),
 
   getters: {
@@ -815,6 +817,57 @@ export const useGoEatsStore = defineStore('goeats', {
         },
         llamada: () => api.patch(`/merchants/${comercioId}/affiliation`, { affiliation_status: estadoAfiliacion, is_open: !suspendido }),
         exito: () => this.registrarEvento('Admin', `${suspendido ? 'Suspendió' : 'Reactivó'} a ${c.nombre}`, 'comercio'),
+      })
+    },
+
+    cambiarEstadoRepartidor(repartidorId, suspendido) {
+      const r = this.repartidores.find((x) => x.id === repartidorId)
+      if (!r) return Promise.resolve({ ok: false, error: null })
+      const estadoAfiliacion = suspendido ? 'suspendido' : 'activo'
+      return this.escribir({
+        objetivos: [r],
+        aplicar: () => {
+          r.estadoAfiliacion = estadoAfiliacion
+          if (suspendido) r.disponible = false
+        },
+        llamada: () => api.patch(`/delivery/couriers/${repartidorId}/affiliation`, { affiliation_status: estadoAfiliacion }),
+        exito: () => this.registrarEvento('Admin', `${suspendido ? 'Suspendió' : 'Reactivó'} al repartidor ${r.nombre}`, 'pedido'),
+      })
+    },
+
+    async cargarPanelAdmin() {
+      const [usersRes, kpisRes] = await Promise.allSettled([api.get('/users/'), api.get('/reports/kpis')])
+      if (usersRes.status === 'fulfilled' && Array.isArray(usersRes.value?.data)) {
+        this.usuariosAdmin = usersRes.value.data.map((u) => ({
+          id: u.id,
+          nombre: u.full_name,
+          email: u.email,
+          telefono: u.phone || '',
+          rol: u.role,
+          activo: Boolean(u.is_active),
+        }))
+      }
+      if (kpisRes.status === 'fulfilled' && kpisRes.value?.data) {
+        const k = kpisRes.value.data
+        this.kpisAdmin = {
+          pedidosDia: Number(k.orders_today ?? 0),
+          ingresosTotales: Number(k.total_revenue ?? 0),
+          tiempoPromedioEntrega: k.avg_delivery_time || '28 min',
+          comerciosActivos: Number(k.active_merchants ?? 0),
+        }
+      }
+    },
+
+    cambiarEstadoUsuario(userId, activo) {
+      const u = this.usuariosAdmin.find((x) => x.id === userId)
+      if (!u) return Promise.resolve({ ok: false, error: null })
+      return this.escribir({
+        objetivos: [u],
+        aplicar: () => {
+          u.activo = Boolean(activo)
+        },
+        llamada: () => api.patch(`/users/${userId}/status`, { is_active: Boolean(activo) }),
+        exito: () => this.registrarEvento('Admin', `${activo ? 'Reactivó' : 'Suspendió'} cuenta de ${u.email}`, 'acceso'),
       })
     },
 

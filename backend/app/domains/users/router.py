@@ -10,6 +10,7 @@ from app.domains.users.schemas import (
     ConsentUpdate,
     UserListRead,
     UserRead,
+    UserStatusUpdate,
     UserUpdate,
 )
 from app.domains.users.service import UserService
@@ -92,3 +93,13 @@ def list_all_users(
     db: Session = Depends(get_db),
 ) -> list[UserListRead]:
     return UserService(db).list_users()
+
+
+@router.patch("/{user_id}/status", response_model=UserListRead)
+def update_user_status(
+    user_id: int,
+    payload: UserStatusUpdate,
+    current_user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+    db: Session = Depends(get_db),
+) -> UserListRead:
+    return UserService(db).set_user_status(current_user.user_id, user_id, payload)

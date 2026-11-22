@@ -80,6 +80,12 @@ class UserRepository:
         self.db.refresh(user)
         return user
 
+    def set_active(self, user: User, is_active: bool) -> User:
+        user.is_active = is_active
+        self.db.commit()
+        self.db.refresh(user)
+        return user
+
     def create_arco_request(self, user: User, request_type: str, detail: str) -> ArcoRequest:
         arco = ArcoRequest(
             user_id=user.id,
