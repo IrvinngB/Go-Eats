@@ -32,10 +32,10 @@ def get_my_courier(
 def update_courier_availability(
     code: str,
     payload: CourierAvailabilityUpdate,
-    _: CurrentUser = Depends(require_roles(UserRole.COURIER, UserRole.ADMIN)),
+    current_user: CurrentUser = Depends(require_roles(UserRole.COURIER, UserRole.ADMIN)),
     db: Session = Depends(get_db),
 ) -> CourierRead:
-    return DeliveryService(db).update_availability(code, payload)
+    return DeliveryService(db).update_availability(current_user, code, payload)
 
 
 @router.patch("/couriers/{code}/affiliation", response_model=CourierRead)

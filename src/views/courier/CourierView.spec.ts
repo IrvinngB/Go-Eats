@@ -109,3 +109,52 @@ describe('CourierView canonical states', () => {
     expect(button(wrapper, 'Marcar entregado')).toBeUndefined()
   })
 })
+
+describe('CourierView RF-02 tri-state availability and RF-19 package details', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    apiPatch.mockResolvedValue({ data: {} })
+  })
+
+  it('displays En línea when online and idle, Ocupado when an order is en_camino, and Desconectado when offline', async () => {
+    const { store, wrapper } = setup('r2', [pedido('PED-1', 'listo_para_recoger')])
+    const r2 = store.repartidores.find((r: { id: string }) => r.id === 'r2')
+    r2.disponible = true
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-test="courier-operational-status"]').text()).toBe('En línea')
+
+    store.pedidos = [pedido('PED-1', 'en_camino')]
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-test="courier-operational-status"]').text()).toBe('Ocupado')
+
+    await wrapper.find('[data-test="toggle-courier-availability"]').trigger('click')
+    expect(apiPatch).toHaveBeenCalledWith('/delivery/couriers/r2/availability', { is_available: false })
+    expect(wrapper.find('[data-test="courier-operational-status"]').text()).toBe('Desconectado')
+  })
+
+  it('renders RF-19 pickup merchant, customer details, package items, item notes, order notes, and frozen GPS coordinates', () => {
+    const fullOrder = {
+      ...pedido('PED-99', 'listo_para_recoger'),
+      comercioNombre: 'Fonda La Istmeña',
+      clienteNombre: 'Carlos Andrade',
+      clienteTelefono: '6123-4567',
+      direccion: 'Calle 50, PH Global',
+      lat: 8.9824,
+      lng: -79.5199,
+      observaciones: 'Portón negro, tocar timbre 2',
+      items: [
+        { cantidad: 2, nombre: 'Sancocho de gallina', observacion: 'Sin culantro' },
+        { cantidad: 1, nombre: 'Chicha de maracuyá', observacion: '' },
+      ],
+    }
+    const { wrapper } = setup('r2', [fullOrder])
+
+    expect(wrapper.find('[data-test="pickup-merchant"]').text()).toBe('Fonda La Istmeña')
+    expect(wrapper.find('[data-test="dropoff-customer"]').text()).toBe('Carlos Andrade')
+    expect(wrapper.find('[data-test="dropoff-address"]').text()).toContain('Calle 50, PH Global')
+    expect(wrapper.find('[data-test="dropoff-coords"]').text()).toContain('8.9824, -79.5199')
+    expect(wrapper.find('[data-test="courier-order-items"]').text()).toContain('2× Sancocho de gallina')
+    expect(wrapper.find('[data-test="courier-order-items"]').text()).toContain('Sin culantro')
+    expect(wrapper.find('[data-test="courier-order-notes"]').text()).toContain('Portón negro, tocar timbre 2')
+  })
+})

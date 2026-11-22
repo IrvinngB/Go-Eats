@@ -1,5 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+from app.core.rbac import CurrentUser, UserRole
 from app.domains.delivery.models import Courier
 from app.domains.delivery.repository import CourierRepository
 from app.domains.delivery.schemas import CourierAffiliationUpdate, CourierAvailabilityUpdate
@@ -28,8 +29,20 @@ class DeliveryService:
             )
         return courier
 
-    def update_availability(self, code: str, payload: CourierAvailabilityUpdate) -> Courier:
+    def update_availability(
+        self, user: CurrentUser, code: str, payload: CourierAvailabilityUpdate
+    ) -> Courier:
         courier = self.get_courier(code)
+        if user.role == UserRole.COURIER and courier.user_id != user.user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to modify this courier's availability.",
+            )
+        if payload.is_available and courier.affiliation_status != "activo":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Inactive or suspended courier cannot become available.",
+            )
         updated = self.repo.set_availability(courier, payload.is_available)
         state_str = "en línea" if updated.is_available else "desconectado"
         record_audit_event(
