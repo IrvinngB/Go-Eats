@@ -1,147 +1,249 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useGoEatsStore } from '../../stores/useGoEatsStore'
-import { ESTADOS_PEDIDO } from '../../mockData'
-import StatusBadge from '../../components/StatusBadge.vue'
+import { useDialogo } from '../../composables/useDialogo'
+import { estadoVisual } from '../../utils/orderStatus'
+import { layoutGrid, cellClass } from '../../utils/grid'
+import { formatRating } from '../../utils/catalog'
+import OrderActive from '../../components/orders/OrderActive.vue'
+import OrderHead from '../../components/orders/OrderHead.vue'
+import OrderItems from '../../components/orders/OrderItems.vue'
+import OrderTimeline from '../../components/orders/OrderTimeline.vue'
+import RatingStars from '../../components/orders/RatingStars.vue'
+import '@fontsource/nunito/latin-400.css'
+import '@fontsource/nunito/latin-700.css'
+import '@fontsource/nunito/latin-800.css'
+import '@fontsource/jetbrains-mono/latin-500.css'
+import '../../components/catalog/catalog.css'
+import { CircleX, PackageCheck, Receipt, Star, X } from '@lucide/vue'
 
 const store = useGoEatsStore()
 
 const misPedidos = computed(() => store.pedidosComoCliente)
 
-const pasos = ESTADOS_PEDIDO
+// Closed orders (entregado, rechazado, cancelado) go to the history; the rest are in progress.
+const enCurso = computed(() => misPedidos.value.filter((p) => estadoVisual(p.estado).enCurso))
+const anteriores = computed(() => misPedidos.value.filter((p) => !estadoVisual(p.estado).enCurso))
+const celdas = computed(() => layoutGrid(anteriores.value.length).map(cellClass))
 
-function indiceEstado(p) {
-  return pasos.indexOf(p.estado)
+// Delivery time published by the merchant; an unknown merchant simply has no ETA tile.
+function tiempoComercio(p) {
+  return store.comercios.find((c) => c.id === p.comercioId)?.tiempoEntrega || null
 }
 
+// One primary button per view: the map action of the first trackable order, else "Calificar" of the first unrated delivery.
+const primarioMapa = computed(() => enCurso.value.find((p) => estadoVisual(p.estado).seguible)?.id ?? null)
+const primarioCalificar = computed(() => {
+  if (primarioMapa.value) return null
+  return anteriores.value.find((p) => p.estado === 'entregado' && !p.calificacion)?.id ?? null
+})
+
+const pedidoEnMapa = ref(null) // id of the order whose tracking map is open
+
+function toggleMapa(pedidoId) {
+  pedidoEnMapa.value = pedidoEnMapa.value === pedidoId ? null : pedidoId
+}
+
+// ---------- Rating dialog ----------
 const modalCalificar = ref(null)
 const estrellas = ref(5)
-const hoverEstrella = ref(0)
+const estrellasRepartidor = ref(5)
+const comentarioCalificacion = ref('')
+const enviando = ref(false)
+const panelCalificar = ref(null)
+const tituloCalificar = ref(null)
 
 function abrirCalificar(p) {
   modalCalificar.value = p
-  estrellas.value = p.calificacion || 5
+  estrellas.value = p.calificacionComercio || p.calificacion || 5
+  estrellasRepartidor.value = p.calificacionRepartidor || 5
+  comentarioCalificacion.value = p.comentarioCalificacion || ''
 }
 
-function enviarCalificacion() {
-  store.calificarPedido(modalCalificar.value.id, estrellas.value)
-  store.notificar('¡Gracias por calificar tu pedido!')
+function cerrarCalificar() {
+  if (enviando.value) return
   modalCalificar.value = null
 }
 
-function progresoEstado(estado) {
-  return Math.round((100 / pasos.length) * (pasos.indexOf(estado) + 1))
+// Focus moves into the dialog, stays inside it, Escape closes it and focus returns to the "Calificar" button.
+useDialogo(() => !!modalCalificar.value, panelCalificar, {
+  cerrar: cerrarCalificar,
+  puedeCerrar: () => !enviando.value,
+  enfoqueInicial: () => tituloCalificar.value,
+  alVolver: ['[data-test="rate-open"]'],
+})
+
+async function enviarCalificacion() {
+  if (enviando.value) return // a second click while the write is in flight does nothing
+  enviando.value = true
+  try {
+    const r = await store.calificarPedido(
+      modalCalificar.value.id,
+      estrellas.value,
+      estrellasRepartidor.value,
+      comentarioCalificacion.value,
+    )
+    if (!r.ok) return // the dialog stays open; the store already rolled back and showed the error
+    store.notificar('¡Gracias por calificar tu pedido!')
+    modalCalificar.value = null
+  } finally {
+    enviando.value = false
+  }
 }
+
+const estrellasLlenas = (valor) => Array.from({ length: 5 }, (_, i) => i < valor)
 </script>
 
 <template>
-  <div class="mx-auto max-w-3xl px-4 py-8">
-    <h1 class="text-2xl font-bold">Mis pedidos</h1>
-    <p class="text-sm text-slatebody mt-1">Sigue el estado de tus entregas en tiempo real.</p>
+  <div class="cx" data-test="orders-root">
+    <div class="cx-page cx-stack" style="gap: 24px">
+      <header class="cx-stack" style="gap: 4px">
+        <h1 class="cx-h1">Mis pedidos</h1>
+        <p class="cx-lead">Sigue el estado de tus entregas y revisa tus pedidos anteriores.</p>
+      </header>
 
-    <div v-if="misPedidos.length === 0" class="card p-10 mt-6 text-center">
-      <p class="text-slatebody">Aún no tienes pedidos. Explora comercios y haz tu primer pedido.</p>
-      <router-link to="/tiendas" class="btn-primary mt-4 inline-flex">Explorar comercios</router-link>
-    </div>
+      <!-- Empty state -->
+      <section v-if="misPedidos.length === 0" class="cx-tile cx-tile-hero cx-empty" data-test="orders-empty" aria-labelledby="orders-empty-title">
+        <span class="cx-empty-icon"><Receipt :size="32" aria-hidden="true" /></span>
+        <h2 id="orders-empty-title" class="cx-h3">Aún no tienes pedidos</h2>
+        <p>Cuando hagas tu primer pedido podrás seguirlo aquí.</p>
+        <router-link to="/tiendas" class="cx-btn cx-btn-lg">Explorar comercios</router-link>
+      </section>
 
-    <div v-else class="mt-6 space-y-4">
-      <div v-for="p in misPedidos" :key="p.id" class="card p-5">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <div class="flex items-center gap-2">
-              <h3 class="font-semibold text-ink">{{ p.id }}</h3>
-              <StatusBadge :estado="p.estado" />
+      <!-- In progress: the first one is the active tile (the only one with depth) -->
+      <section v-if="enCurso.length" class="cx-stack" aria-labelledby="orders-active-title">
+        <h2 id="orders-active-title" class="cx-h2">En curso</h2>
+        <OrderActive
+          v-for="(p, i) in enCurso"
+          :key="p.id"
+          :pedido="p"
+          :repartidor="store.repartidorPorId(p.repartidorId)"
+          :tiempo-comercio="tiempoComercio(p)"
+          :destacado="i === 0"
+          :primaria="p.id === primarioMapa"
+          :mapa-abierto="pedidoEnMapa === p.id"
+          @toggle-mapa="toggleMapa(p.id)"
+        />
+      </section>
+
+      <!-- History -->
+      <section v-if="anteriores.length" class="cx-stack" aria-labelledby="orders-past-title">
+        <h2 id="orders-past-title" class="cx-h2">Anteriores</h2>
+        <div class="cx-cards">
+          <article
+            v-for="(p, i) in anteriores"
+            :key="p.id"
+            class="cx-order cx-order-past"
+            :class="celdas[i]"
+            data-test="order-card"
+            :data-estado="p.estado"
+          >
+            <OrderHead :pedido="p" chip />
+
+            <!-- Rejected or cancelled: no steps, the reason in a persistent alert -->
+            <div v-if="estadoVisual(p.estado).fallido" data-test="estado-terminal" class="cx-alert cx-alert-danger" role="status">
+              <CircleX :size="20" aria-hidden="true" />
+              <p><strong>{{ estadoVisual(p.estado).label }}:</strong> {{ p.motivoCancelacion || 'Sin motivo registrado.' }}</p>
             </div>
-            <p class="text-sm text-slatebody mt-0.5">{{ p.comercioNombre }} · {{ p.fecha }}</p>
-          </div>
-          <div class="text-right">
-            <p class="text-lg font-bold text-ink">B/ {{ p.total.toFixed(2) }}</p>
-            <p class="text-[11px] text-slatebody">{{ p.metodoPago === 'contr_entrega' ? 'Contra entrega' : 'Pago electrónico' }}</p>
-          </div>
-        </div>
 
-        <!-- Línea de tiempo -->
-        <div v-if="p.estado !== 'cancelado'" class="mt-6">
-          <div class="relative">
-            <div class="absolute left-0 right-0 top-2.5 h-0.5 bg-line rounded" />
-            <div class="absolute left-0 top-2.5 h-0.5 bg-brand rounded transition-all duration-500" :style="{ width: progresoEstado(p.estado) + '%' }" />
-            <div class="relative flex justify-between">
-              <div v-for="(paso, i) in pasos" :key="paso" class="flex flex-col items-center flex-1">
-                <span
-                  class="w-6 h-6 rounded-full border-2 grid place-items-center text-[10px] font-bold transition-colors duration-300"
-                  :class="i <= indiceEstado(p) ? 'bg-brand border-brand text-white' : 'bg-white border-line text-slatebody/50'"
-                >
-                  <svg v-if="i < indiceEstado(p)" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                  <template v-else>{{ i + 1 }}</template>
-                </span>
-                <span class="mt-1.5 text-[9px] sm:text-[10px] text-center leading-tight max-w-[60px]" :class="i <= indiceEstado(p) ? 'text-ink font-medium' : 'text-slatebody/60'">
-                  {{ paso.charAt(0).toUpperCase() + paso.slice(1) }}
-                </span>
+            <!-- Delivered: a tinted icon tile, a title and one action -->
+            <div v-else-if="p.estado === 'entregado'" class="cx-delivered" data-test="delivered-tile">
+              <span class="cx-delivered-icon"><PackageCheck :size="28" aria-hidden="true" /></span>
+              <div class="cx-delivered-text">
+                <h4 class="cx-h3">Pedido entregado</h4>
+                <template v-if="p.calificacion">
+                  <p class="cx-small cx-soft">Gracias por tu calificación.</p>
+                  <div class="cx-rated" data-test="rating-readonly">
+                    <p class="cx-rate-line">
+                      <span class="cx-caption cx-soft">Comercio</span>
+                      <span class="cx-stars-ro" role="img" :aria-label="`Comercio: ${p.calificacionComercio || p.calificacion} de 5 estrellas`">
+                        <Star v-for="(lleno, n) in estrellasLlenas(p.calificacionComercio || p.calificacion)" :key="n" :size="16" :data-lleno="lleno ? 'true' : 'false'" aria-hidden="true" />
+                      </span>
+                      <span class="cx-rate-num">{{ formatRating(p.calificacionComercio || p.calificacion) }}</span>
+                    </p>
+                    <p v-if="p.calificacionRepartidor" class="cx-rate-line">
+                      <span class="cx-caption cx-soft">Repartidor</span>
+                      <span class="cx-stars-ro" role="img" :aria-label="`Repartidor: ${p.calificacionRepartidor} de 5 estrellas`">
+                        <Star v-for="(lleno, n) in estrellasLlenas(p.calificacionRepartidor)" :key="n" :size="16" :data-lleno="lleno ? 'true' : 'false'" aria-hidden="true" />
+                      </span>
+                      <span class="cx-rate-num">{{ formatRating(p.calificacionRepartidor) }}</span>
+                    </p>
+                  </div>
+                </template>
+                <p v-else class="cx-small cx-soft">Cuéntanos cómo estuvo tu pedido de {{ p.comercioNombre }}.</p>
               </div>
+              <button
+                v-if="!p.calificacion"
+                type="button"
+                class="cx-btn"
+                :class="p.id === primarioCalificar ? '' : 'cx-btn-secondary'"
+                data-test="rate-open"
+                @click="abrirCalificar(p)"
+              >
+                Calificar
+              </button>
             </div>
-          </div>
+
+            <OrderItems :pedido="p">
+              <OrderTimeline :estado="p.estado" :fecha="p.fecha" />
+            </OrderItems>
+          </article>
         </div>
-
-        <p v-else class="mt-4 text-sm text-coral bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-          Cancelado: {{ p.motivoCancelacion || 'Sin motivo registrado.' }}
-        </p>
-
-        <!-- Repartidor asignado -->
-        <div v-if="p.repartidorId && p.estado === 'en camino'" class="mt-5 flex items-center gap-3 rounded-lg bg-canvas p-3">
-          <span class="grid place-items-center w-10 h-10 rounded-full bg-brand-light text-lg">🛵</span>
-          <div class="flex-1">
-            <p class="text-sm font-semibold text-ink">{{ store.repartidorPorId(p.repartidorId)?.nombre }}</p>
-            <p class="text-xs text-slatebody">Tu repartidor · {{ store.repartidorPorId(p.repartidorId)?.telefono }}</p>
-          </div>
-          <span class="text-xs text-slatebody">⭐ {{ store.repartidorPorId(p.repartidorId)?.rating }}</span>
-        </div>
-
-        <!-- Detalle de items -->
-        <details class="mt-4 group">
-          <summary class="text-xs font-medium text-brand-dark cursor-pointer select-none">Ver detalle del pedido</summary>
-          <ul class="mt-2 space-y-1">
-            <li v-for="(it, i) in p.items" :key="i" class="text-xs text-slatebody flex justify-between">
-              <span>{{ it.cantidad }}× {{ it.nombre }} <em v-if="it.observacion" class="not-italic text-slatebody/70">— {{ it.observacion }}</em></span>
-              <span>B/ {{ (it.cantidad * it.precio).toFixed(2) }}</span>
-            </li>
-          </ul>
-          <p class="text-[11px] text-slatebody mt-2">Dir.: {{ p.direccion }}</p>
-        </details>
-
-        <!-- Calificación -->
-        <div v-if="p.estado === 'entregado'" class="mt-4 pt-4 border-t border-line flex items-center justify-between">
-          <div v-if="p.calificacion" class="flex items-center gap-1 text-amber-500">
-            <svg v-for="n in p.calificacion" :key="n" class="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M9.05 2.93c.3-.92 1.6-.92 1.9 0l1.1 3.4a1 1 0 00.95.7h3.6c.97 0 1.37 1.24.59 1.81l-2.9 2.1a1 1 0 00-.36 1.12l1.1 3.4c.3.92-.75 1.69-1.54 1.12l-2.9-2.1a1 1 0 00-1.18 0l-2.9 2.1c-.79.57-1.84-.2-1.54-1.12l1.1-3.4a1 1 0 00-.36-1.12L2.8 8.84c-.78-.57-.38-1.81.59-1.81h3.6a1 1 0 00.95-.7l1.1-3.4z"/></svg>
-            <span class="text-xs text-slatebody ml-1.5">Gracias por tu calificación</span>
-          </div>
-          <button v-else class="btn-secondary !py-1.5 !px-3 text-xs" @click="abrirCalificar(p)">
-            Calificar pedido
-          </button>
-        </div>
-      </div>
+      </section>
     </div>
 
-    <!-- Modal calificar -->
-    <transition name="modal">
-      <div v-if="modalCalificar" class="fixed inset-0 z-50 bg-ink/40 grid place-items-center p-4" @click="modalCalificar = null">
-        <div class="modal-panel card p-6 w-full max-w-sm" @click.stop>
-          <h3 class="text-lg font-semibold text-ink text-center">¿Cómo fue tu pedido?</h3>
-          <p class="text-sm text-slatebody text-center mt-1">{{ modalCalificar.comercioNombre }} · {{ modalCalificar.id }}</p>
-          <div class="flex justify-center gap-2 mt-6" @mouseleave="hoverEstrella = 0">
-            <button
-              v-for="n in 5" :key="n"
-              class="transition-transform duration-100 hover:scale-110"
-              @mouseenter="hoverEstrella = n"
-              @click="estrellas = n"
-            >
-              <svg class="w-9 h-9 transition-colors" :class="(hoverEstrella || estrellas) >= n ? 'text-amber-400 fill-current' : 'text-line fill-current'" viewBox="0 0 20 20"><path d="M9.05 2.93c.3-.92 1.6-.92 1.9 0l1.1 3.4a1 1 0 00.95.7h3.6c.97 0 1.37 1.24.59 1.81l-2.9 2.1a1 1 0 00-.36 1.12l1.1 3.4c.3.92-.75 1.69-1.54 1.12l-2.9-2.1a1 1 0 00-1.18 0l-2.9 2.1c-.79.57-1.84-.2-1.54-1.12l1.1-3.4a1 1 0 00-.36-1.12L2.8 8.84c-.78-.57-.38-1.81.59-1.81h3.6a1 1 0 00.95-.7l1.1-3.4z"/></svg>
+    <!-- Rating dialog: bottom sheet on phones, 480px modal from 640px -->
+    <transition name="cx-sheet">
+      <div v-if="modalCalificar" class="cx cx-overlay cx-overlay-center" data-test="rate-overlay" @click="cerrarCalificar">
+        <section
+          ref="panelCalificar"
+          class="cx-sheet cx-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="rate-title"
+          tabindex="-1"
+          data-test="rate-dialog"
+          @click.stop
+        >
+          <header class="cx-sheet-head">
+            <h2 id="rate-title" ref="tituloCalificar" tabindex="-1" class="cx-h2">¿Cómo fue tu pedido?</h2>
+            <button type="button" class="cx-icon-btn" data-test="rate-close" aria-label="Cerrar" @click="cerrarCalificar">
+              <X :size="20" aria-hidden="true" />
             </button>
+          </header>
+
+          <div class="cx-sheet-body">
+            <p class="cx-small cx-soft">{{ modalCalificar.comercioNombre }} · <span class="cx-mono">{{ modalCalificar.id }}</span></p>
+
+            <div class="cx-rate-group">
+              <p class="cx-label" aria-hidden="true">Servicio del comercio</p>
+              <RatingStars v-model="estrellas" label="Servicio del comercio" />
+            </div>
+
+            <div class="cx-rate-group">
+              <p class="cx-label" aria-hidden="true">Atención del repartidor</p>
+              <RatingStars v-model="estrellasRepartidor" label="Atención del repartidor" />
+            </div>
+
+            <div>
+              <label for="rate-comment" class="cx-label">Comentario (opcional)</label>
+              <textarea
+                id="rate-comment"
+                v-model="comentarioCalificacion"
+                rows="2"
+                class="cx-input cx-input-plain cx-textarea"
+                placeholder="Ej. llegó caliente y a tiempo"
+              />
+            </div>
+
+            <div class="cx-actions">
+              <button type="button" class="cx-btn cx-btn-secondary" data-test="rate-cancel" @click="cerrarCalificar">Cancelar</button>
+              <button type="button" class="cx-btn" data-test="rate-submit" :aria-disabled="enviando ? 'true' : undefined" @click="enviarCalificacion">
+                {{ enviando ? 'Enviando…' : 'Enviar' }}
+              </button>
+            </div>
           </div>
-          <div class="mt-6 grid grid-cols-2 gap-3">
-            <button class="btn-secondary" @click="modalCalificar = null">Cancelar</button>
-            <button class="btn-primary" @click="enviarCalificacion">Enviar</button>
-          </div>
-        </div>
+        </section>
       </div>
     </transition>
   </div>

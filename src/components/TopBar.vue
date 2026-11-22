@@ -1,98 +1,224 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useGoEatsStore } from '../stores/useGoEatsStore'
+import { rutaPorRol } from '../guards'
+import { DEMO_SWITCHER } from '../config'
+import '@fontsource/nunito/latin-400.css'
+import '@fontsource/nunito/latin-700.css'
+import '@fontsource/nunito/latin-800.css'
+import './catalog/catalog.css'
+import {
+  Receipt,
+  ShoppingBag,
+  Store,
+  Bike,
+  BarChart3,
+  ShieldCheck,
+  User,
+  LogOut,
+  ChevronDown,
+  Check,
+} from '@lucide/vue'
 
 const store = useGoEatsStore()
+// Demo accounts are loaded lazily and only in flag-on builds (keeps them out of the production bundle).
+const CUENTAS_DEMO = ref([])
+if (DEMO_SWITCHER) {
+  import('../demoAccounts').then((m) => {
+    CUENTAS_DEMO.value = m.CUENTAS_DEMO
+  })
+}
 const router = useRouter()
 const route = useRoute()
 
-const roles = [
-  { id: 'customer', nombre: 'Cliente', icono: '🛍️' },
-  { id: 'merchant', nombre: 'Comercio', icono: '🏪' },
-  { id: 'courier', nombre: 'Repartidor', icono: '🛵' },
-  { id: 'accountant', nombre: 'Contabilidad', icono: '📊' },
-  { id: 'admin', nombre: 'Admin', icono: '🛡️' },
-]
-
-const rutaPorRol = {
-  customer: '/tiendas',
-  merchant: '/panel-comercio',
-  courier: '/panel-repartidor',
-  accountant: '/panel-contabilidad',
-  admin: '/panel-admin',
+const rolesIconos = {
+  customer: ShoppingBag,
+  merchant: Store,
+  courier: Bike,
+  accountant: BarChart3,
+  admin: ShieldCheck,
 }
 
-function cambiarRol(id) {
-  store.setRol(id)
-  router.push(rutaPorRol[id])
+const rolesNombres = {
+  customer: 'Cliente',
+  merchant: 'Comercio',
+  courier: 'Repartidor',
+  accountant: 'Contabilidad',
+  admin: 'Administrador',
 }
 
 const menuAbierto = ref(false)
-const esRolCliente = computed(() => store.rol === 'customer')
+const cambiandoCuenta = ref(false)
+// The role is the SERVER role of the restored/logged-in session; anonymous has none.
+const esRolCliente = computed(() => store.autenticado && store.rol === 'customer')
+const homeActual = computed(() => (store.autenticado ? rutaPorRol[store.rol] : null) || '/tiendas')
 
+const inicialesUsuario = computed(() => {
+  const n = store.usuario?.nombre || 'Go Eats'
+  return n
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase()
+})
+
+const rolLabel = computed(() => rolesNombres[store.rol] || store.rol)
+
+const linksAnonimo = [{ to: '/tiendas', label: 'Explorar', icono: Store }]
 const linksCliente = [
-  { to: '/tiendas', label: 'Explorar' },
-  { to: '/pedidos', label: 'Mis pedidos' },
-  { to: '/perfil', label: 'Perfil' },
+  { to: '/tiendas', label: 'Explorar', icono: Store },
+  { to: '/pedidos', label: 'Mis pedidos', icono: Receipt },
+  { to: '/perfil', label: 'Perfil', icono: User },
 ]
+const linksActuales = computed(() => (esRolCliente.value ? linksCliente : linksAnonimo))
+const esActivo = (to) => route.path.startsWith(to)
+
+const trigger = ref(null)
+function cerrarMenu({ devolverFoco = false } = {}) {
+  menuAbierto.value = false
+  if (devolverFoco) nextTick(() => trigger.value?.focus())
+}
+
+function irA(to) {
+  menuAbierto.value = false
+  router.push(to)
+}
+
+async function seleccionarCuenta(cuenta) {
+  cambiandoCuenta.value = true
+  menuAbierto.value = false
+  try {
+    const res = await store.cambiarACuentaDemo(cuenta)
+    // Navigate by the role the SERVER returned (store.rol), never the one listed in the demo accounts.
+    if (res?.ok) router.push(rutaPorRol[store.rol] || '/tiendas')
+  } finally {
+    cambiandoCuenta.value = false
+  }
+}
+
+function salir() {
+  menuAbierto.value = false
+  store.cerrarSesion()
+  router.push('/login')
+}
 </script>
 
 <template>
-  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-line">
-    <div class="mx-auto max-w-6xl px-4 h-16 flex items-center gap-3">
+  <header class="cx cx-shell cx-topbar">
+    <div class="cx-topbar-inner">
       <!-- Logo -->
-      <button class="flex items-center gap-2 shrink-0" @click="cambiarRol(store.rol)">
-        <span class="grid place-items-center w-8 h-8 rounded-lg bg-brand text-white text-base font-bold">G</span>
-        <span class="text-lg font-bold text-ink hidden sm:block">Go Eats</span>
+      <button type="button" class="cx-brand" aria-label="Go Eats, ir al inicio" @click="router.push(homeActual)">
+        <span class="cx-brand-mark" aria-hidden="true">G</span>
+        <span class="cx-brand-name" aria-hidden="true">Go Eats</span>
       </button>
 
-      <!-- Cliente nav links -->
-      <nav v-if="esRolCliente" class="hidden md:flex items-center gap-1 ml-4">
+      <!-- Customer nav links (anonymous visitors only see the public store list) -->
+      <nav v-if="esRolCliente || !store.autenticado" class="cx-nav" aria-label="Principal">
         <button
-          v-for="l in linksCliente" :key="l.to"
-          class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
-          :class="route.path.startsWith(l.to) ? 'bg-brand-light text-brand-dark' : 'text-slatebody hover:bg-canvas'"
+          v-for="l in linksActuales"
+          :key="l.to"
+          type="button"
+          class="cx-nav-item"
+          :aria-current="esActivo(l.to) ? 'page' : undefined"
           @click="router.push(l.to)"
         >
           {{ l.label }}
         </button>
       </nav>
 
-      <div class="flex-1" />
+      <div class="cx-topbar-spacer" />
 
-      <!-- Role switcher -->
-      <div class="relative">
+      <!-- Anonymous: no user, just the way in (secondary: the view keeps its single primary) -->
+      <button v-if="!store.autenticado" type="button" class="cx-btn cx-btn-secondary" @click="router.push('/login')">
+        Iniciar sesión
+      </button>
+
+      <!-- Session menu (real server session) -->
+      <div v-else class="cx-account-wrap" @keydown.esc="cerrarMenu({ devolverFoco: true })">
         <button
-          class="flex items-center gap-2 rounded-full border border-line bg-white pl-1 pr-2.5 py-1 hover:border-brand/50 transition-colors"
+          ref="trigger"
+          type="button"
+          class="cx-account"
+          data-test="account-trigger"
+          aria-haspopup="true"
+          :aria-expanded="menuAbierto ? 'true' : 'false'"
+          :aria-label="`Cuenta de ${store.usuario?.nombre || 'Usuario'}`"
+          :disabled="cambiandoCuenta"
           @click="menuAbierto = !menuAbierto"
         >
-          <span class="grid place-items-center w-7 h-7 rounded-full bg-brand-light text-brand-dark text-sm">
-            {{ roles.find((r) => r.id === store.rol)?.icono }}
+          <span class="cx-avatar" aria-hidden="true">{{ inicialesUsuario }}</span>
+          <span class="cx-account-text" aria-hidden="true">
+            <span class="cx-account-name">{{ store.usuario?.nombre || 'Usuario' }}</span>
+            <span class="cx-account-role">{{ rolLabel }}</span>
           </span>
-          <span class="text-sm font-medium text-ink hidden sm:block">{{ roles.find((r) => r.id === store.rol)?.nombre }}</span>
-          <svg class="w-3.5 h-3.5 text-slatebody" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>
+          <ChevronDown :size="16" aria-hidden="true" />
         </button>
 
-        <div v-if="menuAbierto" class="fixed inset-0 z-10" @click="menuAbierto = false" />
-        <div v-if="menuAbierto" class="absolute right-0 mt-2 w-52 rounded-xl bg-white border border-line shadow-lg z-20 py-1.5 overflow-hidden">
-          <p class="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slatebody/60">Ver como</p>
-          <button
-            v-for="r in roles" :key="r.id"
-            class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors"
-            :class="store.rol === r.id ? 'bg-brand-light text-brand-dark font-semibold' : 'text-ink hover:bg-canvas'"
-            @click="cambiarRol(r.id); menuAbierto = false"
-          >
-            <span class="text-base">{{ r.icono }}</span> {{ r.nombre }}
-            <svg v-if="store.rol === r.id" class="w-4 h-4 ml-auto" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-8 8a1 1 0 01-1.4 0l-4-4a1 1 0 011.4-1.4L8 12.6l7.3-7.3a1 1 0 011.4 0z" clip-rule="evenodd" /></svg>
+        <!-- Click-away layer (transparent: the menu is a popover, not a modal) -->
+        <div v-if="menuAbierto" class="cx-menu-scrim" aria-hidden="true" @click="cerrarMenu()" />
+
+        <!-- Popover -->
+        <div v-if="menuAbierto" class="cx-menu" data-test="account-menu" role="group" aria-label="Menú de cuenta">
+          <!-- Current User Info -->
+          <div class="cx-menu-head">
+            <p class="cx-overline">Sesión activa</p>
+            <p class="cx-menu-name">{{ store.usuario?.nombre }}</p>
+            <p class="cx-menu-email">{{ store.usuario?.email }}</p>
+            <span class="cx-badge cx-badge-info">
+              <component :is="rolesIconos[store.rol] || User" :size="16" aria-hidden="true" />
+              Rol: {{ rolLabel }}
+            </span>
+          </div>
+
+          <!-- The nav above is hidden under 768px: the customer destinations live here on phones -->
+          <div v-if="esRolCliente" class="cx-menu-group cx-menu-nav" data-test="menu-nav">
+            <button
+              v-for="l in linksCliente"
+              :key="l.to"
+              type="button"
+              class="cx-menu-item"
+              :class="esActivo(l.to) ? 'cx-menu-item-active' : ''"
+              :aria-current="esActivo(l.to) ? 'page' : undefined"
+              @click="irA(l.to)"
+            >
+              <component :is="l.icono" :size="20" aria-hidden="true" />
+              <span class="cx-menu-item-main"><span class="cx-menu-item-title">{{ l.label }}</span></span>
+            </button>
+          </div>
+
+          <!-- Demo switcher: only in builds with VITE_ENABLE_DEMO_SWITCHER=true (real logins, server role) -->
+          <div v-if="DEMO_SWITCHER">
+            <p class="cx-overline cx-menu-label">Cambiar de Cuenta (Autenticación Real)</p>
+            <div class="cx-menu-group">
+              <button
+                v-for="c in CUENTAS_DEMO"
+                :key="c.email"
+                type="button"
+                class="cx-menu-item"
+                :class="store.usuario?.email === c.email ? 'cx-menu-item-active' : ''"
+                @click="seleccionarCuenta(c)"
+              >
+                <span class="cx-avatar cx-avatar-sm" aria-hidden="true">{{ c.avatar }}</span>
+                <span class="cx-menu-item-main">
+                  <span class="cx-menu-item-title">{{ c.name }}</span>
+                  <span class="cx-menu-item-sub">{{ c.email }}</span>
+                </span>
+                <Check v-if="store.usuario?.email === c.email" :size="20" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Logout -->
+          <div class="cx-menu-divider" role="separator" />
+          <button type="button" class="cx-menu-item cx-menu-item-danger" @click="salir">
+            <LogOut :size="20" aria-hidden="true" />
+            Cerrar sesión
           </button>
         </div>
       </div>
-
-      <!-- Logout -->
-      <button class="shrink-0 grid place-items-center w-9 h-9 rounded-lg text-slatebody hover:bg-canvas transition-colors" title="Cerrar sesión" @click="router.push('/login')">
-        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m4 4H5a2 2 0 01-2-2V6a2 2 0 012-2h6" /></svg>
-      </button>
     </div>
   </header>
 </template>

@@ -8,9 +8,15 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+.pnpm-store
 dist
 dist-ssr
+dev-dist
 *.local
+__pycache__/
+*.py[cod]
+.venv/
+*.db
 
 # Editor directories and files
 .vscode/*
@@ -22,3 +28,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Playwright
+test-results/
+playwright-report/
+.pytest_cache/
+backend/.venv

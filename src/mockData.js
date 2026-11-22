@@ -10,32 +10,37 @@ export const ZONAS = [
   { id: 'punta-pacifica', nombre: 'Punta Pacífica', tarifa: 4.0, distanciaKm: 8.6 },
 ]
 
+// Estados canónicos del pedido (los mismos que la API): sin espacios ni tildes.
+// ESTADOS_PEDIDO es la cadena de avance; los terminales cierran el ciclo.
 export const ESTADOS_PEDIDO = [
   'pendiente',
   'confirmado',
-  'en preparación',
-  'listo para recoger',
-  'en camino',
+  'en_preparacion',
+  'listo_para_recoger',
+  'en_camino',
   'entregado',
 ]
+
+export const ESTADOS_TERMINALES = ['entregado', 'rechazado', 'cancelado']
 
 export const ESTADO_LABELS = {
   pendiente: 'Pendiente',
   confirmado: 'Confirmado',
-  'en preparación': 'En preparación',
-  'listo para recoger': 'Listo para recoger',
-  'en camino': 'En camino',
+  en_preparacion: 'En preparación',
+  listo_para_recoger: 'Listo para recoger',
+  en_camino: 'En camino',
   entregado: 'Entregado',
   cancelado: 'Cancelado',
+  rechazado: 'Rechazado',
 }
 
 // badge: color del pill según identidad visual
 export const ESTADO_BADGES = {
   pendiente: 'bg-amber-50 text-amber-700 border-amber-200',
   confirmado: 'bg-blue-50 text-blue-700 border-blue-200',
-  'en preparación': 'bg-amber-50 text-amber-700 border-amber-200',
-  'listo para recoger': 'bg-blue-50 text-blue-700 border-blue-200',
-  'en camino': 'bg-blue-50 text-blue-700 border-blue-200',
+  en_preparacion: 'bg-amber-50 text-amber-700 border-amber-200',
+  listo_para_recoger: 'bg-blue-50 text-blue-700 border-blue-200',
+  en_camino: 'bg-blue-50 text-blue-700 border-blue-200',
   entregado: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   cancelado: 'bg-red-50 text-red-600 border-red-200',
   aprobado: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -57,7 +62,7 @@ export const comercios = [
     estadoAfiliacion: 'activo',
     horario: { abre: '11:00', cierra: '21:00' },
     descripcion: 'Sancocho, ropa vieja y ceviche elaborados al estilo del mercado interno.',
-    emoji: '🍲',
+    icono: 'Soup',
   },
   {
     id: 'c2',
@@ -70,7 +75,7 @@ export const comercios = [
     estadoAfiliacion: 'activo',
     horario: { abre: '06:30', cierra: '20:00' },
     descripcion: 'Café de boquete, empanadas y pan dulce horneado cada mañana.',
-    emoji: '☕',
+    icono: 'Coffee',
   },
   {
     id: 'c3',
@@ -83,7 +88,7 @@ export const comercios = [
     estadoAfiliacion: 'activo',
     horario: { abre: '12:00', cierra: '22:00' },
     descripcion: 'Rolls frescos de Corotú, ramen y tempura crujiente.',
-    emoji: '🍣',
+    icono: 'Fish',
   },
   {
     id: 'c4',
@@ -96,7 +101,7 @@ export const comercios = [
     estadoAfiliacion: 'activo',
     horario: { abre: '07:00', cierra: '21:00' },
     descripcion: 'Despensa, frutas frescas y artículos básicos a domicilio.',
-    emoji: '🛒',
+    icono: 'ShoppingCart',
   },
   {
     id: 'c5',
@@ -109,7 +114,7 @@ export const comercios = [
     estadoAfiliacion: 'activo',
     horario: { abre: '12:00', cierra: '23:00' },
     descripcion: 'Pizza de leña con masa de fermentación lenta, estilo napolitano.',
-    emoji: '🍕',
+    icono: 'Pizza',
   },
   {
     id: 'c6',
@@ -122,7 +127,7 @@ export const comercios = [
     estadoAfiliacion: 'activo',
     horario: { abre: '10:00', cierra: '20:00' },
     descripcion: 'Pollo entero frito, patacones y ensalada de papas.',
-    emoji: '🍗',
+    icono: 'Drumstick',
   },
   {
     id: 'c7',
@@ -135,7 +140,7 @@ export const comercios = [
     estadoAfiliacion: 'activo',
     horario: { abre: '08:00', cierra: '18:00' },
     descripcion: 'Bowls, ensaladas y jugos prensados en frío. Cerrado temporalmente.',
-    emoji: '🥗',
+    icono: 'Salad',
   },
   {
     id: 'c8',
@@ -148,7 +153,7 @@ export const comercios = [
     estadoAfiliacion: 'en_revision',
     horario: { abre: '10:00', cierra: '19:00' },
     descripcion: 'Afilación en revisión por el administrador.',
-    emoji: '🍰',
+    icono: 'Cake',
   },
 ]
 
@@ -237,7 +242,7 @@ export const pedidosIniciales = [
     subtotal: 11.05,
     tarifaEnvio: 2.0,
     total: 13.05,
-    estado: 'en preparación',
+    estado: 'en_preparacion',
     metodoPago: 'electronico',
     referenciaPasarela: 'PAY-88371-KS',
     repartidorId: null,
@@ -260,7 +265,7 @@ export const pedidosIniciales = [
     subtotal: 16.5,
     tarifaEnvio: 2.25,
     total: 18.75,
-    estado: 'listo para recoger',
+    estado: 'listo_para_recoger',
     metodoPago: 'contr_entrega',
     repartidorId: null,
     observaciones: 'Tocar el timbre 12A.',
@@ -282,7 +287,7 @@ export const pedidosIniciales = [
     subtotal: 36.75,
     tarifaEnvio: 4.5,
     total: 41.25,
-    estado: 'en camino',
+    estado: 'en_camino',
     metodoPago: 'electronico',
     referenciaPasarela: 'PAY-88412-QM',
     repartidorId: 'r3',
