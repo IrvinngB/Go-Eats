@@ -55,6 +55,10 @@ class UserListRead(UserRead):
     lng: float | None = Field(default=None, exclude=True)
 
 
+class UserStatusUpdate(BaseModel):
+    is_active: bool
+
+
 ArcoType = Literal["Acceso", "Rectificación", "Cancelación", "Oposición"]
 
 

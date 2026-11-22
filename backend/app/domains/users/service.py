@@ -6,6 +6,7 @@ from app.domains.users.schemas import (
     ArcoRequestCreate,
     ArcoRequestResolve,
     ConsentRead,
+    UserStatusUpdate,
     UserUpdate,
 )
 from app.shared.audit import record_audit_event
@@ -82,3 +83,22 @@ class UserService:
 
     def list_users(self) -> list[User]:
         return self.repo.list_all()
+
+    def set_user_status(
+        self, admin_user_id: int, target_user_id: int, payload: UserStatusUpdate
+    ) -> User:
+        if admin_user_id == target_user_id and not payload.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Admin cannot suspend their own account.",
+            )
+        user = self.get_profile(target_user_id)
+        updated = self.repo.set_active(user, payload.is_active)
+        action = "Reactivó" if updated.is_active else "Suspendió"
+        record_audit_event(
+            self.db,
+            "Admin",
+            f"{action} cuenta de usuario {updated.email} ({updated.role})",
+            "acceso",
+        )
+        return updated
