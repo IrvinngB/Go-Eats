@@ -16,7 +16,9 @@ class PaymentCreate(BaseModel):
 
 
 class PaymentStatusUpdate(BaseModel):
-    status: str = Field(..., description="pagado | pendiente | fallido")
+    status: Literal["pagado", "pendiente", "fallido"] = Field(
+        ..., description="pagado | pendiente | fallido"
+    )
 
 
 class PaymentRead(BaseModel):

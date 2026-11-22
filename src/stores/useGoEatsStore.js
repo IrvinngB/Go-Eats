@@ -133,6 +133,7 @@ export const useGoEatsStore = defineStore('goeats', {
     repartidorPropioId: null, // repartidor vinculado a la cuenta (GET /delivery/couriers/me)
     usuariosAdmin: [], // lista de cuentas de usuario (GET /users/, solo admin)
     kpisAdmin: null, // métricas reales (GET /reports/kpis, admin/accountant)
+    resumenFinanciero: null, // resumen financiero (GET /reports/financial, accountant/admin)
   }),
 
   getters: {
@@ -716,14 +717,31 @@ export const useGoEatsStore = defineStore('goeats', {
     conciliarTransaccion(txId, estado) {
       const tx = this.transacciones.find((t) => t.id === txId)
       if (!tx) return Promise.resolve({ ok: false, error: null })
+      const wireStatus = estado === 'aprobado' ? 'pagado' : estado === 'rechazado' ? 'fallido' : estado
       return this.escribir({
         objetivos: [tx],
         aplicar: () => {
           tx.estado = estado
         },
-        llamada: () => api.patch(`/payments/${txId}/status`, { status: estado === 'aprobado' ? 'pagado' : estado }),
+        llamada: () => api.patch(`/payments/${txId}/status`, { status: wireStatus }),
         exito: () => this.registrarEvento('Contabilidad', `Transacción ${tx.id} marcada como ${estado}`, 'pago'),
       })
+    },
+
+    async cargarResumenFinanciero() {
+      try {
+        const { data } = await api.get('/reports/financial')
+        if (data) {
+          this.resumenFinanciero = {
+            totalTransacciones: Number(data.total_transactions ?? 0),
+            pagadoTotal: Number(data.paid_total ?? 0),
+            pendienteTotal: Number(data.pending_total ?? 0),
+            comisionesTotal: Number(data.total_commissions ?? 0),
+          }
+        }
+      } catch {
+        // Silent fallback to computed store transactions
+      }
     },
 
     async descargarComprobantePDF(tx) {
