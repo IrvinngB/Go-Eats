@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ProductCreate(BaseModel):
@@ -9,13 +9,19 @@ class ProductCreate(BaseModel):
     promo_price: float | None = Field(default=None, gt=0)
     is_available: bool = True
 
+    @model_validator(mode="after")
+    def validate_promo_lt_price(self) -> "ProductCreate":
+        if self.promo_price is not None and self.promo_price >= self.price:
+            raise ValueError("Promo price must be strictly lower than the regular price.")
+        return self
+
 
 class ProductUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=2, max_length=150)
     description: str | None = None
     category: str | None = None
     price: float | None = Field(default=None, gt=0)
-    promo_price: float | None = None
+    promo_price: float | None = Field(default=None, gt=0)
     is_available: bool | None = None
 
 

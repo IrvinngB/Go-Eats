@@ -56,3 +56,7 @@ class ProductRepository:
         self.db.commit()
         self.db.refresh(product)
         return product
+
+    def delete(self, product: Product) -> None:
+        self.db.delete(product)
+        self.db.commit()

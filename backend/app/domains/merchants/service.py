@@ -1,5 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+from app.core.rbac import CurrentUser, UserRole
 from app.domains.merchants.models import Merchant
 from app.domains.merchants.repository import MerchantRepository
 from app.domains.merchants.schemas import MerchantAffiliationUpdate, MerchantScheduleUpdate
@@ -26,8 +27,15 @@ class MerchantService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no_linked_entity")
         return merchant
 
-    def update_schedule(self, code: str, payload: MerchantScheduleUpdate) -> Merchant:
+    def update_schedule(
+        self, user: CurrentUser, code: str, payload: MerchantScheduleUpdate
+    ) -> Merchant:
         merchant = self.get_merchant(code)
+        if user.role == UserRole.MERCHANT and merchant.owner_user_id != user.user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to modify this merchant.",
+            )
         updated = self.repo.update_schedule(
             merchant,
             opens_at=payload.opens_at,

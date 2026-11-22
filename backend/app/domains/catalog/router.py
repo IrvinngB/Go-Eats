@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.rbac import CurrentUser, UserRole, require_roles
@@ -29,17 +29,27 @@ def get_product(product_id: str, db: Session = Depends(get_db)) -> ProductRead:
 def create_product(
     merchant_code: str,
     payload: ProductCreate,
-    _: CurrentUser = Depends(require_roles(UserRole.MERCHANT, UserRole.ADMIN)),
+    current_user: CurrentUser = Depends(require_roles(UserRole.MERCHANT, UserRole.ADMIN)),
     db: Session = Depends(get_db),
 ) -> ProductRead:
-    return CatalogService(db).create_product(merchant_code, payload)
+    return CatalogService(db).create_product(current_user, merchant_code, payload)
 
 
 @router.put("/products/{product_id}", response_model=ProductRead)
 def update_product(
     product_id: str,
     payload: ProductUpdate,
-    _: CurrentUser = Depends(require_roles(UserRole.MERCHANT, UserRole.ADMIN)),
+    current_user: CurrentUser = Depends(require_roles(UserRole.MERCHANT, UserRole.ADMIN)),
     db: Session = Depends(get_db),
 ) -> ProductRead:
-    return CatalogService(db).update_product(product_id, payload)
+    return CatalogService(db).update_product(current_user, product_id, payload)
+
+
+@router.delete("/products/{product_id}", status_code=204)
+def delete_product(
+    product_id: str,
+    current_user: CurrentUser = Depends(require_roles(UserRole.MERCHANT, UserRole.ADMIN)),
+    db: Session = Depends(get_db),
+) -> Response:
+    CatalogService(db).delete_product(current_user, product_id)
+    return Response(status_code=204)
