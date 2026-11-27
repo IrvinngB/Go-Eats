@@ -1,7 +1,9 @@
 import logging
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from datetime import datetime
+
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 from app.domains.orders.models import Order, OrderItem, OrderRating, OrderStatusHistory
@@ -52,6 +54,26 @@ class OrderRepository:
         )
         return self.db.scalars(stmt).first()
 
+    def get_by_idempotency_key(self, customer_id: int, key: str) -> Order | None:
+        stmt = select(Order).where(Order.customer_id == customer_id, Order.idempotency_key == key)
+        return self.db.scalars(stmt).first()
+
+    def count_pending(self, customer_id: int) -> int:
+        stmt = select(func.count(Order.id)).where(
+            Order.customer_id == customer_id, Order.status == "pendiente"
+        )
+        return self.db.scalar(stmt) or 0
+
+    def list_pending_created_before(
+        self, payment_methods: frozenset[str], cutoff: datetime
+    ) -> list[Order]:
+        stmt = select(Order).where(
+            Order.status == "pendiente",
+            Order.payment_method.in_(payment_methods),
+            Order.created_at < cutoff,
+        )
+        return list(self.db.scalars(stmt).all())
+
     def lock_statement(self, code: str):
         """SELECT ... FOR UPDATE OF orders (no-op on SQLite): serializes writers on one order."""
         return select(Order).where(Order.code == code).with_for_update(of=Order)
@@ -70,6 +92,7 @@ class OrderRepository:
         priced_items: list[PricedItem],
         delivery_fee: float,
         actor: str,
+        idempotency_key: str | None = None,
     ) -> Order:
         """Persist an already-priced order. Prices and fee come from the service, never the client."""
         subtotal = round(sum(i.unit_price * i.quantity for i in priced_items), 2)
@@ -94,6 +117,7 @@ class OrderRepository:
                 subtotal=subtotal,
                 delivery_fee=delivery_fee,
                 total=total,
+                idempotency_key=idempotency_key,
             )
             self.db.add(order)
             try:

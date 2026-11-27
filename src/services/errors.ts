@@ -6,6 +6,7 @@ export type WriteErrorKind =
   | 'not_found'
   | 'validation'
   | 'conflict'
+  | 'rate_limited'
   | 'server'
   | 'unknown'
 
@@ -24,6 +25,7 @@ const MESSAGES: Record<WriteErrorKind, string> = {
   not_found: 'No se encontró lo solicitado. Puede que ya no exista.',
   validation: 'Los datos no son válidos o la acción no está permitida.',
   conflict: 'La acción choca con el estado actual. Actualiza e inténtalo de nuevo.',
+  rate_limited: 'Demasiados intentos seguidos. Espera un momento e inténtalo de nuevo.',
   server: 'El servidor tuvo un problema. Inténtalo más tarde.',
   unknown: 'Ocurrió un error inesperado. Inténtalo de nuevo.',
 }
@@ -40,6 +42,7 @@ function kindFor(status: number): WriteErrorKind {
   if (status === 403) return 'forbidden'
   if (status === 404) return 'not_found'
   if (status === 409) return 'conflict'
+  if (status === 429) return 'rate_limited'
   if (status === 400 || status === 422) return 'validation'
   if (status >= 500) return 'server'
   return 'unknown'

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.rate_limit import limit_by_user
 from app.core.rbac import CurrentUser, UserRole, require_roles
 from app.domains.payments.schemas import PaymentCreate, PaymentRead, PaymentStatusUpdate
 from app.domains.payments.service import PaymentService
@@ -25,6 +26,7 @@ def process_payment(
     payload: PaymentCreate,
     current_user: CurrentUser = Depends(require_roles(UserRole.CUSTOMER)),
     _consent: CurrentUser = Depends(require_active_consent),
+    _rate: None = Depends(limit_by_user("payments:create", 10, 60)),
     db: Session = Depends(get_db),
 ) -> PaymentRead:
     return PaymentService(db).process_payment(current_user, payload)

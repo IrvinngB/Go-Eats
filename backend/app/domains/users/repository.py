@@ -12,6 +12,19 @@ class UserRepository:
     def get_by_id(self, user_id: int) -> User | None:
         return self.db.get(User, user_id)
 
+    def lock(self, user_id: int) -> User | None:
+        """SELECT ... FOR UPDATE on the user row (no-op on SQLite): serializes per-user writes."""
+        stmt = select(User).where(User.id == user_id).with_for_update(of=User)
+        return self.db.scalars(stmt).first()
+
+    def has_open_arco_request(self, user_id: int, request_type: str) -> bool:
+        stmt = select(ArcoRequest.id).where(
+            ArcoRequest.user_id == user_id,
+            ArcoRequest.request_type == request_type,
+            ArcoRequest.status == "pendiente",
+        )
+        return self.db.scalars(stmt).first() is not None
+
     def get_by_email(self, email: str) -> User | None:
         stmt = select(User).where(User.email == email.lower())
         return self.db.scalars(stmt).first()

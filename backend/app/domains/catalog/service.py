@@ -8,6 +8,10 @@ from app.domains.merchants.repository import MerchantRepository
 from app.shared.audit import record_audit_event
 
 
+# Generous for a real menu, but stops a merchant account from flooding the public catalog.
+PRODUCTS_PER_MERCHANT_LIMIT = 200
+
+
 class CatalogService:
     def __init__(self, db: Session) -> None:
         self.db = db
@@ -44,6 +48,11 @@ class CatalogService:
         self, user: CurrentUser, merchant_code: str, payload: ProductCreate
     ) -> Product:
         self._ensure_merchant_access(user, merchant_code)
+        if self.repo.count_by_merchant(merchant_code) >= PRODUCTS_PER_MERCHANT_LIMIT:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"El comercio alcanzó el máximo de {PRODUCTS_PER_MERCHANT_LIMIT} productos.",
+            )
         payload.category = payload.category.strip() or "General"
         product = self.repo.create(merchant_code, payload)
         record_audit_event(

@@ -63,6 +63,10 @@ class OrderStatusUpdate(BaseModel):
     reason: str | None = Field(default=None, max_length=500)
 
 
+class OrderCancel(BaseModel):
+    reason: str = Field(..., max_length=500)
+
+
 class OrderAssignCourier(BaseModel):
     courier_code: str
 

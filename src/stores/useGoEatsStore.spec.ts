@@ -458,3 +458,75 @@ describe('crearPedido wire payload and promo mapping', () => {
     })
   })
 })
+
+describe('crearPedido idempotency and customer cancellation', () => {
+  async function ready() {
+    serve({ '/catalog/products': [product] })
+    serverPost()
+    const store = loggedIn('customer')
+    await store.sincronizarConBackend()
+    store.zonaSeleccionada = 'z1'
+    store.agregarAlCarrito('c9', store.productosDe('c9')[0], 1, '')
+    return store
+  }
+  const orderPosts = () => post.mock.calls.filter((c) => c[0] === '/orders/')
+  const keyOf = (call: unknown[]) =>
+    ((call[2] as { headers?: Record<string, string> } | undefined)?.headers || {})['Idempotency-Key']
+  const checkout = (store: ReturnType<typeof useGoEatsStore>) =>
+    store.crearPedido({ direccion: 'Calle 45', metodoPago: 'contr_entrega', observaciones: '' })
+
+  it('POST /orders carries an Idempotency-Key header', async () => {
+    const store = await ready()
+    await checkout(store)
+    const key = keyOf(orderPosts()[0])
+    expect(typeof key).toBe('string')
+    expect(key.length).toBeGreaterThan(8)
+    expect(key.length).toBeLessThanOrEqual(64)
+  })
+
+  it('a retry of the same cart after a network failure reuses the key', async () => {
+    const store = await ready()
+    post.mockRejectedValueOnce(new Error('Network Error'))
+    await checkout(store)
+    await checkout(store)
+    const [first, second] = orderPosts()
+    expect(keyOf(second)).toBe(keyOf(first))
+  })
+
+  it('after a successful checkout the same cart again gets a new key', async () => {
+    const store = await ready()
+    await checkout(store)
+    store.agregarAlCarrito('c9', store.productosDe('c9')[0], 1, '')
+    await checkout(store)
+    const [first, second] = orderPosts()
+    expect(keyOf(second)).not.toBe(keyOf(first))
+  })
+
+  it('a double tap that the server replays keeps a single local order', async () => {
+    const store = await ready()
+    await Promise.all([checkout(store), checkout(store)])
+    expect(store.pedidos.filter((p: { id: string }) => p.id === "PED-7")).toHaveLength(1)
+  })
+
+  it('cancelarMiPedido posts the reason and marks the order cancelled', async () => {
+    const store = await ready()
+    store.pedidos.unshift({ id: 'PED-1', estado: 'pendiente', motivoCancelacion: null } as never)
+    post.mockImplementation(async (url: string) => {
+      if (url === '/orders/PED-1/cancel') return { data: { ...order, status: 'cancelado', cancellation_reason: 'Cancelado por el cliente' } }
+      throw new Error(`unexpected ${url}`)
+    })
+    const res = await store.cancelarMiPedido('PED-1')
+    expect(res.ok).toBe(true)
+    expect(post).toHaveBeenCalledWith('/orders/PED-1/cancel', { reason: 'Cancelado por el cliente' })
+    expect(store.pedidos.find((p: { id: string; estado: string }) => p.id === "PED-1")!.estado).toBe('cancelado')
+  })
+
+  it('a refused cancellation restores the order state', async () => {
+    const store = await ready()
+    store.pedidos.unshift({ id: 'PED-1', estado: 'pendiente', motivoCancelacion: null } as never)
+    post.mockRejectedValue({ response: { status: 400, data: { detail: 'Ya fue confirmado' } } })
+    const res = await store.cancelarMiPedido('PED-1')
+    expect(res.ok).toBe(false)
+    expect(store.pedidos.find((p: { id: string; estado: string }) => p.id === "PED-1")!.estado).toBe('pendiente')
+  })
+})

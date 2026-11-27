@@ -386,3 +386,34 @@ def test_seed_on_existing_db_does_not_add_rechazado(db, db_engine):
     db.commit()
     with db_engine.connect() as conn:
         assert conn.execute(text("SELECT COUNT(*) FROM orders WHERE status='rechazado'")).scalar_one() == 0
+
+
+# --- Idempotency-Key column and per-customer unique index on orders ---
+
+def test_idempotency_key_column_and_index_added_to_existing_orders_table(legacy_engine):
+    with legacy_engine.begin() as conn:
+        conn.execute(text("ALTER TABLE orders ADD COLUMN customer_id INTEGER"))
+    run_startup_migrations(legacy_engine)
+    run_startup_migrations(legacy_engine)  # idempotent
+    assert "idempotency_key" in _col_info(legacy_engine, "orders")
+    assert "ix_orders_customer_idempotency" in _unique_index_names(legacy_engine, "orders")
+    with legacy_engine.begin() as conn:
+        conn.execute(text(
+            "INSERT INTO orders (code, status, customer_id, idempotency_key) "
+            "VALUES ('PED-9', 'pendiente', 1, 'k')"
+        ))
+    with pytest.raises(Exception), legacy_engine.begin() as conn:
+        conn.execute(text(
+            "INSERT INTO orders (code, status, customer_id, idempotency_key) "
+            "VALUES ('PED-10', 'pendiente', 1, 'k')"
+        ))
+
+
+def test_idempotency_index_skipped_when_orders_lacks_customer_id(legacy_engine):
+    run_startup_migrations(legacy_engine)  # legacy orders table has no customer_id
+    assert "ix_orders_customer_idempotency" not in _unique_index_names(legacy_engine, "orders")
+
+
+def test_fresh_schema_has_idempotency_index(db_engine):
+    run_startup_migrations(db_engine)
+    assert "ix_orders_customer_idempotency" in _unique_index_names(db_engine, "orders")

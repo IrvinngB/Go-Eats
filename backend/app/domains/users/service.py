@@ -60,6 +60,12 @@ class UserService:
 
     def submit_arco(self, user_id: int, payload: ArcoRequestCreate) -> ArcoRequest:
         user = self.get_profile(user_id)
+        # One open request per type: the admin answers it, the user does not resend it.
+        if self.repo.has_open_arco_request(user_id, payload.request_type):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Ya tienes una solicitud de este tipo en trámite.",
+            )
         arco = self.repo.create_arco_request(user, payload.request_type, payload.detail)
         record_audit_event(
             self.db, user.full_name, f"Presentó solicitud ARCO ({payload.request_type})", "arco"

@@ -125,6 +125,7 @@ export const useGoEatsStore = defineStore('goeats', {
     misSolicitudesARCO: [], // own requests (GET /users/me/arco), newest first
     consentimientoRequerido: false, // the server answered consent_required to an order/payment
     pedidoPendientePago: null, // { codigo, firma }: created order whose payment still has to succeed
+    claveIdempotencia: null, // { firma, clave }: one Idempotency-Key per checkout attempt of a cart
     eventos: eventosAuditoria.map((e) => ({ ...e })),
     carrito: [], // items {id, nombre, precio, cantidad, observacion, comercioId}
     carritoComercioId: null,
@@ -468,6 +469,17 @@ export const useGoEatsStore = defineStore('goeats', {
       this.carrito = []
       this.carritoComercioId = null
       this.pedidoPendientePago = null // the cart changed or was cancelled: forget the unpaid order
+      this.claveIdempotencia = null // the next checkout is a new order, even with the same items
+    },
+
+    // Same cart and data -> same key: a double tap or a retry is replayed by the server, not duplicated.
+    claveParaPedido(firma) {
+      if (this.claveIdempotencia?.firma !== firma) {
+        const clave =
+          globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`
+        this.claveIdempotencia = { firma, clave }
+      }
+      return this.claveIdempotencia.clave
     },
 
     // POST /orders then POST /payments for the server order code (both awaited).
@@ -495,6 +507,7 @@ export const useGoEatsStore = defineStore('goeats', {
       }
       if (!pedido) {
         this.pedidoPendientePago = null
+        const clave = this.claveParaPedido(firma)
         try {
           const { data: orden } = await api.post('/orders/', {
             // The server recomputes prices, fee and names: only identifiers and choices travel.
@@ -510,7 +523,7 @@ export const useGoEatsStore = defineStore('goeats', {
               quantity: i.cantidad,
               notes: i.observacion || '',
             })),
-          })
+          }, { headers: { 'Idempotency-Key': clave } })
           pedido = mapPedidoApi(orden)
         } catch (err) {
           const error = toWriteError(err)
@@ -518,7 +531,10 @@ export const useGoEatsStore = defineStore('goeats', {
           this.notificar(error.message, 'error', 'crear-pedido')
           return null
         }
-        this.pedidos.unshift(pedido)
+        // A replayed key returns the order already listed: keep one local copy.
+        const yaListado = this.pedidos.find((p) => p.id === pedido.id)
+        if (yaListado) pedido = yaListado
+        else this.pedidos.unshift(pedido)
         this.pedidoPendientePago = { codigo: pedido.id, firma }
       }
       try {
@@ -564,6 +580,22 @@ export const useGoEatsStore = defineStore('goeats', {
         llamada: () =>
           api.patch(`/orders/${pedidoId}/status`, { status: nuevoEstado, reason: extra.motivoCancelacion || null }),
         exito: () => this.registrarEvento('Sistema', `Pedido ${pedido.id} pasó a "${nuevoEstado}"`, 'pedido'),
+      })
+    },
+
+    // Customer withdraws their own order (only while pending and unpaid; the server enforces it).
+    cancelarMiPedido(pedidoId, motivo = 'Cancelado por el cliente') {
+      const pedido = this.pedidos.find((p) => p.id === pedidoId)
+      if (!pedido) return Promise.resolve({ ok: false, error: null })
+      return this.escribir({
+        accion: `cancelar:${pedidoId}`,
+        objetivos: [pedido],
+        aplicar: () => {
+          pedido.estado = 'cancelado'
+          pedido.motivoCancelacion = motivo
+        },
+        llamada: () => api.post(`/orders/${pedidoId}/cancel`, { reason: motivo }),
+        exito: () => this.notificar(`Pedido ${pedidoId} cancelado.`),
       })
     },
 

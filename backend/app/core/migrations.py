@@ -54,7 +54,16 @@ def _add_column(conn: Connection, table: str, column: str) -> None:
 # table -> [(column, SQL type)]: nullable plain columns for the delivery address feature
 _PLAIN_COLUMNS = {
     "users": [("address", "TEXT"), ("lat", "FLOAT"), ("lng", "FLOAT")],
-    "orders": [("delivery_lat", "FLOAT"), ("delivery_lng", "FLOAT")],
+    "orders": [
+        ("delivery_lat", "FLOAT"),
+        ("delivery_lng", "FLOAT"),
+        ("idempotency_key", "VARCHAR(64)"),
+    ],
+}
+
+# Unique indexes over plain columns, created once their columns exist.
+_PLAIN_INDEXES = {
+    "orders": [("ix_orders_customer_idempotency", ("customer_id", "idempotency_key"))],
 }
 
 
@@ -134,4 +143,17 @@ def run_startup_migrations(engine: Engine) -> None:
                 continue
             for column, sqltype in specs:
                 _add_plain_column(conn, table, column, sqltype)
+        for table, indexes in _PLAIN_INDEXES.items():
+            if table not in tables:
+                continue
+            present = {c["name"] for c in inspect(conn).get_columns(table)}
+            for index_name, columns in indexes:
+                if not set(columns) <= present:  # partial legacy schema: nothing to index yet
+                    continue
+                conn.execute(
+                    text(
+                        f"CREATE UNIQUE INDEX IF NOT EXISTS {index_name} "
+                        f"ON {table} ({', '.join(columns)})"
+                    )
+                )
         logger.info("migration: statuses rewritten: %d", _rewrite_statuses(conn, tables))
