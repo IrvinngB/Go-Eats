@@ -31,7 +31,7 @@ services:
       - key: NODE_VERSION
         value: "22"
       - key: VITE_API_URL
-        value: https://goeats-api.onrender.com/api/v1
+        value: https://goeats-api-clf9.onrender.com/api/v1
       - key: VITE_ENABLE_DEMO_SWITCHER
         value: "true"
     headers:
