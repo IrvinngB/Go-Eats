@@ -1,0 +1,58 @@
+# Render Blueprint — Go Eats (PWA estática + FastAPI + Postgres)
+services:
+  # --- API FastAPI ---
+  - type: web
+    name: goeats-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    region: virginia
+    buildCommand: pip install -r requirements.txt
+    # init_db crea tablas, corre migraciones idempotentes y siembra datos (solo si hay < 40 órdenes)
+    startCommand: python -m app.init_db && gunicorn app.main:app -w 2 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: goeats-db
+          property: connectionString
+      - key: JWT_SECRET_KEY
+        generateValue: true
+
+  # --- PWA Vue (sitio estático, sin Caddy) ---
+  - type: web
+    name: goeats-web
+    runtime: static
+    buildCommand: npm install -g pnpm@11.2.2 && pnpm install --frozen-lockfile && pnpm build
+    staticPublishPath: dist
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: VITE_API_URL
+        value: https://goeats-api.onrender.com/api/v1
+      - key: VITE_ENABLE_DEMO_SWITCHER
+        value: "true"
+    headers:
+      # Igual que en el Caddyfile: el service worker nunca se cachea
+      - path: /sw.js
+        name: Cache-Control
+        value: no-cache
+      - path: /registerSW.js
+        name: Cache-Control
+        value: no-cache
+      - path: /manifest.webmanifest
+        name: Cache-Control
+        value: no-cache
+    routes:
+      # Fallback SPA para Vue Router (history mode)
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+databases:
+  - name: goeats-db
+    plan: free
+    region: virginia
+    postgresMajorVersion: "16"

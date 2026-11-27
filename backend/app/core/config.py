@@ -7,10 +7,18 @@ def env_flag(value: str | None) -> bool:
     return (value or "").strip().lower() in {"1", "true", "yes"}
 
 
+def normalize_db_url(url: str) -> str:
+    """Render/Heroku dan `postgres://` o `postgresql://`; SQLAlchemy necesita el driver psycopg 3."""
+    for prefix in ("postgres://", "postgresql://"):
+        if url.startswith(prefix):
+            return "postgresql+psycopg://" + url[len(prefix):]
+    return url
+
+
 class Settings(BaseModel):
     app_name: str = "Go Eats API"
     api_v1_prefix: str = "/api/v1"
-    database_url: str = os.getenv("DATABASE_URL", "sqlite:///./goeats.db")
+    database_url: str = normalize_db_url(os.getenv("DATABASE_URL", "sqlite:///./goeats.db"))
     jwt_secret_key: str = os.getenv("JWT_SECRET_KEY", "dev-secret-key-change-in-prod-goeats")
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
