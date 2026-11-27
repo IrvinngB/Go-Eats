@@ -1,5 +1,9 @@
 import os
+from collections.abc import Mapping
 from pydantic import BaseModel
+
+# Local-only fallback. Production must inject its own secret (see validate_runtime_settings).
+DEFAULT_JWT_SECRET = "dev-secret-key-change-in-prod-goeats"
 
 
 def env_flag(value: str | None) -> bool:
@@ -19,7 +23,7 @@ class Settings(BaseModel):
     app_name: str = "Go Eats API"
     api_v1_prefix: str = "/api/v1"
     database_url: str = normalize_db_url(os.getenv("DATABASE_URL", "sqlite:///./goeats.db"))
-    jwt_secret_key: str = os.getenv("JWT_SECRET_KEY", "dev-secret-key-change-in-prod-goeats")
+    jwt_secret_key: str = os.getenv("JWT_SECRET_KEY", DEFAULT_JWT_SECRET)
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
@@ -34,3 +38,18 @@ class Settings(BaseModel):
 
 
 settings = Settings()
+
+
+def is_production(environ: Mapping[str, str]) -> bool:
+    """Render sets RENDER=true on every service; APP_ENV=production covers other hosts."""
+    return env_flag(environ.get("RENDER")) or environ.get("APP_ENV", "").lower() == "production"
+
+
+def validate_runtime_settings(environ: Mapping[str, str] | None = None) -> None:
+    """Fail fast instead of signing production tokens with the public, hard-coded secret."""
+    environ = os.environ if environ is None else environ
+    if not is_production(environ):
+        return
+    secret = (environ.get("JWT_SECRET_KEY") or "").strip()
+    if not secret or secret == DEFAULT_JWT_SECRET:
+        raise RuntimeError("JWT_SECRET_KEY must be set to a private value in production.")

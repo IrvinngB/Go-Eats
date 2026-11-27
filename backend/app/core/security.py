@@ -5,12 +5,25 @@ import jwt
 from app.core.config import settings
 
 
+# bcrypt only reads the first 72 bytes; bcrypt>=5 raises instead of silently truncating.
+BCRYPT_MAX_BYTES = 72
+
+
+def password_fits_bcrypt(password: str) -> bool:
+    return len(password.encode("utf-8")) <= BCRYPT_MAX_BYTES
+
+
 def hash_password(password: str) -> str:
+    if not password_fits_bcrypt(password):
+        raise ValueError(f"Password must be at most {BCRYPT_MAX_BYTES} bytes.")
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
+    # A password bcrypt could never have hashed cannot match: answer False, never raise.
+    if not password_fits_bcrypt(plain_password):
+        return False
     return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
 
 

@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from app.core.config import settings
+from app.core.config import settings, validate_runtime_settings
 from app.core.database import Base, SessionLocal, engine
 from app.core.migrations import run_startup_migrations
 from app.domains.auth.router import router as auth_router
@@ -22,6 +22,7 @@ from app.shared.codes import CodeGenerationError
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
+    validate_runtime_settings()
     Base.metadata.create_all(bind=engine)
     run_startup_migrations(engine)
     with SessionLocal() as db:

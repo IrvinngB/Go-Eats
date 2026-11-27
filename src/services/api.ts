@@ -35,7 +35,8 @@ function notifySessionExpired() {
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api/v1',
-  timeout: 10000,
+  // Render's free tier sleeps after 15 min idle and takes ~1 min to wake: 10 s cut every first login.
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
   },

@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [Unreleased]
+
+### Added
+- Render Blueprint (`render.yaml`): FastAPI web service, static PWA with SPA rewrite, Postgres 16. `DATABASE_URL` is normalized to `postgresql+psycopg://`.
+
+### Fixed
+- Passwords over 72 UTF-8 bytes return `422` on register and `401` on login instead of a `500` from `bcrypt>=5`.
+- Account suspension (`RF-17`) applies on the next request: `get_current_user` checks `users.is_active` instead of trusting the access token for up to 30 minutes.
+- Electronic (`yappy`) orders cannot move forward (`confirmado`, …) without an approved payment; reject/cancel stay allowed.
+- Concurrent payments for one order are serialized with `SELECT … FOR UPDATE OF orders`, so the second one gets `409`.
+- Login shows "cuenta suspendida" (403) and server/validation messages instead of always "No se pudo conectar".
+- Axios timeout raised from 10 s to 60 s so the first request after a free-tier sleep does not fail.
+
+### Security
+- Production (`RENDER=true` or `APP_ENV=production`) refuses to start with a missing or default `JWT_SECRET_KEY`.
+- Size caps: order `notes` 500, item `notes` 200, `delivery_address` 300, status `reason` 500, rating `comment` 1000, max 30 cart lines.
+
+---
+
 ## [1.0.0] - 2026-11-22
 
 ### Added
