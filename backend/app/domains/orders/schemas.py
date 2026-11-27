@@ -8,7 +8,7 @@ class OrderItemCreate(BaseModel):
     # Price and name are server-derived from the catalog; extra client fields are ignored.
     product_code: str
     quantity: int = Field(..., ge=1, le=50)
-    notes: str = ""
+    notes: str = Field(default="", max_length=200)
 
 
 class OrderItemRead(BaseModel):
@@ -30,13 +30,14 @@ class OrderCreate(BaseModel):
     # Names, fee, prices and totals sent by the client are ignored (pydantic drops extras).
     merchant_code: str
     zone_slug: str
-    delivery_address: str = Field(..., min_length=4)
+    delivery_address: str = Field(..., min_length=4, max_length=300)
     # Optional frozen snapshot of the pin; taken from the payload only, never from the profile.
     delivery_lat: Latitude | None = None
     delivery_lng: Longitude | None = None
-    notes: str = ""
+    notes: str = Field(default="", max_length=500)
     payment_method: PaymentMethod
-    items: list[OrderItemCreate] = Field(..., min_length=1)
+    # Each line costs a catalog lookup: cap the cart so one request cannot fan out unbounded.
+    items: list[OrderItemCreate] = Field(..., min_length=1, max_length=30)
 
     @model_validator(mode="after")
     def _coords_together(self) -> "OrderCreate":
@@ -59,7 +60,7 @@ OrderStatus = Literal[
 class OrderStatusUpdate(BaseModel):
     # Canonical values only: spaced or accented variants are rejected with 422, never normalized.
     status: OrderStatus
-    reason: str | None = None
+    reason: str | None = Field(default=None, max_length=500)
 
 
 class OrderAssignCourier(BaseModel):
@@ -69,7 +70,7 @@ class OrderAssignCourier(BaseModel):
 class OrderRatingCreate(BaseModel):
     merchant_stars: int = Field(..., ge=1, le=5)
     courier_stars: int = Field(..., ge=1, le=5)
-    comment: str = ""
+    comment: str = Field(default="", max_length=1000)
 
 
 class OrderRatingRead(BaseModel):

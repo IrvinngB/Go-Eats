@@ -34,14 +34,20 @@ class PaymentService:
             )
         return payment
 
-    def _own_order(self, user: CurrentUser, order_code: str) -> Order:
-        order = self.order_repo.get_by_code(order_code)
+    def _own_order(self, user: CurrentUser, order_code: str, lock: bool = False) -> Order:
+        # lock=True: two concurrent payments for one order queue on the row lock, so the
+        # second one sees the first payment in has_active_payment and gets a 409.
+        order = (
+            self.order_repo.get_by_code_for_update(order_code)
+            if lock
+            else self.order_repo.get_by_code(order_code)
+        )
         if not order or order.customer_id != user.user_id:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found.")
         return order
 
     def process_payment(self, user: CurrentUser, payload: PaymentCreate) -> Payment:
-        order = self._own_order(user, payload.order_code)
+        order = self._own_order(user, payload.order_code, lock=True)
         if order.status != "pendiente":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

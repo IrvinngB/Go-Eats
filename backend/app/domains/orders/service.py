@@ -24,6 +24,8 @@ logger = logging.getLogger(__name__)
 
 TERMINAL_STATES = frozenset({"entregado", "rechazado", "cancelado"})
 REASON_REQUIRED = frozenset({"rechazado", "cancelado"})
+# Electronic methods are charged up front: the order may only move forward once paid.
+PREPAID_METHODS = frozenset({"yappy"})
 
 # Section 3.3: forward chain plus rechazado/cancelado from any non-terminal state.
 VALID_TRANSITIONS: dict[str, set[str]] = {
@@ -205,6 +207,15 @@ class OrderService:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid state transition from '{order.status}' to '{payload.status}'.",
+            )
+        if (
+            order.payment_method in PREPAID_METHODS
+            and payload.status not in REASON_REQUIRED
+            and order.payment_status != "pagado"
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El pedido usa pago electrónico y aún no tiene un pago aprobado.",
             )
         reason = payload.reason.strip() if payload.reason else None
         if payload.status in REASON_REQUIRED and not reason:

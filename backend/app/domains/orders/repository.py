@@ -52,6 +52,14 @@ class OrderRepository:
         )
         return self.db.scalars(stmt).first()
 
+    def lock_statement(self, code: str):
+        """SELECT ... FOR UPDATE OF orders (no-op on SQLite): serializes writers on one order."""
+        return select(Order).where(Order.code == code).with_for_update(of=Order)
+
+    def get_by_code_for_update(self, code: str) -> Order | None:
+        """Read the order holding its row lock until the caller's transaction commits."""
+        return self.db.scalars(self.lock_statement(code)).first()
+
     def create(
         self,
         customer_id: int,

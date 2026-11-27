@@ -266,6 +266,13 @@ export const useGoEatsStore = defineStore('goeats', {
         if (err?.response?.status === 400 || err?.response?.status === 401 || err?.response?.status === 409) {
           return { ok: false, mensaje: err.response?.data?.detail || 'Credenciales inválidas.' }
         }
+        if (err?.response?.status === 403) {
+          return { ok: false, mensaje: 'Tu cuenta está suspendida. Contacta al administrador.' }
+        }
+        // Hubo respuesta HTTP (422, 5xx…): el servidor sí respondió, no culpar a la conexión.
+        if (typeof err?.response?.status === 'number') {
+          return { ok: false, mensaje: toWriteError(err).message }
+        }
         // Sin respaldo offline: un error de red nunca autentica ni asigna rol localmente.
         return { ok: false, mensaje: 'No se pudo conectar con el servidor. Inténtalo de nuevo.' }
       }

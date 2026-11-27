@@ -101,3 +101,9 @@ describe('session expired hook', () => {
     await expect(api.get('/orders/')).rejects.toMatchObject({ message: 'nope' })
   })
 })
+
+describe('request timeout', () => {
+  it('waits long enough for a sleeping free-tier API to wake up (~1 min)', () => {
+    expect(api.defaults.timeout).toBeGreaterThanOrEqual(60000)
+  })
+})

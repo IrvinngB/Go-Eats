@@ -214,6 +214,31 @@ describe('autenticarUsuario without offline fake login', () => {
     expect(res).toEqual({ ok: false, mensaje: 'Credenciales inválidas.' })
   })
 
+  it('a suspended account (403) says so instead of blaming the connection', async () => {
+    post.mockRejectedValue({ response: { status: 403, data: { detail: 'User account is suspended.' } } })
+    const store = useGoEatsStore()
+    const res = await store.autenticarUsuario({ email: 'a@b.pa', password: 'x' })
+    expect(res.ok).toBe(false)
+    expect(res.mensaje).toMatch(/suspendida/i)
+    expect(res.mensaje).not.toMatch(/conectar/i)
+  })
+
+  it('a server error (500) is reported as a server problem, not as no connection', async () => {
+    post.mockRejectedValue({ response: { status: 500, data: {} } })
+    const store = useGoEatsStore()
+    const res = await store.autenticarUsuario({ email: 'a@b.pa', password: 'x' })
+    expect(res.ok).toBe(false)
+    expect(res.mensaje).toMatch(/servidor tuvo un problema/i)
+  })
+
+  it('a validation error (422) is reported as invalid data, not as no connection', async () => {
+    post.mockRejectedValue({ response: { status: 422, data: { detail: [{ msg: 'too long' }] } } })
+    const store = useGoEatsStore()
+    const res = await store.autenticarUsuario({ email: 'a@b.pa', password: 'x', modoRegistro: true })
+    expect(res.ok).toBe(false)
+    expect(res.mensaje).toMatch(/no son válidos/i)
+  })
+
   it('logout clears linked entities', async () => {
     serve({ '/merchants/mine': merchant })
     const store = loggedIn('merchant')
