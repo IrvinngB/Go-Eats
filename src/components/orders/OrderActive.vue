@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { Bike, Map as MapIcon, Phone, Star } from '@lucide/vue'
+import { computed, ref } from 'vue'
+import { Bike, Map as MapIcon, Phone, Star, XCircle } from '@lucide/vue'
 import CoverageMap from '../CoverageMap.vue'
 import OrderHead from './OrderHead.vue'
 import OrderItems from './OrderItems.vue'
@@ -29,7 +29,19 @@ const props = defineProps<{
   mapaAbierto?: boolean
 }>()
 
-const emit = defineEmits<{ (e: 'toggle-mapa'): void }>()
+const emit = defineEmits<{ (e: 'toggle-mapa'): void; (e: 'cancelar'): void }>()
+
+// The customer may withdraw an order only before the merchant acts and before paying.
+const cancelable = computed(() => props.pedido.estado === 'pendiente' && props.pedido.pagoEstado !== 'pagado')
+const confirmandoCancelacion = ref(false)
+function pedirCancelacion() {
+  if (!confirmandoCancelacion.value) {
+    confirmandoCancelacion.value = true // first tap only arms it: no accidental cancellations
+    return
+  }
+  confirmandoCancelacion.value = false
+  emit('cancelar')
+}
 
 const visual = computed(() => estadoVisual(props.pedido.estado))
 const eta = computed(() => (visual.value.enCurso ? etaDeComercio(props.tiempoComercio) : null))
@@ -118,6 +130,16 @@ const rating = computed(() => formatRating(props.repartidor?.rating, ''))
             <StatusChip :estado="pedido.estado" />
           </div>
           <OrderProgress :estado="pedido.estado" />
+          <button
+            v-if="cancelable"
+            type="button"
+            class="cx-btn cx-btn-secondary"
+            data-test="order-cancel"
+            @click="pedirCancelacion"
+          >
+            <XCircle :size="20" aria-hidden="true" />
+            <span>{{ confirmandoCancelacion ? 'Confirmar cancelación' : 'Cancelar pedido' }}</span>
+          </button>
         </section>
 
         <!-- Timeline tile -->

@@ -1,3 +1,4 @@
+from app.core.config import validate_runtime_settings
 from app.core.database import Base, SessionLocal, engine
 from app.core.migrations import run_startup_migrations
 from app.domains.catalog.models import Product  # noqa: F401
@@ -12,6 +13,7 @@ from app.seed import seed_initial_data
 
 
 def init() -> None:
+    validate_runtime_settings()
     Base.metadata.create_all(bind=engine)
     run_startup_migrations(engine)
     with SessionLocal() as db:

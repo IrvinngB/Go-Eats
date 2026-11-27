@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timedelta, timezone
 
 from fastapi import BackgroundTasks, HTTPException, status
 from sqlalchemy.orm import Session
@@ -24,6 +25,13 @@ logger = logging.getLogger(__name__)
 
 TERMINAL_STATES = frozenset({"entregado", "rechazado", "cancelado"})
 REASON_REQUIRED = frozenset({"rechazado", "cancelado"})
+# Electronic methods are charged up front: the order may only move forward once paid.
+PREPAID_METHODS = frozenset({"yappy"})
+# An electronic order left unpaid this long is cancelled so it stops cluttering the merchant.
+PREPAID_PAYMENT_WINDOW = timedelta(minutes=15)
+PREPAID_EXPIRED_REASON = "Pago no completado a tiempo"
+# Anti-spam: open (pendiente) orders a single customer may hold at once.
+PENDING_ORDERS_LIMIT = 5  # the seeded demo customer already holds 2
 
 # Section 3.3: forward chain plus rechazado/cancelado from any non-terminal state.
 VALID_TRANSITIONS: dict[str, set[str]] = {
@@ -68,6 +76,28 @@ class OrderService:
             courier_code=courier_code,
         )
 
+    def expire_stale_prepaid_orders(self) -> int:
+        """Lazily cancel electronic orders still unpaid after the payment window.
+
+        There is no scheduler on the free tier, so this runs on the read/create paths.
+        """
+        cutoff = datetime.now(timezone.utc) - PREPAID_PAYMENT_WINDOW
+        expired = 0
+        for order in self.repo.list_pending_created_before(PREPAID_METHODS, cutoff):
+            if order.payment_status == "pagado":
+                continue
+            self.repo.update_status(
+                order, "cancelado", actor="sistema:pago", reason=PREPAID_EXPIRED_REASON
+            )
+            record_audit_event(
+                self.db,
+                "sistema:pago",
+                f"Pedido {order.code} cancelado: pago no completado a tiempo",
+                "pedido",
+            )
+            expired += 1
+        return expired
+
     def list_for(
         self,
         user: CurrentUser,
@@ -75,6 +105,7 @@ class OrderService:
         courier_code: str | None = None,
     ) -> list[Order]:
         """Role-scoped listing. Query filters can only narrow the caller's scope (AND)."""
+        self.expire_stale_prepaid_orders()
         scope: dict = {}
         if user.role == UserRole.CUSTOMER:
             scope["customer_id"] = user.user_id
@@ -112,6 +143,7 @@ class OrderService:
         return False
 
     def get_order_for(self, user: CurrentUser, code: str) -> Order:
+        self.expire_stale_prepaid_orders()
         order = self.get_order(code)
         if not self._in_scope(user, order):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found.")
@@ -127,8 +159,29 @@ class OrderService:
         return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
 
     def create_order(
-        self, customer_id: int, payload: OrderCreate, background_tasks: BackgroundTasks
-    ) -> Order:
+        self,
+        customer_id: int,
+        payload: OrderCreate,
+        background_tasks: BackgroundTasks,
+        idempotency_key: str | None = None,
+    ) -> tuple[Order, bool]:
+        """Returns (order, created). A replayed Idempotency-Key returns the original order."""
+        self.expire_stale_prepaid_orders()  # commits: must run before taking the row lock
+        # Serialize this customer's checkouts so the replay check and the cap cannot race.
+        self.user_repo.lock(customer_id)
+        if idempotency_key:
+            existing = self.repo.get_by_idempotency_key(customer_id, idempotency_key)
+            if existing:
+                return self.get_order(existing.code), False
+        if self.repo.count_pending(customer_id) >= PENDING_ORDERS_LIMIT:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    f"Ya tienes {PENDING_ORDERS_LIMIT} pedidos pendientes. "
+                    "Espera a que el comercio los atienda o cancela alguno."
+                ),
+            )
+
         merchant = self.merchant_repo.get_by_code(payload.merchant_code)
         if not merchant:
             raise self._bad_request("Merchant not found.")
@@ -164,6 +217,7 @@ class OrderService:
             priced_items=priced,
             delivery_fee=calculate_delivery_fee(zone.delivery_fee, zone.distance_km),
             actor=customer_name,
+            idempotency_key=idempotency_key,
         )
         record_audit_event(
             self.db,
@@ -177,7 +231,29 @@ class OrderService:
             f"Pedido {order.code} recibido",
             f"Tu pedido en {order.merchant_name} fue registrado.",
         )
-        return order
+        return order, True
+
+    def cancel_by_customer(self, user: CurrentUser, code: str, reason: str) -> Order:
+        """A customer may withdraw an order only before the merchant acts and before paying."""
+        order = self.get_order_for(user, code)  # another customer's order: 404
+        reason = reason.strip()
+        if not reason:
+            raise self._bad_request("Indica el motivo de la cancelación.")
+        if order.status != "pendiente":
+            raise self._bad_request(
+                "Solo puedes cancelar mientras el pedido está pendiente; contacta al comercio."
+            )
+        if order.payment_status == "pagado":
+            raise self._bad_request(
+                "El pedido ya está pagado; contacta al comercio para cancelarlo."
+            )
+        updated = self.repo.update_status(
+            order, "cancelado", actor=f"customer:{user.user_id}", reason=reason
+        )
+        record_audit_event(
+            self.db, updated.customer_name, f"Canceló su pedido {updated.code}", "pedido"
+        )
+        return updated
 
     def update_status(
         self,
@@ -205,6 +281,15 @@ class OrderService:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid state transition from '{order.status}' to '{payload.status}'.",
+            )
+        if (
+            order.payment_method in PREPAID_METHODS
+            and payload.status not in REASON_REQUIRED
+            and order.payment_status != "pagado"
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El pedido usa pago electrónico y aún no tiene un pago aprobado.",
             )
         reason = payload.reason.strip() if payload.reason else None
         if payload.status in REASON_REQUIRED and not reason:

@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, select
+from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, Text, select
 from sqlalchemy.orm import Mapped, column_property, mapped_column, relationship
 from app.core.database import Base
 from app.domains.payments.models import Payment
@@ -9,6 +9,10 @@ class Order(Base):
     """Order entity with frozen pricing and delivery address snapshots (Section 3.4)."""
 
     __tablename__ = "orders"
+    # One order per (customer, Idempotency-Key). NULL keys never collide (SQLite and PG).
+    __table_args__ = (
+        Index("ix_orders_customer_idempotency", "customer_id", "idempotency_key", unique=True),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     code: Mapped[str] = mapped_column(String(40), unique=True, index=True, nullable=False)
@@ -26,6 +30,7 @@ class Order(Base):
     status: Mapped[str] = mapped_column(String(40), default="pendiente", index=True, nullable=False)
     courier_code: Mapped[str | None] = mapped_column(String(40), index=True, nullable=True)
     cancellation_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    idempotency_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
     subtotal: Mapped[float] = mapped_column(Float, nullable=False)
     delivery_fee: Mapped[float] = mapped_column(Float, nullable=False)
     total: Mapped[float] = mapped_column(Float, nullable=False)

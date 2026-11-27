@@ -3,8 +3,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 class ProductCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=150)
-    description: str = ""
-    category: str = "General"
+    description: str = Field(default="", max_length=1000)
+    category: str = Field(default="General", max_length=60)
     price: float = Field(..., gt=0)
     promo_price: float | None = Field(default=None, gt=0)
     is_available: bool = True
@@ -18,8 +18,8 @@ class ProductCreate(BaseModel):
 
 class ProductUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=2, max_length=150)
-    description: str | None = None
-    category: str | None = None
+    description: str | None = Field(default=None, max_length=1000)
+    category: str | None = Field(default=None, max_length=60)
     price: float | None = Field(default=None, gt=0)
     promo_price: float | None = Field(default=None, gt=0)
     is_available: bool | None = None

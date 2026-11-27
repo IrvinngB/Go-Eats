@@ -1,9 +1,11 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, Query, Response, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.rate_limit import limit_by_user
 from app.core.rbac import CurrentUser, UserRole, get_current_user, require_roles
 from app.domains.orders.schemas import (
     OrderAssignCourier,
+    OrderCancel,
     OrderCreate,
     OrderRatingCreate,
     OrderRead,
@@ -40,11 +42,30 @@ def get_order(
 def create_order(
     payload: OrderCreate,
     background_tasks: BackgroundTasks,
+    response: Response,
     current_user: CurrentUser = Depends(require_roles(UserRole.CUSTOMER)),
     _consent: CurrentUser = Depends(require_active_consent),
+    _rate: None = Depends(limit_by_user("orders:create", 10, 60)),
+    # Sent once per checkout attempt: a double tap or a network retry replays, never duplicates.
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key", max_length=64),
     db: Session = Depends(get_db),
 ) -> OrderRead:
-    return OrderService(db).create_order(current_user.user_id, payload, background_tasks)
+    order, created = OrderService(db).create_order(
+        current_user.user_id, payload, background_tasks, idempotency_key=idempotency_key
+    )
+    if not created:
+        response.status_code = status.HTTP_200_OK
+    return order
+
+
+@router.post("/{code}/cancel", response_model=OrderRead)
+def cancel_own_order(
+    code: str,
+    payload: OrderCancel,
+    current_user: CurrentUser = Depends(require_roles(UserRole.CUSTOMER)),
+    db: Session = Depends(get_db),
+) -> OrderRead:
+    return OrderService(db).cancel_by_customer(current_user, code, payload.reason)
 
 
 @router.patch("/{code}/status", response_model=OrderRead)

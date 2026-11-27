@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from app.domains.catalog.models import Product
 from app.domains.catalog.schemas import ProductCreate, ProductUpdate
@@ -19,6 +19,10 @@ class ProductRepository:
             .order_by(Product.id.asc())
         )
         return list(self.db.scalars(stmt).all())
+
+    def count_by_merchant(self, merchant_code: str) -> int:
+        stmt = select(func.count(Product.id)).where(Product.merchant_code == merchant_code)
+        return self.db.scalar(stmt) or 0
 
     def get_by_code(self, code: str) -> Product | None:
         return self.db.scalars(select(Product).where(Product.code == code)).first()

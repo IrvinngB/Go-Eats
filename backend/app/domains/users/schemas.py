@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import Literal
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 from app.core.rbac import UserRole
+from app.core.security import BCRYPT_MAX_BYTES, password_fits_bcrypt
 from app.shared.coordinates import Latitude, Longitude, ensure_both_or_neither
 
 
@@ -11,6 +12,14 @@ class UserCreate(BaseModel):
     phone: str = Field(default="", max_length=40)
     password: str = Field(..., min_length=6, max_length=128)
     accepts_privacy_policy: bool
+
+    @field_validator("password")
+    @classmethod
+    def _fits_bcrypt(cls, value: str) -> str:
+        # Counted in UTF-8 bytes: "ñ" or "á" take two of the 72.
+        if not password_fits_bcrypt(value):
+            raise ValueError(f"Password must be at most {BCRYPT_MAX_BYTES} bytes.")
+        return value
 
 
 class UserUpdate(BaseModel):

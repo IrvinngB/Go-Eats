@@ -123,6 +123,7 @@ const estrellasLlenas = (valor) => Array.from({ length: 5 }, (_, i) => i < valor
           :primaria="p.id === primarioMapa"
           :mapa-abierto="pedidoEnMapa === p.id"
           @toggle-mapa="toggleMapa(p.id)"
+          @cancelar="store.cancelarMiPedido(p.id)"
         />
       </section>
 

@@ -53,3 +53,12 @@ describe('toWriteError', () => {
     expect(toWriteError('weird')).toMatchObject({ kind: 'unknown', status: 0 })
   })
 })
+
+describe('toWriteError: rate limiting', () => {
+  it('maps a 429 to rate_limited with a wait-and-retry message', () => {
+    const e = toWriteError({ response: { status: 429, data: { detail: 'rate_limited' } } })
+    expect(e.kind).toBe('rate_limited')
+    expect(e.status).toBe(429)
+    expect(e.message).toMatch(/demasiados intentos/i)
+  })
+})

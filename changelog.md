@@ -6,6 +6,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [Unreleased]
+
+### Added
+- Render Blueprint (`render.yaml`): FastAPI web service, static PWA with SPA rewrite, Postgres 16. `DATABASE_URL` is normalized to `postgresql+psycopg://`.
+
+### Fixed
+- Passwords over 72 UTF-8 bytes return `422` on register and `401` on login instead of a `500` from `bcrypt>=5`.
+- Account suspension (`RF-17`) applies on the next request: `get_current_user` checks `users.is_active` instead of trusting the access token for up to 30 minutes.
+- Electronic (`yappy`) orders cannot move forward (`confirmado`, …) without an approved payment; reject/cancel stay allowed.
+- Concurrent payments for one order are serialized with `SELECT … FOR UPDATE OF orders`, so the second one gets `409`.
+- Login shows "cuenta suspendida" (403) and server/validation messages instead of always "No se pudo conectar".
+- Axios timeout raised from 10 s to 60 s so the first request after a free-tier sleep does not fail.
+
+### Added (abuse limits)
+- Customers hold at most 5 `pendiente` orders at once (`409` beyond that).
+- `POST /orders/` honours an `Idempotency-Key` header (unique per customer): a replay returns the original order with `200`. The PWA sends one key per checkout attempt.
+- In-process rate limits (`429` + `Retry-After`): login 10/min per IP, register 5/10 min per IP, order and payment creation 10/min per user. Client IP comes from `True-Client-IP` (Cloudflare, in front of Render).
+- Unpaid `yappy` orders are cancelled after 15 minutes ("Pago no completado a tiempo"), lazily on order reads and creation.
+- One open ARCO request per type per user (`409`).
+- At most 200 products per merchant (`409`); product `description` ≤ 1000 and `category` ≤ 60 characters.
+- `POST /orders/{code}/cancel`: the customer cancels their own order while it is `pendiente` and unpaid, with a two-tap button in "Mis pedidos". `PATCH /orders/{code}/status` stays closed to customers.
+
+### Security
+- Production (`RENDER=true` or `APP_ENV=production`) refuses to start with a missing or default `JWT_SECRET_KEY`.
+- Size caps: order `notes` 500, item `notes` 200, `delivery_address` 300, status `reason` 500, rating `comment` 1000, max 30 cart lines.
+
+---
+
 ## [1.0.0] - 2026-11-22
 
 ### Added

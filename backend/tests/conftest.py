@@ -14,6 +14,16 @@ from app.core.database import Base, get_db  # noqa: E402
 from app.main import app  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def _reset_rate_limits():
+    # Rate-limit counters are process-global: never let one test's hits leak into the next.
+    from app.core.rate_limit import limiter
+
+    limiter.reset()
+    yield
+    limiter.reset()
+
+
 @pytest.fixture()
 def db_engine():
     engine = create_engine(
